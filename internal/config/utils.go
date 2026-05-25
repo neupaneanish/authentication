@@ -24,6 +24,11 @@ const (
 	databaseConnIdle      = 1 * time.Minute
 	databasePingTimeout   = 5 * time.Second
 	accessExpiry          = 15 * time.Minute
+
+	imageSize         = 250
+	period            = 30
+	recoveryCodeCount = 10
+	recoveryCodeBytes = 5
 )
 
 type Env struct {
@@ -46,6 +51,7 @@ type Config struct {
 	Environment string
 	ServiceName string
 	Jwt         *JWT
+	TwoFactor   *TwoFactor
 }
 
 type JWT struct {
@@ -64,6 +70,22 @@ type JwtClaims struct {
 	jwt.RegisteredClaims
 
 	Role string
+}
+
+type TwoFactor struct {
+	key    []byte
+	issuer string
+}
+
+type GenerateTwoFactor struct {
+	Secret string
+	Image  []byte
+	URL    string
+}
+
+type RecoveryCodes struct {
+	Plain []string
+	Hash  [][]byte
 }
 
 func validateKey(key string) ([]byte, ed25519.PrivateKey, ed25519.PublicKey, error) {
