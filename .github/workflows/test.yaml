@@ -1,4 +1,4 @@
-name: integration.yaml
+name: test.yaml
 
 on:
   push:
