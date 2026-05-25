@@ -58,6 +58,8 @@ func NewTransport(
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
+	register(cfg, server)
+
 	go func() {
 		cfg.Logger.InfoContext(ctx, "gRPC server listening", "port", cfg.Port)
 		healthServer.SetServingStatus(cfg.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
