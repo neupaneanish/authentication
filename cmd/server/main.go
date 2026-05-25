@@ -10,6 +10,7 @@ import (
 
 	"neupaneanish.com.np/api/internal/config"
 	"neupaneanish.com.np/api/internal/telemetry"
+	"neupaneanish.com.np/api/internal/transport"
 )
 
 const (
@@ -60,4 +61,19 @@ func main() {
 	}
 	logger.InfoContext(ctx, "Config loaded successfully")
 	defer cfg.Close()
+
+	serverErr := make(chan error, 1)
+
+	transportErr := transport.NewTransport(ctx, cfg, serverErr)
+	if transportErr != nil {
+		logger.ErrorContext(ctx, "Failed to initialize transport", "error", transportErr)
+		return
+	}
+
+	select {
+	case err := <-serverErr:
+		logger.ErrorContext(ctx, "gRPC server failed", "error", err)
+	case <-ctx.Done():
+		logger.InfoContext(ctx, "Shutting down signal received")
+	}
 }
