@@ -25,6 +25,11 @@ func NewConfig(
 		return nil, jwtErr
 	}
 
+	twoFactor, twoFactorErr := NewTwoFactor(env.TwoFactorKey, env.Issuer)
+	if twoFactorErr != nil {
+		return nil, twoFactorErr
+	}
+
 	return &Config{
 		Pool:        pool,
 		Client:      client,
@@ -33,6 +38,7 @@ func NewConfig(
 		Environment: env.Environment,
 		ServiceName: env.ServiceName,
 		Jwt:         jwt,
+		TwoFactor:   twoFactor,
 	}, nil
 }
 
