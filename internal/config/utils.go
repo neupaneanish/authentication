@@ -9,6 +9,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/valkey-io/valkey-go"
 )
 
 const (
@@ -39,6 +40,7 @@ type Env struct {
 
 type Config struct {
 	Pool        *pgxpool.Pool
+	Client      valkey.Client
 	Logger      *slog.Logger
 	Port        string
 	Environment string
