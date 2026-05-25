@@ -6,8 +6,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"neupaneanish.com.np/api/internal/config"
+	"neupaneanish.com.np/api/internal/telemetry"
+)
+
+const (
+	shutdownTimeout = 10 * time.Second
 )
 
 func main() {
@@ -21,10 +27,28 @@ func main() {
 	defer ctxStop()
 
 	baseLogger.InfoContext(ctx, "Environment loading")
-	_, envErr := config.LoadEnv()
+	env, envErr := config.LoadEnv()
 	if envErr != nil {
 		baseLogger.ErrorContext(ctx, "Environment loading failed", "error", envErr)
 		return
 	}
 	baseLogger.InfoContext(ctx, "Environment loaded successfully")
+
+	_, shutdown, loggerErr := telemetry.NewTelemetry(ctx, env.TelemetryURL, env.ServiceName, env.Environment)
+	if loggerErr != nil {
+		baseLogger.ErrorContext(ctx, "Telemetry Setup Failed", "error", loggerErr)
+		return
+	}
+	baseLogger.InfoContext(ctx, "Telemetry loaded successfully")
+
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(
+			context.Background(),
+			shutdownTimeout,
+		)
+		defer cancel()
+		if loggerErr = shutdown(shutdownCtx); loggerErr != nil {
+			baseLogger.ErrorContext(shutdownCtx, "Telemetry shutdown failed", "error", loggerErr)
+		}
+	}()
 }
