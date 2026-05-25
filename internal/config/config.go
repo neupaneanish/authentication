@@ -40,4 +40,7 @@ func (c *Config) Close() {
 	if c.Pool != nil {
 		c.Pool.Close()
 	}
+	if c.Client != nil {
+		c.Client.Close()
+	}
 }

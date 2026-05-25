@@ -34,7 +34,7 @@ func main() {
 	}
 	baseLogger.InfoContext(ctx, "Environment loaded successfully")
 
-	_, shutdown, loggerErr := telemetry.NewTelemetry(ctx, env.TelemetryURL, env.ServiceName, env.Environment)
+	logger, shutdown, loggerErr := telemetry.NewTelemetry(ctx, env.TelemetryURL, env.ServiceName, env.Environment)
 	if loggerErr != nil {
 		baseLogger.ErrorContext(ctx, "Telemetry Setup Failed", "error", loggerErr)
 		return
@@ -51,4 +51,13 @@ func main() {
 			baseLogger.ErrorContext(shutdownCtx, "Telemetry shutdown failed", "error", loggerErr)
 		}
 	}()
+
+	logger.InfoContext(ctx, "Config loading")
+	cfg, cfgErr := config.NewConfig(ctx, env, logger)
+	if cfgErr != nil {
+		logger.ErrorContext(ctx, "Failed to setup config", "error", cfgErr)
+		return
+	}
+	logger.InfoContext(ctx, "Config loaded successfully")
+	defer cfg.Close()
 }
