@@ -1,4 +1,4 @@
-name: testing.yaml
+name: golangci-lint.yaml
 
 on:
   push:
@@ -6,8 +6,11 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
-  test:
+  golangci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -16,10 +19,9 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          go-version: stable
 
-      - name: Install dependencies
-        run: go mod download
-
-      - name: Install dependencies
-        run: go test -v ./...
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-mode: v2.12
