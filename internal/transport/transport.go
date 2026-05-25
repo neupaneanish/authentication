@@ -10,11 +10,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"neupaneanish.com.np/api/internal/config"
 )
 
 const (
-	keepAlive = 15 * time.Second
+	keepAlive        = 15 * time.Second
+	maxConnectionAge = 5 * time.Minute
+	timeout          = 20 * time.Second
+	minTime          = 5 * time.Second
 )
 
 func NewTransport(
@@ -30,7 +34,27 @@ func NewTransport(
 		return fmt.Errorf("failed to listen on %s: %w", address, lisErr)
 	}
 
-	server := grpc.NewServer()
+	opts, optsErr := NewOptions(cfg)
+	if optsErr != nil {
+		return optsErr
+	}
+
+	keepaliveParams := grpc.KeepaliveParams(
+		keepalive.ServerParameters{
+			MaxConnectionAge: maxConnectionAge,
+			Time:             time.Minute,
+			Timeout:          timeout,
+		})
+
+	keepalivePolicy := grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+		MinTime:             minTime,
+		PermitWithoutStream: true,
+	})
+
+	opts = append(opts, keepaliveParams, keepalivePolicy)
+
+	server := grpc.NewServer(opts...)
+
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, healthServer)
 
