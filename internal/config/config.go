@@ -15,12 +15,18 @@ func NewConfig(
 		return nil, poolErr
 	}
 
+	jwt, jwtErr := NewJWT(env.JWTKey, env.Issuer)
+	if jwtErr != nil {
+		return nil, jwtErr
+	}
+
 	return &Config{
 		Pool:        pool,
 		Logger:      logger,
 		Port:        env.Port,
 		Environment: env.Environment,
 		ServiceName: env.ServiceName,
+		Jwt:         jwt,
 	}, nil
 }
 
