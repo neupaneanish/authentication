@@ -15,6 +15,11 @@ func NewConfig(
 		return nil, poolErr
 	}
 
+	client, clientErr := NewValkey(ctx, env.ValkeyURL)
+	if clientErr != nil {
+		return nil, clientErr
+	}
+
 	jwt, jwtErr := NewJWT(env.JWTKey, env.Issuer)
 	if jwtErr != nil {
 		return nil, jwtErr
@@ -22,6 +27,7 @@ func NewConfig(
 
 	return &Config{
 		Pool:        pool,
+		Client:      client,
 		Logger:      logger,
 		Port:        env.Port,
 		Environment: env.Environment,
