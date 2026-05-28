@@ -54,7 +54,7 @@ jobs:
       - name: Setup SQLc CLI
         uses: sqlc-dev/setup-sqlc@v5
         with:
-          sqlc-version: stable
+          sqlc-version: '1.31.1'
 
       - name: Run SQLc Generate
         run: sqlc generate
