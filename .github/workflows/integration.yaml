@@ -4,19 +4,26 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - '.github/workflows/**'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'go.mod'
-      - 'go.sum'
+      - .github/workflows/**
+      - cmd/**
+      - internal/**
+      - go.mod
+      - go.sum
+      - sqlc.yaml
+      - buf.yaml
+      - buf.gen.yaml
+
   pull_request:
     branches: [ "main" ]
     paths:
-      - '.github/workflows/**'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'go.mod'
-      - 'go.sum'
+      - .github/workflows/**
+      - cmd/**
+      - internal/**
+      - go.mod
+      - go.sum
+      - sqlc.yaml
+      - buf.yaml
+      - buf.gen.yaml
 
 jobs:
   integration:
@@ -35,6 +42,22 @@ jobs:
         with:
           go-version: stable
           cache: true
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: Run Buf Generate
+        run: buf generate
+
+      - name: Setup SQLc CLI
+        uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '1.31.1'
+
+      - name: Run SQLc Generate
+        run: sqlc generate
 
       - name: Install dependencies
         run: go mod download
