@@ -22,14 +22,35 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
+      - name: Configure Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          submodules: true
 
       - name: Setup Go
         uses: actions/setup-go@v6
         with:
           go-version: stable
           cache: true
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: Run Buf Generate
+        run: buf generate
+
+      - name: Setup SQLc CLI
+        uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '1.31.1'
+
+      - name: Run SQLc Generate
+        run: sqlc generate
 
       - name: Install dependencies
         run: go mod download
