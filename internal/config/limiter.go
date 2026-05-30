@@ -26,15 +26,6 @@ func NewLimiter(valkeyClient valkey.Client) (*Limiter, error) {
 		return nil, loginTwoFactorErr
 	}
 
-	loginTwoFactorEmail, loginTwoFactorEmailErr := limiter(
-		loginTwoFactorEmailLimiterPrefix,
-		twoFactorLimitEmailWindow,
-		valkeyClient,
-	)
-	if loginTwoFactorEmailErr != nil {
-		return nil, loginTwoFactorEmailErr
-	}
-
 	forgetPassword, forgetPasswordErr := limiter(
 		fpLimiterPrefix,
 		forgetPasswordLimiterWindow,
@@ -44,13 +35,13 @@ func NewLimiter(valkeyClient valkey.Client) (*Limiter, error) {
 		return nil, forgetPasswordErr
 	}
 
-	forgetPasswordVerification, forgetPasswordVerificationErr := limiter(
-		fpvLimiterPrefix,
+	verification, verificationErr := limiter(
+		verificationLimiterPrefix,
 		limiterWindow,
 		valkeyClient,
 	)
-	if forgetPasswordVerificationErr != nil {
-		return nil, forgetPasswordVerificationErr
+	if verificationErr != nil {
+		return nil, verificationErr
 	}
 
 	resetPassword, resetPasswordErr := limiter(
@@ -63,12 +54,11 @@ func NewLimiter(valkeyClient valkey.Client) (*Limiter, error) {
 	}
 
 	return &Limiter{
-		Login:                      login,
-		LoginTwoFactor:             loginTwoFactor,
-		LoginTwoFactorUserID:       loginTwoFactorEmail,
-		ForgetPassword:             forgetPassword,
-		ForgetPasswordVerification: forgetPasswordVerification,
-		ResetPassword:              resetPassword,
+		Login:          login,
+		LoginTwoFactor: loginTwoFactor,
+		ForgetPassword: forgetPassword,
+		Verification:   verification,
+		ResetPassword:  resetPassword,
 	}, nil
 }
 

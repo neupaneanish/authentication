@@ -31,16 +31,14 @@ const (
 	recoveryCodeCount = 10
 	recoveryCodeBytes = 5
 
-	loginLimiterPrefix               = "limiter:login"
-	loginTwoFactorLimiterPrefix      = "limiter:login:two:factor"
-	loginTwoFactorEmailLimiterPrefix = "limiter:login:two:email:factor"
-	fpLimiterPrefix                  = "limiter:forget:password"
-	fpvLimiterPrefix                 = "limiter:forget:password:verification"
-	rpLimiterPrefix                  = "limiter:reset:password"
+	loginLimiterPrefix          = "limiter:login"
+	loginTwoFactorLimiterPrefix = "limiter:login:two:factor"
+	fpLimiterPrefix             = "limiter:forget:password"
+	verificationLimiterPrefix   = "limiter:verification"
+	rpLimiterPrefix             = "limiter:reset:password"
 
-	limiterLimit              = 5
-	twoFactorLimitEmailWindow = 20 * time.Minute
-	limiterWindow             = 5 * time.Minute
+	limiterLimit  = 5
+	limiterWindow = 5 * time.Minute
 
 	forgetPasswordLimiterWindow = 10 * time.Minute
 )
@@ -104,12 +102,11 @@ type RecoveryCodes struct {
 }
 
 type Limiter struct {
-	Login                      valkeylimiter.RateLimiterClient
-	LoginTwoFactor             valkeylimiter.RateLimiterClient
-	LoginTwoFactorUserID       valkeylimiter.RateLimiterClient
-	ForgetPassword             valkeylimiter.RateLimiterClient
-	ForgetPasswordVerification valkeylimiter.RateLimiterClient
-	ResetPassword              valkeylimiter.RateLimiterClient
+	Login          valkeylimiter.RateLimiterClient
+	LoginTwoFactor valkeylimiter.RateLimiterClient
+	ForgetPassword valkeylimiter.RateLimiterClient
+	Verification   valkeylimiter.RateLimiterClient
+	ResetPassword  valkeylimiter.RateLimiterClient
 }
 
 func validateKey(key string) ([]byte, ed25519.PrivateKey, ed25519.PublicKey, error) {
