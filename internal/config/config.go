@@ -3,6 +3,8 @@ package config
 import (
 	"context"
 	"log/slog"
+
+	"neupaneanish.com.np/api/internal/repository"
 )
 
 func NewConfig(
@@ -45,6 +47,7 @@ func NewConfig(
 		Jwt:         jwt,
 		TwoFactor:   twoFactor,
 		RateLimiter: rateLimiter,
+		Repository:  repository.New(pool),
 	}, nil
 }
 

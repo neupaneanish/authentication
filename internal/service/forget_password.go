@@ -24,18 +24,17 @@ func (s *AuthService) ForgetPassword(
 
 	result, resultErr := s.cfg.RateLimiter.ForgetPassword.Allow(ctx, email)
 
-	if limiterErr := limiterCheck(ctx, &result, resultErr, serviceName, s.cfg.Logger, email); limiterErr != nil {
+	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, email); limiterErr != nil {
 		return nil, limiterErr
 	}
 
 	params := &repository.UserByEmailParams{Email: email}
-	repo := repository.New(s.cfg.Pool)
 
 	session := rand.Text()
 
 	response := &authv1.ForgetPasswordResponse{Session: session}
 
-	row, rowErr := repo.UserByEmail(ctx, params)
+	row, rowErr := s.cfg.Repository.UserByEmail(ctx, params)
 	if rowErr != nil {
 		if errors.Is(rowErr, pgx.ErrNoRows) {
 			s.cfg.Logger.WarnContext(ctx, serviceName+" not found", "email", email)

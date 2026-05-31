@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"neupaneanish.com.np/api/internal/repository"
 )
 
 const (
@@ -65,6 +66,7 @@ type Config struct {
 	Jwt         *JWT
 	TwoFactor   *TwoFactor
 	RateLimiter *Limiter
+	Repository  *repository.Queries
 }
 
 type JWT struct {

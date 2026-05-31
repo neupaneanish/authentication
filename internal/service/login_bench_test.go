@@ -18,8 +18,6 @@ func BenchmarkLogin(b *testing.B) {
 	_, _ = rand.Read(bytes)
 	runID := hex.EncodeToString(bytes)
 
-	b.StopTimer()
-
 	for i := 0; i < b.N; i++ {
 		email := fmt.Sprintf("email_%s_%d@test.com", runID, i)
 		err := seedUser(b.Context(), email, raw)
@@ -27,8 +25,7 @@ func BenchmarkLogin(b *testing.B) {
 			b.Fatalf("Failed to pre-seed benchmark user at index %d: %v", i, err)
 		}
 	}
-
-	b.StartTimer()
+	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
 		email := fmt.Sprintf("email_%s_%d@test.com", runID, i)

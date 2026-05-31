@@ -7,5 +7,6 @@ const (
 	AccessSessionExpiry  = 15 * time.Minute
 	RefreshSessionExpiry = 7 * 24 * time.Hour
 
-	emailCodeBytes = 4
+	emailCodeBytes          = 4
+	credentialsHistoryLimit = 5
 )
