@@ -3,6 +3,8 @@
 package service_test
 
 import (
+	"crypto/rand"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +19,8 @@ func TestForgetPassword(t *testing.T) {
 
 	t.Run("Unregister email", func(t *testing.T) {
 		t.Parallel()
-		req := &authv1.ForgetPasswordRequest{Email: "nonregister@test.com"}
+		email := fmt.Sprintf("%s@test.com", rand.Text())
+		req := &authv1.ForgetPasswordRequest{Email: email}
 
 		response, err := authServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
@@ -26,10 +29,11 @@ func TestForgetPassword(t *testing.T) {
 
 	t.Run("Register email", func(t *testing.T) {
 		t.Parallel()
-		seedErr := seedUser(t.Context(), "forgetPassword@test.com", "forgetPassword@123456")
+		_, seedErr := seedUser(t.Context(), "forgetPassword@test.com", "forgetPassword@123456")
 		require.NoError(t, seedErr)
 
-		req := &authv1.ForgetPasswordRequest{Email: "forgetPassword@test.com"}
+		email := fmt.Sprintf("%s@test.com", rand.Text())
+		req := &authv1.ForgetPasswordRequest{Email: email}
 
 		response, err := authServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
@@ -37,9 +41,10 @@ func TestForgetPassword(t *testing.T) {
 	})
 
 	t.Run("Rate limiter", func(t *testing.T) {
+		email := fmt.Sprintf("%s@test.com", rand.Text())
 		t.Run("Allowed", func(t *testing.T) {
 			for range 5 {
-				req := &authv1.ForgetPasswordRequest{Email: "limiter@test.com"}
+				req := &authv1.ForgetPasswordRequest{Email: email}
 				response, err := authServiceClient.ForgetPassword(t.Context(), req)
 				require.NoError(t, err)
 				assert.NotNil(t, response)
@@ -47,7 +52,7 @@ func TestForgetPassword(t *testing.T) {
 		})
 
 		t.Run("Blocked", func(t *testing.T) {
-			req := &authv1.ForgetPasswordRequest{Email: "limiter@test.com"}
+			req := &authv1.ForgetPasswordRequest{Email: email}
 			response, err := authServiceClient.ForgetPassword(t.Context(), req)
 			require.Error(t, err)
 			assert.Nil(t, response)

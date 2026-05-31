@@ -238,10 +238,10 @@ func runMigrations(url string) error {
 	return nil
 }
 
-func seedUser(ctx context.Context, email string, password string) error {
+func seedUser(ctx context.Context, email string, password string) (string, error) {
 	tx, txErr := cfg.Pool.Begin(ctx)
 	if txErr != nil {
-		return txErr
+		return "", txErr
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
@@ -259,12 +259,12 @@ func seedUser(ctx context.Context, email string, password string) error {
 	}
 	userRow, userRowErr := qtx.CreateUser(ctx, userParams)
 	if userRowErr != nil {
-		return userRowErr
+		return "", userRowErr
 	}
 
 	hash, hashErr := utils.CreatePassword(password)
 	if hashErr != nil {
-		return hashErr
+		return "", hashErr
 	}
 
 	credentialsParams := &repository.CreateCredentialParams{
@@ -275,16 +275,16 @@ func seedUser(ctx context.Context, email string, password string) error {
 
 	affected, credentialsErr := qtx.CreateCredential(ctx, credentialsParams)
 	if credentialsErr != nil {
-		return credentialsErr
+		return "", credentialsErr
 	}
 
 	if affected.RowsAffected() == 0 {
-		return errors.New("cannot create credentials")
+		return "", errors.New("cannot create credentials")
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
-		return txCommitErr
+		return "", txCommitErr
 	}
 
-	return nil
+	return userRow.ID.String(), nil
 }

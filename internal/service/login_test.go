@@ -3,6 +3,8 @@
 package service_test
 
 import (
+	"crypto/rand"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -14,9 +16,12 @@ import (
 )
 
 func TestLogin(t *testing.T) {
+	t.Parallel()
 	t.Run("Not register", func(t *testing.T) {
+		t.Parallel()
+		email := fmt.Sprintf("%s@test.com", rand.Text())
 		req := &authv1.LoginRequest{
-			Email: "nonregister@test.com",
+			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@1234",
 			},
@@ -31,9 +36,10 @@ func TestLogin(t *testing.T) {
 	})
 
 	t.Run("Registered user", func(t *testing.T) {
-		email := "test@test.com"
+		t.Parallel()
+		email := fmt.Sprintf("%s@test.com", rand.Text())
 		password := "Test@123456"
-		err := seedUser(t.Context(), email, password)
+		_, err := seedUser(t.Context(), email, password)
 		require.NoError(t, err)
 
 		req := &authv1.LoginRequest{
@@ -47,8 +53,10 @@ func TestLogin(t *testing.T) {
 	})
 
 	t.Run("Invalid Credentials", func(t *testing.T) {
+		t.Parallel()
+		email := fmt.Sprintf("%s@test.com", rand.Text())
 		req := &authv1.LoginRequest{
-			Email: "test@test.com",
+			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@123",
 			},
@@ -62,10 +70,29 @@ func TestLogin(t *testing.T) {
 		assert.Equal(t, codes.Unauthenticated, st.Code())
 	})
 
-	t.Run("Rate Limiter Allowed", func(t *testing.T) {
-		for range 5 {
+	t.Run("Rate Limiter", func(t *testing.T) {
+		email := fmt.Sprintf("%s@test.com", rand.Text())
+		t.Run("Allowed", func(t *testing.T) {
+			for range 5 {
+				req := &authv1.LoginRequest{
+					Email: email,
+					Password: &passwordv1.Password{
+						Value: "Password@1234",
+					},
+				}
+
+				response, err := authServiceClient.Login(t.Context(), req)
+				require.Error(t, err)
+				assert.Nil(t, response)
+
+				st, _ := status.FromError(err)
+				assert.Equal(t, codes.Unauthenticated, st.Code())
+			}
+		})
+
+		t.Run("Blocked", func(t *testing.T) {
 			req := &authv1.LoginRequest{
-				Email: "limiter@test.com",
+				Email: email,
 				Password: &passwordv1.Password{
 					Value: "Password@1234",
 				},
@@ -76,23 +103,7 @@ func TestLogin(t *testing.T) {
 			assert.Nil(t, response)
 
 			st, _ := status.FromError(err)
-			assert.Equal(t, codes.Unauthenticated, st.Code())
-		}
-	})
-
-	t.Run("Rate Limiter Blocked", func(t *testing.T) {
-		req := &authv1.LoginRequest{
-			Email: "limiter@test.com",
-			Password: &passwordv1.Password{
-				Value: "Password@1234",
-			},
-		}
-
-		response, err := authServiceClient.Login(t.Context(), req)
-		require.Error(t, err)
-		assert.Nil(t, response)
-
-		st, _ := status.FromError(err)
-		assert.Equal(t, codes.ResourceExhausted, st.Code())
+			assert.Equal(t, codes.ResourceExhausted, st.Code())
+		})
 	})
 }
