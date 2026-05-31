@@ -20,24 +20,10 @@ import (
 func TestVerification(t *testing.T) {
 	t.Parallel()
 
-	data := &service.ForgetPasswordSession{
-		Key:    rand.Text(),
-		ExAt:   time.Now().Add(service.SessionExpiry),
-		UserID: uuid.NewString(),
-		Code:   "A1B2C3D4",
-	}
-
-	hSetErr := redis.HSet[service.ForgetPasswordSession](
-		t.Context(),
-		service.ForgetPasswordSessionPrefix,
-		data,
-		cfg.Client,
-	)
-	require.NoError(t, hSetErr)
-
 	t.Run("Invalid session", func(t *testing.T) {
 		t.Parallel()
-		req := &authv1.VerificationRequest{Session: rand.Text(), Code: data.Code}
+
+		req := &authv1.VerificationRequest{Session: rand.Text(), Code: "12345678"}
 
 		response, responseErr := authServiceClient.Verification(t.Context(), req)
 		require.Error(t, responseErr)
@@ -48,7 +34,8 @@ func TestVerification(t *testing.T) {
 
 	t.Run("Valid session invalid code", func(t *testing.T) {
 		t.Parallel()
-		req := &authv1.VerificationRequest{Session: data.Key, Code: "12345678"}
+		session, _ := seedVerification(t)
+		req := &authv1.VerificationRequest{Session: session, Code: "12345678"}
 
 		response, responseErr := authServiceClient.Verification(t.Context(), req)
 		require.Error(t, responseErr)
@@ -59,7 +46,8 @@ func TestVerification(t *testing.T) {
 
 	t.Run("Valid session and code", func(t *testing.T) {
 		t.Parallel()
-		req := &authv1.VerificationRequest{Session: data.Key, Code: data.Code}
+		session, code := seedVerification(t)
+		req := &authv1.VerificationRequest{Session: session, Code: code}
 
 		response, responseErr := authServiceClient.Verification(t.Context(), req)
 		require.NoError(t, responseErr)
@@ -68,9 +56,8 @@ func TestVerification(t *testing.T) {
 
 	t.Run("Rate limiter", func(t *testing.T) {
 		session := rand.Text()
-		code := "1234ABCD"
 
-		req := &authv1.VerificationRequest{Session: session, Code: code}
+		req := &authv1.VerificationRequest{Session: session, Code: "12345678"}
 
 		t.Run("Allowed", func(t *testing.T) {
 			for range 5 {
@@ -90,4 +77,26 @@ func TestVerification(t *testing.T) {
 			assert.Equal(t, codes.ResourceExhausted, st.Code())
 		})
 	})
+}
+
+func seedVerification(t *testing.T) (string, string) {
+	t.Helper()
+	session := rand.Text()
+	code := "A1B2C3D4"
+
+	data := &service.ForgetPasswordSession{
+		Key:    session,
+		ExAt:   time.Now().Add(service.SessionExpiry),
+		UserID: uuid.NewString(),
+		Code:   code,
+	}
+
+	hSetErr := redis.HSet[service.ForgetPasswordSession](
+		t.Context(),
+		service.ForgetPasswordSessionPrefix,
+		data,
+		cfg.Client,
+	)
+	require.NoError(t, hSetErr)
+	return session, code
 }
