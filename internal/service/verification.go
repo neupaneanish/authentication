@@ -21,7 +21,7 @@ func (s *AuthService) Verification(
 
 	result, resultErr := s.cfg.RateLimiter.Verification.Allow(ctx, session)
 
-	if limiterErr := limiterCheck(ctx, &result, resultErr, serviceName, s.cfg.Logger, session); limiterErr != nil {
+	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, session); limiterErr != nil {
 		return nil, limiterErr
 	}
 

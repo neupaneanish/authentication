@@ -24,14 +24,13 @@ func (s *AuthService) Login(
 	email := req.GetEmail()
 
 	result, resultErr := s.cfg.RateLimiter.Login.Allow(ctx, email)
-	if limiterErr := limiterCheck(ctx, &result, resultErr, serviceName, s.cfg.Logger, email); limiterErr != nil {
+	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, email); limiterErr != nil {
 		return nil, limiterErr
 	}
 
 	params := &repository.LoginParams{Email: email}
-	repo := repository.New(s.cfg.Pool)
 
-	row, rowErr := repo.Login(ctx, params)
+	row, rowErr := s.cfg.Repository.Login(ctx, params)
 	if rowErr != nil {
 		if errors.Is(rowErr, pgx.ErrNoRows) {
 			s.cfg.Logger.WarnContext(ctx, serviceName+" not found", "email", email)
@@ -79,7 +78,7 @@ func (s *AuthService) Login(
 		}, nil
 	}
 
-	jwt, jwtErr := login(ctx, s.cfg.Jwt, row.ID.String(), string(row.Role), serviceName, s.cfg.Logger, s.cfg.Client)
+	jwt, jwtErr := s.login(ctx, row.ID.String(), string(row.Role), serviceName)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}
