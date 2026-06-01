@@ -45,7 +45,7 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 - [ ] Login Two Factor
 - [X] Forget Password
 - [X] Verification
-- [ ] Reset Password
+- [X] Reset Password
 
 ---
 
@@ -124,26 +124,24 @@ Benchmarks were executed on:
 - Architecture: amd64
 - CPU: Intel® Core™ i7-10750H @ 2.60GHz (12 Execution Threads)
 
-### Login Endpoint
+### Benchmarks (Parallel)
 
-I use Bcrypt **(Default Cost)** to secure passwords. To see how well this gRPC server scales under heavy traffic, I ran
+Used Bcrypt **(Default Cost)** to secure passwords. To see how well this gRPC server scales under heavy traffic, ran
 a benchmark. Seed user **before** benchmark and used **ResetTimer** for real data.
 
-| Run  | Size  | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) |
-|:----:|:-----:|:---------------:|:-------------:|:----------------:|
-| `1`  | `192` |    `6080764`    |    `58517`    |      `551`       |
-| `2`  | `166` |    `6427396`    |    `66771`    |      `595`       |
-| `3`  | `178` |    `6211621`    |    `65842`    |      `597`       |
-| `4`  | `180` |    `6886280`    |    `65578`    |      `583`       |
-| `5`  | `184` |    `6655233`    |    `63855`    |      `567`       |
-| `6`  | `196` |    `6399389`    |    `63668`    |      `584`       |
-| `7`  | `188` |    `6397436`    |    `66965`    |      `597`       |
-| `8`  | `168` |    `6619212`    |    `66441`    |      `581`       |
-| `9`  | `151` |    `7266336`    |    `59881`    |      `567`       |
-| `10` | `193` |    `6498513`    |    `61332`    |      `552`       |
+|    Endpoints     | Size  | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes |
+|:----------------:|:-----:|:---------------:|:-------------:|:----------------:|:--------------------:|
+|     `Login`      | `195` |    `6519490`    |    `65418`    |      `595`       |         `1`          |
+| `Reset Password` | `99`  |   `13423608`    |    `56968`    |      `539`       |     `2` (Max 6)      |
 
-**Takeaway:** Performance is highly consistent under full load, averaging roughly **6.4 ms per login**. Memory use and
-heap allocations stay completely flat, showing the request pipeline is clean and free of memory leaks.
+#### Security Architecture Notes:
+
+- **Login:** 1 Bcrypt operation baseline (utilizes `CompareHashAndPassword` to verify the incoming credentials against
+  the database record).
+- **Reset Password:** 2 Bcrypt operations baseline (1 `CompareHashAndPassword` to verify the active identity context + 1
+  `GenerateFromPassword` to securely hash the new replacement credentials). If a user has a fully populated password
+  history, the endpoint dynamically invokes up to 4 additional historical comparisons to prevent credential reuse,
+  scaling total passes to a maximum of 6.
 
 #### CPU Profile Graph
 
@@ -152,6 +150,10 @@ This execution chart was exported using `go tool pprof` during a standard benchm
 ![Login CPU Benchmark Image](docs/images/bench_login_cpu.svg)
 
 [Login CPU Benchmark Image](docs/images/bench_login_cpu.svg)
+
+![Reset Password CPU Benchmark Image](docs/images/bench_login_cpu.svg)
+
+[Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.svg)
 
 ---
 
