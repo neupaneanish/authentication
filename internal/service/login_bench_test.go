@@ -5,6 +5,7 @@ package service_test
 import (
 	"crypto/rand"
 	"fmt"
+	"sync/atomic"
 	"testing"
 
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
@@ -13,26 +14,34 @@ import (
 
 func BenchmarkLogin(b *testing.B) {
 	raw := "BenchPassword@123456"
+	ctx := b.Context()
 
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for b.Loop() {
-		b.StopTimer()
+	requests := make([]*authv1.LoginRequest, b.N)
+	for i := 0; i < b.N; i++ {
 		email := fmt.Sprintf("%s@test.com", rand.Text())
-		_, err := seedUser(b.Context(), email, raw)
+		_, err := seedUser(ctx, email, raw)
 		if err != nil {
-			b.Fatalf("Failed to pre-seed benchmark user: %v", err)
+			b.Fatalf("Failed to pre-seed: %v", err)
 		}
-		req := &authv1.LoginRequest{
+		requests[i] = &authv1.LoginRequest{
 			Email:    email,
 			Password: &passwordv1.Password{Value: raw},
 		}
-
-		b.StartTimer()
-		_, responseErr := authServiceClient.Login(b.Context(), req)
-		if responseErr != nil {
-			b.Fatalf("Login failed at iteration: %v", responseErr)
-		}
 	}
+
+	var counter uint64
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			idx := atomic.AddUint64(&counter, 1) - 1
+			req := requests[idx%uint64(len(requests))]
+
+			_, err := authServiceClient.Login(ctx, req)
+			if err != nil {
+				b.Fatalf("Login failed: %v", err)
+			}
+		}
+	})
 }
