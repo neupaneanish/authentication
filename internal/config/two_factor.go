@@ -10,9 +10,11 @@ import (
 	"image/png"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
+	"neupaneanish.com.np/api/internal/repository"
 )
 
 func NewTwoFactor(
@@ -154,4 +156,16 @@ func (f *TwoFactor) GenerateRecoveryCodes() (*RecoveryCodes, error) {
 		Plain: plains,
 		Hash:  hashes,
 	}, nil
+}
+
+func (f *TwoFactor) ValidateRecoveryCode(
+	code string,
+	codes []*repository.RecoveryCodesRow,
+) (bool, uuid.UUID, time.Time) {
+	for _, rc := range codes {
+		if bcrypt.CompareHashAndPassword(rc.Code, []byte(code)) == nil {
+			return true, rc.ID, rc.UpdatedAt
+		}
+	}
+	return false, uuid.Nil, time.Time{}
 }

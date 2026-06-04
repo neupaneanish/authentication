@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 	"neupaneanish.com.np/api/internal/config"
+	"neupaneanish.com.np/api/internal/repository"
 )
 
 func TestNewTwoFactor(t *testing.T) {
@@ -78,6 +80,35 @@ func TestNewTwoFactor(t *testing.T) {
 				t.Parallel()
 				compareErr := bcrypt.CompareHashAndPassword(recovery.Hash[0], []byte(recovery.Plain[0]))
 				require.Error(t, compareErr)
+			})
+		})
+
+		t.Run("Validate recovery code", func(t *testing.T) {
+			t.Parallel()
+			recovery, recoveryErr := tf.GenerateRecoveryCodes()
+			require.NoError(t, recoveryErr)
+			assert.Len(t, recovery.Hash, 10)
+			assert.Len(t, recovery.Plain, 10)
+
+			codes := make([]*repository.RecoveryCodesRow, len(recovery.Hash))
+			for i, hash := range recovery.Hash {
+				codes[i] = &repository.RecoveryCodesRow{
+					ID:        uuid.New(),
+					Code:      hash,
+					UpdatedAt: time.Now(),
+				}
+			}
+
+			t.Run("Success", func(t *testing.T) {
+				ok, idx, _ := tf.ValidateRecoveryCode(strings.ReplaceAll(recovery.Plain[0], "-", ""), codes)
+				assert.True(t, ok)
+				assert.Equal(t, codes[0].ID, idx)
+			})
+
+			t.Run("Invalid", func(t *testing.T) {
+				ok, idx, _ := tf.ValidateRecoveryCode("1234567890", codes)
+				assert.False(t, ok)
+				assert.Equal(t, uuid.Nil, idx)
 			})
 		})
 	})

@@ -42,7 +42,7 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 ## Endpoints
 
 - [X] Login
-- [ ] Login Two Factor
+- [X] Login Two Factor
 - [X] Forget Password
 - [X] Verification
 - [X] Reset Password
@@ -77,11 +77,28 @@ TELEMETRY_URL=127.0.0.1:4317
 
 ---
 
+## Flow Chart
+
+### Login
+
+```mermaid
+flowchart TD
+    A[Login] --> B{Enabled 2FA?}
+    B -->|No| E[Token]
+    B -->|Yes| C{Method}
+    C -->|TOTP| D[Validate TOTP]
+    C -->|Recovery| F[Validate Recovery Code]
+    D --> E
+    F --> E
+```
+
+---
+
 ## Setup, Execution & Testing
 
 ```bash
 # 1. Clone the core framework engine
-git clone https://gitlab.com/neupaneanish/api.git
+git clone https://github.com/neupaneanish/api.git
 cd api
 
 # 2. Initialize Git submodules
@@ -103,6 +120,20 @@ go test -v -tags=benchmark ./...
 # (Note: Requires an active OpenTelemetry collector instance, e.g., SigNoz)
 go run cmd/server/main.go
 ```
+
+---
+
+## Application-Layer Rate Limiting Matrix
+
+> Note: For IP will use envoy in future
+
+| Endpoint         | Key               |
+|------------------|-------------------|
+| Login            | Email             |
+| Login Two Factor | Session + User ID |
+| Forget Password  | Email             |
+| Verification     | Session           |
+| Reset Password   | Session           |
 
 ---
 
@@ -129,15 +160,22 @@ Benchmarks were executed on:
 Used Bcrypt **(Default Cost)** to secure passwords. To see how well this gRPC server scales under heavy traffic, ran
 a benchmark. Seed user **before** benchmark and used **ResetTimer** for real data.
 
-|    Endpoints     | Size  | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes |
-|:----------------:|:-----:|:---------------:|:-------------:|:----------------:|:--------------------:|
-|     `Login`      | `195` |    `6519490`    |    `65418`    |      `595`       |         `1`          |
-| `Reset Password` | `99`  |   `13423608`    |    `56968`    |      `539`       |     `2` (Max 6)      |
+| Endpoints        | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |
+|------------------|------|-----------------|---------------|------------------|------------------------------|
+| Login            | 195  | 6519490         | 65418         | 595              | 1                            |
+| Login Two Factor | N/A  | N/A             | N/A           | N/A              | 0 (TOTP) / Max 10 (Recovery) |
+| Forget Password  | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Verification     | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Reset Password   | 99   | 13423608        | 56968         | 539              | 2 (Max 6)                    |
 
 #### Security Architecture Notes:
 
 - **Login:** 1 Bcrypt operation baseline (utilizes `CompareHashAndPassword` to verify the incoming credentials against
   the database record).
+- **Login Two Factor:** Execution cost depends on the validation type:
+    - **TOTP:** Uses 0 Bcrypt operations, relying strictly on fast, time-base SHA-1 HMAC
+    - **Recovery Code:** 1 Bcrypt operation baseline `CompareHashAndPassword` upto 10 operation depend upon Recovery
+      codes length.
 - **Reset Password:** 2 Bcrypt operations baseline (1 `CompareHashAndPassword` to verify the active identity context + 1
   `GenerateFromPassword` to securely hash the new replacement credentials). If a user has a fully populated password
   history, the endpoint dynamically invokes up to 4 additional historical comparisons to prevent credential reuse,
@@ -151,7 +189,7 @@ This execution chart was exported using `go tool pprof` during a standard benchm
 
 [Login CPU Benchmark Image](docs/images/bench_login_cpu.svg)
 
-![Reset Password CPU Benchmark Image](docs/images/bench_login_cpu.svg)
+![Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.svg)
 
 [Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.svg)
 
