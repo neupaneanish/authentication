@@ -1,3 +1,5 @@
+//go:build integration || benchmark
+
 package service_test
 
 import (

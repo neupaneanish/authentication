@@ -1,3 +1,5 @@
+//go:build integration
+
 package service_test
 
 import (
@@ -164,7 +166,7 @@ func TestLogin(t *testing.T) {
 
 		row, rowErr := cfg.Repository.CreateTwoFactor(t.Context(), params)
 		require.NoError(t, rowErr)
-		assert.Equal(t, row.RowsAffected(), int64(1))
+		assert.Equal(t, int64(1), row.RowsAffected())
 
 		req := &authv1.LoginRequest{
 			Email: email,
