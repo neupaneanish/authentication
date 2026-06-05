@@ -120,7 +120,7 @@ func TestStreamTimeoutInterceptor(t *testing.T) {
 	t.Run("Deadline", func(t *testing.T) {
 		t.Parallel()
 
-		ctxDeadline, cancel := context.WithDeadline(t.Context(), time.Now().Add(time.Microsecond))
+		ctxDeadline, cancel := context.WithDeadline(t.Context(), time.Now().Add(10*time.Millisecond))
 		defer cancel()
 
 		stream := &transport.WrappedTimeoutStream{StreamContext: ctxDeadline}
