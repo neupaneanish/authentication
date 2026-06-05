@@ -54,6 +54,20 @@ func TestLoadEnv(t *testing.T) {
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
 		assert.Equal(t, "50051", env.Port)
+
+		t.Run("Invalid port", func(t *testing.T) {
+			t.Setenv("PORT", "79")
+			pEnv, pEnvErr := config.LoadEnv()
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
+
+		t.Run("Invalid environment", func(t *testing.T) {
+			t.Setenv("ENVIRONMENT", "staging")
+			pEnv, pEnvErr := config.LoadEnv()
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
 	})
 
 	t.Run("Missing Required Environment", func(t *testing.T) {

@@ -53,6 +53,18 @@ func TestNewTwoFactor(t *testing.T) {
 					assert.True(t, ok)
 				})
 
+				t.Run("Invalid Secret", func(t *testing.T) {
+					ok, validateErr := tf.Validate("123456", []byte("invalid"))
+					require.Error(t, validateErr)
+					assert.False(t, ok)
+				})
+
+				t.Run("Corrupted Ciphertext", func(t *testing.T) {
+					ok, validateErr := tf.Validate("123456", make([]byte, 20))
+					require.Error(t, validateErr)
+					assert.False(t, ok)
+				})
+
 				t.Run("Invalid Code", func(t *testing.T) {
 					t.Parallel()
 					ok, validateErr := tf.Validate("123456", encrypt)

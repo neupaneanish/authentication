@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"neupaneanish.com.np/api/internal/enum"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 )
 
@@ -29,10 +30,40 @@ func TestForgetPassword(t *testing.T) {
 
 	t.Run("Register email", func(t *testing.T) {
 		t.Parallel()
-		_, seedErr := seedUser(t.Context(), "forgetPassword@test.com", "forgetPassword@123456")
+		email := fmt.Sprintf("%s@test.com", rand.Text())
+		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive)
 		require.NoError(t, seedErr)
 
+		req := &authv1.ForgetPasswordRequest{Email: email}
+
+		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		require.NoError(t, err)
+		assert.NotNil(t, response)
+	})
+
+	t.Run("Pending", func(t *testing.T) {
+		t.Parallel()
+
 		email := fmt.Sprintf("%s@test.com", rand.Text())
+		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusPending)
+		require.NoError(t, seedErr)
+
+		req := &authv1.ForgetPasswordRequest{Email: email}
+
+		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		require.Error(t, err)
+		assert.Nil(t, response)
+		st, _ := status.FromError(err)
+		assert.Equal(t, codes.PermissionDenied, st.Code())
+	})
+
+	t.Run("Locked", func(t *testing.T) {
+		t.Parallel()
+
+		email := fmt.Sprintf("%s@test.com", rand.Text())
+		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusLocked)
+		require.NoError(t, seedErr)
+
 		req := &authv1.ForgetPasswordRequest{Email: email}
 
 		response, err := authServiceClient.ForgetPassword(t.Context(), req)

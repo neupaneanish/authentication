@@ -1,5 +1,3 @@
-//go:build integration || benchmark
-
 package service_test
 
 import (
@@ -238,7 +236,7 @@ func runMigrations(url string) error {
 	return nil
 }
 
-func seedUser(ctx context.Context, email string, password string) (string, error) {
+func seedUser(ctx context.Context, email string, password string, status enum.UserStatus) (string, error) {
 	tx, txErr := cfg.Pool.Begin(ctx)
 	if txErr != nil {
 		return "", txErr
@@ -253,7 +251,7 @@ func seedUser(ctx context.Context, email string, password string) (string, error
 		Email:     email,
 		Username:  email,
 		Role:      enum.UserRoleUser,
-		Status:    enum.UserStatusActive,
+		Status:    status,
 		CreatedBy: uuid.Nil,
 		UpdatedBy: uuid.Nil,
 	}

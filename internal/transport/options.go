@@ -27,6 +27,7 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 
 	validator, validatorErr := protovalidate.New()
 	if validatorErr != nil {
+		cfg.Logger.Error("proto validate", "error", validatorErr)
 		return nil, validatorErr
 	}
 
@@ -40,20 +41,20 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 		grpc.ChainUnaryInterceptor(
 			recovery.UnaryServerInterceptor(recoveryOpt),
 			logging.UnaryServerInterceptor(
-				loggerInterceptor(cfg.Logger),
+				LoggerInterceptor(cfg.Logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			protovalidatemiddleware.UnaryServerInterceptor(validator),
-			unaryTimeoutInterceptor(interceptorTimeout),
+			UnaryTimeoutInterceptor(interceptorTimeout),
 		),
 		grpc.ChainStreamInterceptor(
 			recovery.StreamServerInterceptor(recoveryOpt),
 			logging.StreamServerInterceptor(
-				loggerInterceptor(cfg.Logger),
+				LoggerInterceptor(cfg.Logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			protovalidatemiddleware.StreamServerInterceptor(validator),
-			streamTimeoutInterceptor(maxTimeout),
+			StreamTimeoutInterceptor(maxTimeout),
 		),
 	}
 

@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"neupaneanish.com.np/api/internal/enum"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
 )
@@ -19,7 +20,7 @@ func BenchmarkLogin(b *testing.B) {
 	requests := make([]*authv1.LoginRequest, b.N)
 	for i := 0; i < b.N; i++ {
 		email := fmt.Sprintf("%s@test.com", rand.Text())
-		_, err := seedUser(ctx, email, raw)
+		_, err := seedUser(ctx, email, raw, enum.UserStatusActive)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed: %v", err)
 		}

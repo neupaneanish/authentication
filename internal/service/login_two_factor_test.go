@@ -27,7 +27,7 @@ func TestLoginTwoFactor(t *testing.T) {
 
 	t.Run("TOTP", func(t *testing.T) {
 		email := fmt.Sprintf("%s@tst.com", rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456")
+		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive)
 		require.NoError(t, seedErr)
 
 		userID := uuid.MustParse(seed)
@@ -106,7 +106,7 @@ func TestLoginTwoFactor(t *testing.T) {
 
 	t.Run("Recovery", func(t *testing.T) {
 		email := fmt.Sprintf("%s@tst.com", rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456")
+		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive)
 		require.NoError(t, seedErr)
 
 		userID := uuid.MustParse(seed)

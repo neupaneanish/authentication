@@ -36,7 +36,6 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![GitHubActions](https://img.shields.io/badge/Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
 ![Opentelemetry](https://img.shields.io/badge/Opentelemetry-000000?style=for-the-badge&logo=opentelemetry&logoColor=white)
-
 ---
 
 ## Endpoints
@@ -134,6 +133,27 @@ go run cmd/server/main.go
 | Forget Password  | Email             |
 | Verification     | Session           |
 | Reset Password   | Session           |
+
+---
+
+## Coverage ~80.0%
+
+> Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
+> repository code, and test helper suites.
+
+```bash
+# Generate coverage
+go test -v -tags=unit,integration,benchmark -coverprofile=total.out ./... 
+
+# Filter out external boundaries, generated code, and tooling 
+grep -v -E "main\.go|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" total.out > total_clean.out
+
+# Export to interactive HTML for local branch analysis
+go tool cover -html=total_clean.out -o total_clean.html 
+
+# Output statement breakdown to CLI
+go tool cover -func=total_clean.out 
+```
 
 ---
 

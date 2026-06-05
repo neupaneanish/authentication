@@ -11,13 +11,13 @@ import (
 	"neupaneanish.com.np/api/internal/errs"
 )
 
-func loggerInterceptor(logger *slog.Logger) logging.Logger {
+func LoggerInterceptor(logger *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, level logging.Level, msg string, fields ...any) {
 		logger.Log(ctx, slog.Level(level), msg, fields...)
 	})
 }
 
-func unaryTimeoutInterceptor(defaultTimeout time.Duration) grpc.UnaryServerInterceptor {
+func UnaryTimeoutInterceptor(defaultTimeout time.Duration) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		if _, ok := ctx.Deadline(); ok {
 			return handler(ctx, req)
@@ -40,7 +40,7 @@ func unaryTimeoutInterceptor(defaultTimeout time.Duration) grpc.UnaryServerInter
 	}
 }
 
-func streamTimeoutInterceptor(maxDuration time.Duration) grpc.StreamServerInterceptor {
+func StreamTimeoutInterceptor(maxDuration time.Duration) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ctx := ss.Context()
 
@@ -49,9 +49,9 @@ func streamTimeoutInterceptor(maxDuration time.Duration) grpc.StreamServerInterc
 			ctx, cancel = context.WithTimeout(ctx, maxDuration)
 			defer cancel()
 
-			ss = &wrappedTimeoutStream{
-				ServerStream: ss,
-				ctx:          ctx,
+			ss = &WrappedTimeoutStream{
+				ServerStream:  ss,
+				StreamContext: ctx,
 			}
 		}
 
@@ -69,12 +69,12 @@ func streamTimeoutInterceptor(maxDuration time.Duration) grpc.StreamServerInterc
 	}
 }
 
-type wrappedTimeoutStream struct {
+type WrappedTimeoutStream struct {
 	grpc.ServerStream
 
-	ctx context.Context
+	StreamContext context.Context
 }
 
-func (w *wrappedTimeoutStream) Context() context.Context {
-	return w.ctx
+func (w *WrappedTimeoutStream) Context() context.Context {
+	return w.StreamContext
 }
