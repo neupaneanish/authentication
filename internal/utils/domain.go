@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 )
@@ -35,10 +36,9 @@ func ValidateDomain(ctx context.Context, domain string, verification string) (st
 		return "", errors.New("domain verification failed: host unreachable or no public TXT records found")
 	}
 
-	for _, txt := range txtRecords {
-		if txt == verification {
-			return cleanDomain, nil
-		}
+	target := strings.TrimSpace(verification)
+	if slices.Contains(txtRecords, target) {
+		return cleanDomain, nil
 	}
 	return "", errors.New("domain ownership verification failed: matching token not found in TXT pool")
 }
