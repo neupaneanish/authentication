@@ -50,20 +50,20 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Environments
 
-|       Name        |          Default          |                                   Options                                    |
-|:-----------------:|:-------------------------:|:----------------------------------------------------------------------------:|
-|   DATABASE_URL    |                           |                                                                              |
-|    VALKEY_URL     |                           |                                                                              |
-|      JWT_KEY      |                           |                      `ed25519` Private Key Seed Size 32                      |
-|  TWO_FACTOR_KEY   |                           |                      `ed25519` Private Key Seed Size 32                      |
-|      ISSUER       |      `Anish Neupane`      |                                                                              |
-|       PORT        |          `50051`          |                               `80` to `65535`                                |
-|   SERVICE_NAME    | `neupaneanish.com.np/api` |                                                                              |
-|    ENVIRONMENT    |       `development`       |                        `development` or `production`                         |
-|   TELEMETRY_URL   |                           |                                gRPC port only                                |
-|    SAAS_DOMAIN    |                           |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
-| SAAS_VERIFICATION |                           |                Random token string generated via rand.Text()                 |
-|    SAAS_PREFIX    |                           | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
+|        Name         |          Default          |                                   Options                                    |
+|:-------------------:|:-------------------------:|:----------------------------------------------------------------------------:|
+|    DATABASE_URL     |                           |                                                                              |
+|     VALKEY_URL      |                           |                                                                              |
+|       JWT_KEY       |                           |                      `ed25519` Private Key Seed Size 32                      |
+|   TWO_FACTOR_KEY    |                           |                      `ed25519` Private Key Seed Size 32                      |
+|       ISSUER        |      `Anish Neupane`      |                                                                              |
+|        PORT         |          `50051`          |                               `80` to `65535`                                |
+|    SERVICE_NAME     | `neupaneanish.com.np/api` |                                                                              |
+|     ENVIRONMENT     |       `development`       |                        `development` or `production`                         |
+|    TELEMETRY_URL    |                           |                                gRPC port only                                |
+|       DOMAIN        |                           |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
+| DOMAIN_VERIFICATION |                           |                Random token string generated via rand.Text()                 |
+|     DOMAIN_NAME     |                           | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
 
 ```dotenv
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/api?sslmode=disable
@@ -75,9 +75,9 @@ PORT=50051
 SERVICE_NAME=neupaneanish.com.np/api
 ENVIRONMENT=development
 TELEMETRY_URL=127.0.0.1:4317
-SAAS_DOMAIN=neupaneanish.com.np
-SAAS_VERIFICATION=
-SAAS_PREFIX=
+DOMAIN=neupaneanish.com.np
+DOMAIN_VERIFICATION=
+DOMAIN_NAME=
 ```
 
 ---

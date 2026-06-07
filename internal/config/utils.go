@@ -54,7 +54,7 @@ type Env struct {
 	ServiceName  string
 	Environment  string
 	TelemetryURL string
-	SaaSDomain   string
+	Domain       string
 }
 
 type Config struct {
@@ -68,7 +68,7 @@ type Config struct {
 	TwoFactor   *TwoFactor
 	RateLimiter *Limiter
 	Repository  *repository.Queries
-	SaaSDomain  string
+	Domain      string
 }
 
 type JWT struct {

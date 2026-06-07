@@ -64,7 +64,7 @@ func TestNewConfig(t *testing.T) {
 			ServiceName:  "Test Service",
 			Environment:  "production",
 			TelemetryURL: "127.0.0.1:4317",
-			SaaSDomain:   "api.neupaenanish.com.np",
+			Domain:       "api.neupaenanish.com.np",
 		}
 
 		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)

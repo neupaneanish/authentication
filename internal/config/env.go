@@ -50,27 +50,27 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		return nil, telemetryURLErr
 	}
 
-	saasDomain, saasDomainErr := validateEnv("SAAS_DOMAIN")
-	if saasDomainErr != nil {
-		return nil, saasDomainErr
-	}
-
-	saasVerification, saasVerificationErr := validateEnv("SAAS_VERIFICATION")
-	if saasVerificationErr != nil {
-		return nil, saasVerificationErr
-	}
-
-	saasPrefix, saasPrefixErr := validateEnv("SAAS_PREFIX")
-	if saasPrefixErr != nil {
-		return nil, saasPrefixErr
-	}
-
-	domain, domainErr := utils.ValidateDomain(ctx, strings.ToLower(saasDomain), saasVerification)
+	domain, domainErr := validateEnv("DOMAIN")
 	if domainErr != nil {
 		return nil, domainErr
 	}
 
-	saas := fmt.Sprintf("%s.%s", strings.ToLower(saasPrefix), domain)
+	domainVerification, domainVerificationErr := validateEnv("DOMAIN_VERIFICATION")
+	if domainVerificationErr != nil {
+		return nil, domainVerificationErr
+	}
+
+	domainName, domainNameErr := validateEnv("DOMAIN_NAME")
+	if domainNameErr != nil {
+		return nil, domainNameErr
+	}
+
+	validDomain, validDomainErr := utils.ValidateDomain(ctx, strings.ToLower(domain), domainVerification)
+	if validDomainErr != nil {
+		return nil, validDomainErr
+	}
+
+	api := fmt.Sprintf("%s.%s", strings.ToLower(domainName), validDomain)
 
 	return &Env{
 		DatabaseURL:  databaseURL,
@@ -79,10 +79,10 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		TwoFactorKey: twoFactorKey,
 		Issuer:       validateDefaultEnv("ISSUER", "Anish Neupane"),
 		Port:         port,
-		ServiceName:  validateDefaultEnv("SERVICE_NAME", saas),
+		ServiceName:  validateDefaultEnv("SERVICE_NAME", api),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
-		SaaSDomain:   saas,
+		Domain:       api,
 	}, nil
 }
 

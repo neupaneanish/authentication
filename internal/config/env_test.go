@@ -22,9 +22,9 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("ENVIRONMENT")
 		_ = os.Unsetenv("TELEMETRY_URL")
 		_ = os.Unsetenv("ISSUER")
-		_ = os.Unsetenv("SAAS_DOMAIN")
-		_ = os.Unsetenv("SAAS_VERIFICATION")
-		_ = os.Unsetenv("SAAS_PREFIX")
+		_ = os.Unsetenv("DOMAIN")
+		_ = os.Unsetenv("DOMAIN_VERIFICATION")
+		_ = os.Unsetenv("DOMAIN_NAME")
 	}
 
 	txt := "DR2JTINSHENMG45HCADCSKYJZS"
@@ -41,9 +41,9 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("ENVIRONMENT", "production")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
 		t.Setenv("ISSUER", "Test Issuer")
-		t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
-		t.Setenv("SAAS_VERIFICATION", txt)
-		t.Setenv("SAAS_PREFIX", "test")
+		t.Setenv("DOMAIN", "neupaneanish.com.np")
+		t.Setenv("DOMAIN_VERIFICATION", txt)
+		t.Setenv("DOMAIN_NAME", "test")
 
 		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
@@ -58,9 +58,9 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
-		t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
-		t.Setenv("SAAS_VERIFICATION", txt)
-		t.Setenv("SAAS_PREFIX", "test")
+		t.Setenv("DOMAIN", "neupaneanish.com.np")
+		t.Setenv("DOMAIN_VERIFICATION", txt)
+		t.Setenv("DOMAIN_NAME", "test")
 
 		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
@@ -88,9 +88,9 @@ func TestLoadEnv(t *testing.T) {
 			t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 			t.Setenv("JWT_KEY", "jwt-key")
 			t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
-			t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
-			t.Setenv("SAAS_VERIFICATION", rand.Text())
-			t.Setenv("SAAS_PREFIX", "test")
+			t.Setenv("DOMAIN", "neupaneanish.com.np")
+			t.Setenv("DOMAIN_VERIFICATION", rand.Text())
+			t.Setenv("DOMAIN_NAME", "test")
 
 			pEnv, pEnvErr := config.LoadEnv(t.Context())
 			require.Error(t, pEnvErr)
@@ -105,9 +105,9 @@ func TestLoadEnv(t *testing.T) {
 			"JWT_KEY",
 			"TWO_FACTOR_KEY",
 			"TELEMETRY_URL",
-			"SAAS_DOMAIN",
-			"SAAS_VERIFICATION",
-			"SAAS_PREFIX",
+			"DOMAIN",
+			"DOMAIN_VERIFICATION",
+			"DOMAIN_NAME",
 		}
 
 		for _, v := range requiredVariables {

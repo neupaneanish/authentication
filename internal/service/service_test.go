@@ -160,7 +160,7 @@ func setupEnv(db string, vk string) *config.Env {
 		Issuer:       "Test",
 		Environment:  "test",
 		ServiceName:  "Test",
-		SaaSDomain:   "api.neupaneanish.com.np",
+		Domain:       "api.neupaneanish.com.np",
 	}
 }
 
