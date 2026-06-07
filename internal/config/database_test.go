@@ -25,4 +25,12 @@ func TestNewDatabase(t *testing.T) {
 		require.Error(t, poolErr)
 		assert.Nil(t, pool)
 	})
+
+	t.Run("Pool", func(t *testing.T) {
+		t.Parallel()
+
+		pool, poolErr := config.NewDatabase(t.Context(), "postgres://postgres:postgres@127.0.0.1:5432/alkcnsjbahjvajcabhj?sslmode=disable")
+		require.Error(t, poolErr)
+		assert.Nil(t, pool)
+	})
 }

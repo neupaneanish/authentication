@@ -1,14 +1,17 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"neupaneanish.com.np/api/internal/utils"
 )
 
-func LoadEnv() (*Env, error) {
+func LoadEnv(ctx context.Context) (*Env, error) {
 	databaseURL, databaseURLErr := validateEnv("DATABASE_URL")
 	if databaseURLErr != nil {
 		return nil, databaseURLErr
@@ -47,6 +50,28 @@ func LoadEnv() (*Env, error) {
 		return nil, telemetryURLErr
 	}
 
+	saasDomain, saasDomainErr := validateEnv("SAAS_DOMAIN")
+	if saasDomainErr != nil {
+		return nil, saasDomainErr
+	}
+
+	saasVerification, saasVerificationErr := validateEnv("SAAS_VERIFICATION")
+	if saasVerificationErr != nil {
+		return nil, saasVerificationErr
+	}
+
+	saasPrefix, saasPrefixErr := validateEnv("SAAS_PREFIX")
+	if saasPrefixErr != nil {
+		return nil, saasPrefixErr
+	}
+
+	domain, domainErr := utils.ValidateDomain(ctx, strings.ToLower(saasDomain), saasVerification)
+	if domainErr != nil {
+		return nil, domainErr
+	}
+
+	saas := fmt.Sprintf("%s.%s", strings.ToLower(saasPrefix), domain)
+
 	return &Env{
 		DatabaseURL:  databaseURL,
 		ValkeyURL:    valkeyURL,
@@ -54,9 +79,10 @@ func LoadEnv() (*Env, error) {
 		TwoFactorKey: twoFactorKey,
 		Issuer:       validateDefaultEnv("ISSUER", "Anish Neupane"),
 		Port:         port,
-		ServiceName:  validateDefaultEnv("SERVICE_NAME", "neupaneanish.com.np/api"),
+		ServiceName:  validateDefaultEnv("SERVICE_NAME", saas),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
+		SaaSDomain:   saas,
 	}, nil
 }
 

@@ -4,6 +4,7 @@ package config_test
 
 import (
 	"crypto/ed25519"
+	"crypto/rand"
 	"encoding/hex"
 	"log/slog"
 	"os"
@@ -44,28 +45,88 @@ func TestMain(m *testing.M) {
 }
 
 func TestNewConfig(t *testing.T) {
-	t.Setenv("DATABASE_URL", databaseURL)
-	t.Setenv("VALKEY_URL", valkeyURL)
-
-	_, jwtPrivate, jwtKeyErr := ed25519.GenerateKey(nil)
-	require.NoError(t, jwtKeyErr)
-	t.Setenv("JWT_KEY", hex.EncodeToString(jwtPrivate.Seed()))
-
-	_, tfPrivate, tfKeyErr := ed25519.GenerateKey(nil)
-	require.NoError(t, tfKeyErr)
-	t.Setenv("TWO_FACTOR_KEY", hex.EncodeToString(tfPrivate.Seed()))
-
-	t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
-
-	env, envErr := config.LoadEnv()
-	require.NoError(t, envErr)
-	assert.NotNil(t, env)
-
+	t.Parallel()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
-	require.NoError(t, cfgErr)
-	assert.NotNil(t, cfg)
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 
-	cfg.Close()
+		_, private, privateKeyErr := ed25519.GenerateKey(nil)
+		require.NoError(t, privateKeyErr)
+
+		env := &config.Env{
+			DatabaseURL:  databaseURL,
+			ValkeyURL:    valkeyURL,
+			JWTKey:       hex.EncodeToString(private.Seed()),
+			TwoFactorKey: hex.EncodeToString(private.Seed()),
+			Issuer:       "Test",
+			Port:         "50051",
+			ServiceName:  "Test Service",
+			Environment:  "production",
+			TelemetryURL: "127.0.0.1:4317",
+			SaaSDomain:   "api.neupaenanish.com.np",
+		}
+
+		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
+		require.NoError(t, cfgErr)
+		assert.NotNil(t, cfg)
+
+		cfg.Close()
+	})
+
+	t.Run("Invalid Pool", func(t *testing.T) {
+		t.Parallel()
+
+		env := &config.Env{
+			DatabaseURL: "invalid-url",
+		}
+
+		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
+		require.Error(t, cfgErr)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("Invalid Client", func(t *testing.T) {
+		t.Parallel()
+
+		env := &config.Env{
+			DatabaseURL: databaseURL,
+			ValkeyURL:   "invalid",
+		}
+
+		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
+		require.Error(t, cfgErr)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("Invalid JWT", func(t *testing.T) {
+		t.Parallel()
+
+		env := &config.Env{
+			DatabaseURL: databaseURL,
+			ValkeyURL:   valkeyURL,
+			JWTKey:      rand.Text(),
+		}
+
+		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
+		require.Error(t, cfgErr)
+		assert.Nil(t, cfg)
+	})
+
+	t.Run("Invalid two factor", func(t *testing.T) {
+		t.Parallel()
+
+		_, private, err := ed25519.GenerateKey(nil)
+		require.NoError(t, err)
+		env := &config.Env{
+			DatabaseURL:  databaseURL,
+			ValkeyURL:    valkeyURL,
+			JWTKey:       hex.EncodeToString(private.Seed()),
+			TwoFactorKey: rand.Text(),
+		}
+
+		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
+		require.Error(t, cfgErr)
+		assert.Nil(t, cfg)
+	})
 }

@@ -50,17 +50,20 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Environments
 
-| Name           | Default                   | Options                            |
-|:---------------|:--------------------------|:-----------------------------------|
-| DATABASE_URL   |                           |                                    |
-| VALKEY_URL     |                           |                                    |
-| JWT_KEY        |                           | `ed25519` Private Key Seed Size 32 |
-| TWO_FACTOR_KEY |                           | `ed25519` Private Key Seed Size 32 |
-| ISSUER         | `Anish Neupane`           |                                    |
-| PORT           | `50051`                   | `80` to `65535`                    |
-| SERVICE_NAME   | `neupaneanish.com.np/api` |                                    |
-| ENVIRONMENT    | `development`             | `development` or `production`      |
-| TELEMETRY_URL  |                           | gRPC port only                     |
+|       Name        |          Default          |                                   Options                                    |
+|:-----------------:|:-------------------------:|:----------------------------------------------------------------------------:|
+|   DATABASE_URL    |                           |                                                                              |
+|    VALKEY_URL     |                           |                                                                              |
+|      JWT_KEY      |                           |                      `ed25519` Private Key Seed Size 32                      |
+|  TWO_FACTOR_KEY   |                           |                      `ed25519` Private Key Seed Size 32                      |
+|      ISSUER       |      `Anish Neupane`      |                                                                              |
+|       PORT        |          `50051`          |                               `80` to `65535`                                |
+|   SERVICE_NAME    | `neupaneanish.com.np/api` |                                                                              |
+|    ENVIRONMENT    |       `development`       |                        `development` or `production`                         |
+|   TELEMETRY_URL   |                           |                                gRPC port only                                |
+|    SAAS_DOMAIN    |                           |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
+| SAAS_VERIFICATION |                           |                Random token string generated via rand.Text()                 |
+|    SAAS_PREFIX    |                           | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
 
 ```dotenv
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/api?sslmode=disable
@@ -72,6 +75,9 @@ PORT=50051
 SERVICE_NAME=neupaneanish.com.np/api
 ENVIRONMENT=development
 TELEMETRY_URL=127.0.0.1:4317
+SAAS_DOMAIN=neupaneanish.com.np
+SAAS_VERIFICATION=
+SAAS_PREFIX=
 ```
 
 ---
@@ -136,25 +142,26 @@ go run cmd/server/main.go
 
 ---
 
-## Coverage ~82.0%
+## Coverage ~83.0%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.
 
-> Coverage is done through real infrastructure PostgreSQl, Valkey, OpenTelemetry i.e. testcontainers. It doesn't have any mocks.   
+> Coverage is done through real infrastructure PostgreSQl, Valkey, OpenTelemetry i.e. testcontainers. It doesn't have
+> any mocks.
 
 ```bash
 # Generate coverage
 go test -v -tags=unit,integration,benchmark,e2e -coverprofile=total.out ./... 
 
 # Filter out external boundaries, generated code, and tooling 
-grep -v -E "main\.go|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" total.out > total_clean.out
+grep -v -E "cmd/server/|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" coverage.out > coverage_clean.out
 
 # Export to interactive HTML for local branch analysis
-go tool cover -html=total_clean.out -o total_clean.html 
+go tool cover -html=coverage_clean.out -o coverage_clean.html 
 
 # Output statement breakdown to CLI
-go tool cover -func=total_clean.out 
+go tool cover -func=coverage_clean.out 
 ```
 
 ---
@@ -179,7 +186,8 @@ Benchmarks were executed on:
 
 ### Benchmarks (Parallel)
 
-Used Bcrypt **(Default Cost)** to secure sensitive fields. To see how well this gRPC server scales under heavy traffic, ran
+Used Bcrypt **(Default Cost)** to secure sensitive fields. To see how well this gRPC server scales under heavy traffic,
+ran
 a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to capture pure execution data.
 
 | Endpoints        | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |

@@ -3,6 +3,7 @@
 package config_test
 
 import (
+	"crypto/rand"
 	"os"
 	"testing"
 
@@ -21,7 +22,12 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("ENVIRONMENT")
 		_ = os.Unsetenv("TELEMETRY_URL")
 		_ = os.Unsetenv("ISSUER")
+		_ = os.Unsetenv("SAAS_DOMAIN")
+		_ = os.Unsetenv("SAAS_VERIFICATION")
+		_ = os.Unsetenv("SAAS_PREFIX")
 	}
+
+	txt := "DR2JTINSHENMG45HCADCSKYJZS"
 
 	t.Run("Success with all variables", func(t *testing.T) {
 		cleanup()
@@ -35,8 +41,11 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("ENVIRONMENT", "production")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
 		t.Setenv("ISSUER", "Test Issuer")
+		t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
+		t.Setenv("SAAS_VERIFICATION", txt)
+		t.Setenv("SAAS_PREFIX", "test")
 
-		env, envErr := config.LoadEnv()
+		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
 		assert.Equal(t, "8080", env.Port)
@@ -49,22 +58,41 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
+		t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
+		t.Setenv("SAAS_VERIFICATION", txt)
+		t.Setenv("SAAS_PREFIX", "test")
 
-		env, envErr := config.LoadEnv()
+		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
 		assert.Equal(t, "50051", env.Port)
 
 		t.Run("Invalid port", func(t *testing.T) {
 			t.Setenv("PORT", "79")
-			pEnv, pEnvErr := config.LoadEnv()
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
 
 		t.Run("Invalid environment", func(t *testing.T) {
 			t.Setenv("ENVIRONMENT", "staging")
-			pEnv, pEnvErr := config.LoadEnv()
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
+
+		t.Run("Invalid domain", func(t *testing.T) {
+			cleanup()
+			t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/test")
+			t.Setenv("VALKEY_URL", "localhost:6379")
+			t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
+			t.Setenv("JWT_KEY", "jwt-key")
+			t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
+			t.Setenv("SAAS_DOMAIN", "neupaneanish.com.np")
+			t.Setenv("SAAS_VERIFICATION", rand.Text())
+			t.Setenv("SAAS_PREFIX", "test")
+
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
@@ -77,17 +105,20 @@ func TestLoadEnv(t *testing.T) {
 			"JWT_KEY",
 			"TWO_FACTOR_KEY",
 			"TELEMETRY_URL",
+			"SAAS_DOMAIN",
+			"SAAS_VERIFICATION",
+			"SAAS_PREFIX",
 		}
 
 		for _, v := range requiredVariables {
 			t.Run("Missing "+v, func(t *testing.T) {
 				for _, all := range requiredVariables {
-					t.Setenv(all, "some-value")
+					t.Setenv(all, txt)
 				}
 
 				_ = os.Unsetenv(v)
 
-				env, err := config.LoadEnv()
+				env, err := config.LoadEnv(t.Context())
 				require.Error(t, err)
 				assert.Nil(t, env)
 				assert.Contains(t, err.Error(), v)

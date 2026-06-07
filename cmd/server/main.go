@@ -28,7 +28,7 @@ func main() {
 	defer ctxStop()
 
 	baseLogger.InfoContext(ctx, "Environment loading")
-	env, envErr := config.LoadEnv()
+	env, envErr := config.LoadEnv(ctx)
 	if envErr != nil {
 		baseLogger.ErrorContext(ctx, "Environment loading failed", "error", envErr)
 		return

@@ -48,6 +48,7 @@ func NewConfig(
 		TwoFactor:   twoFactor,
 		RateLimiter: rateLimiter,
 		Repository:  repository.New(pool),
+		SaaSDomain:  env.SaaSDomain,
 	}, nil
 }
 
