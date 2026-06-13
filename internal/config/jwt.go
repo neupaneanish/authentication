@@ -1,6 +1,7 @@
 package config
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -8,6 +9,26 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+type JWT struct {
+	private ed25519.PrivateKey
+	public  ed25519.PublicKey
+	issuer  string
+}
+
+type GenerateJwt struct {
+	Access   string
+	Refresh  string
+	ExpiryAt time.Time
+}
+
+type JwtClaims struct {
+	jwt.RegisteredClaims
+
+	Role string
+}
+
+const accessSessionExpiry = 15 * time.Minute
 
 func NewJWT(key string, issuer string) (*JWT, error) {
 	_, private, public, err := validateKey(key)
@@ -27,9 +48,9 @@ func (j *JWT) GenerateToken(
 	id string,
 ) (*GenerateJwt, error) {
 	now := time.Now().UTC()
-	expiryAt := now.Add(accessExpiry)
+	expiryAt := now.Add(accessSessionExpiry)
 
-	claims := JwtClaims{
+	claims := &JwtClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    j.issuer,
 			Subject:   userID,

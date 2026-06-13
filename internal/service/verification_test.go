@@ -10,11 +10,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func TestVerification(t *testing.T) {
@@ -28,8 +27,8 @@ func TestVerification(t *testing.T) {
 		response, responseErr := authServiceClient.Verification(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Aborted, st.Code())
+
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
 	})
 
 	t.Run("Valid session invalid code", func(t *testing.T) {
@@ -40,8 +39,8 @@ func TestVerification(t *testing.T) {
 		response, responseErr := authServiceClient.Verification(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.InvalidArgument, st.Code())
+
+		assert.Equal(t, errs.ErrInvalidCode, responseErr)
 	})
 
 	t.Run("Valid session and code", func(t *testing.T) {
@@ -58,24 +57,16 @@ func TestVerification(t *testing.T) {
 		session := rand.Text()
 
 		req := &authv1.VerificationRequest{Session: session, Code: "12345678"}
-
-		t.Run("Allowed", func(t *testing.T) {
-			for range 5 {
-				response, responseErr := authServiceClient.Verification(t.Context(), req)
-				require.Error(t, responseErr)
-				assert.Nil(t, response)
-				st, _ := status.FromError(responseErr)
-				assert.Equal(t, codes.Aborted, st.Code())
-			}
-		})
-
-		t.Run("Blocked", func(t *testing.T) {
-			response, err := authServiceClient.Verification(t.Context(), req)
-			require.Error(t, err)
+		for i := range 5 {
+			response, responseErr := authServiceClient.Verification(t.Context(), req)
+			require.Error(t, responseErr)
 			assert.Nil(t, response)
-			st, _ := status.FromError(err)
-			assert.Equal(t, codes.ResourceExhausted, st.Code())
-		})
+			if i < 5 {
+				assert.Equal(t, errs.ErrSessionExpired, responseErr)
+			} else {
+				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
+			}
+		}
 	})
 }
 
@@ -84,16 +75,16 @@ func seedVerification(t *testing.T) (string, string) {
 	session := rand.Text()
 	code := "A1B2C3D4"
 
-	data := &service.ForgetPasswordSession{
+	data := &utils.ForgetPasswordSession{
 		Key:    session,
-		ExAt:   time.Now().Add(service.SessionExpiry),
+		ExAt:   time.Now().Add(utils.SessionExpiry),
 		UserID: uuid.NewString(),
 		Code:   code,
 	}
 
-	hSetErr := redis.HSet[service.ForgetPasswordSession](
+	hSetErr := redis.HSet[utils.ForgetPasswordSession](
 		t.Context(),
-		service.ForgetPasswordSessionPrefix,
+		utils.ForgetPasswordSessionPrefix,
 		data,
 		cfg.Client,
 	)

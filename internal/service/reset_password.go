@@ -19,13 +19,20 @@ func (s *AuthService) ResetPassword(
 	serviceName := "ResetPassword"
 
 	result, resultErr := s.cfg.RateLimiter.ResetPassword.Allow(ctx, req.GetSession())
-	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, req.GetSession()); limiterErr != nil {
+	if limiterErr := LimiterCheck(
+		ctx,
+		&result,
+		resultErr,
+		serviceName,
+		req.GetSession(),
+		s.cfg.Logger,
+	); limiterErr != nil {
 		return nil, limiterErr
 	}
 
-	resetSession, resetSessionErr := redis.HGet[ResetPasswordSession](
+	resetSession, resetSessionErr := redis.HGet[utils.ResetPasswordSession](
 		ctx,
-		ResetPasswordSessionPrefix,
+		utils.ResetPasswordSessionPrefix,
 		req.GetSession(),
 		s.cfg.Client,
 	)
@@ -39,7 +46,7 @@ func (s *AuthService) ResetPassword(
 	}
 
 	userID := uuid.MustParse(resetSession.UserID)
-	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: credentialsHistoryLimit}
+	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: utils.CredentialsHistoryLimit}
 
 	passwords, passwordsErr := s.cfg.Repository.Credentials(ctx, params)
 	if passwordsErr != nil {
@@ -94,7 +101,12 @@ func (s *AuthService) ResetPassword(
 		return nil, errs.ErrInternalServer
 	}
 
-	hDeleteErr := redis.HDelete[ResetPasswordSession](ctx, ResetPasswordSessionPrefix, req.GetSession(), s.cfg.Client)
+	hDeleteErr := redis.HDelete[utils.ResetPasswordSession](
+		ctx,
+		utils.ResetPasswordSessionPrefix,
+		req.GetSession(),
+		s.cfg.Client,
+	)
 	if hDeleteErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey delete", "error", hDeleteErr)
 	}

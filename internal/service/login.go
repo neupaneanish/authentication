@@ -16,6 +16,7 @@ import (
 	"neupaneanish.com.np/api/internal/utils"
 )
 
+//nolint:funlen
 func (s *AuthService) Login(
 	ctx context.Context,
 	req *authv1.LoginRequest,
@@ -24,13 +25,16 @@ func (s *AuthService) Login(
 	email := req.GetEmail()
 
 	result, resultErr := s.cfg.RateLimiter.Login.Allow(ctx, email)
-	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, email); limiterErr != nil {
+	if limiterErr := LimiterCheck(ctx, &result, resultErr, serviceName, email, s.cfg.Logger); limiterErr != nil {
 		return nil, limiterErr
 	}
 
-	params := &repository.LoginParams{Email: email}
+	if !s.cfg.Domain.ValidateEmail(email) {
+		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid email", "email", email)
+		return nil, errs.ErrInvalidCredentials
+	}
 
-	row, rowErr := s.cfg.Repository.Login(ctx, params)
+	row, rowErr := s.cfg.Repository.Login(ctx, &repository.LoginParams{Email: email})
 	if rowErr != nil {
 		if errors.Is(rowErr, pgx.ErrNoRows) {
 			s.cfg.Logger.WarnContext(ctx, serviceName+" not found", "email", email)
@@ -38,6 +42,32 @@ func (s *AuthService) Login(
 		}
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" database", "error", rowErr)
 		return nil, errs.ErrInternalServer
+	}
+
+	session := rand.Text()
+
+	if row.Status == enum.UserStatusPending && row.EmailVerifiedAt == nil {
+		s.cfg.Logger.WarnContext(ctx, serviceName+" account not verified", "email", email)
+		if !utils.ComparePassword(row.Password, req.GetPassword().GetValue()) {
+			s.cfg.Logger.WarnContext(ctx, serviceName+" invalid password", "email", email)
+			return nil, errs.ErrInvalidCredentials
+		}
+
+		if emailErr := EmailVerification(
+			ctx,
+			serviceName,
+			enum.MethodLogin,
+			session,
+			row.ID.String(),
+			string(row.Role),
+			row.TwoFactor,
+			s.cfg.Client,
+			s.cfg.Logger,
+		); emailErr != nil {
+			return nil, emailErr
+		}
+
+		return &authv1.LoginResponse{Response: &authv1.LoginResponse_Verification{Verification: session}}, nil
 	}
 
 	switch row.Status {
@@ -59,16 +89,37 @@ func (s *AuthService) Login(
 		return nil, errs.ErrInvalidCredentials
 	}
 
-	session := rand.Text()
+	if row.EmailVerifiedAt == nil {
+		emailErr := EmailVerification(
+			ctx,
+			serviceName,
+			enum.MethodLogin,
+			session,
+			row.ID.String(),
+			string(row.Role),
+			row.TwoFactor,
+			s.cfg.Client,
+			s.cfg.Logger,
+		)
+		if emailErr != nil {
+			return nil, emailErr
+		}
+		return &authv1.LoginResponse{Response: &authv1.LoginResponse_Verification{Verification: session}}, nil
+	}
 
 	if row.TwoFactor {
-		tfSession := &LoginTwoFactorSession{
+		tfSession := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: row.ID.String(),
 			Role:   string(row.Role),
 		}
-		hSetErr := redis.HSet[LoginTwoFactorSession](ctx, LoginTwoFactorSessionPrefix, tfSession, s.cfg.Client)
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
+			ctx,
+			utils.LoginTwoFactorSessionPrefix,
+			tfSession,
+			s.cfg.Client,
+		)
 		if hSetErr != nil {
 			s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Two Factor HSet", "error", hSetErr)
 			return nil, errs.ErrInternalServer
@@ -78,7 +129,7 @@ func (s *AuthService) Login(
 		}, nil
 	}
 
-	jwt, jwtErr := s.login(ctx, row.ID.String(), string(row.Role), serviceName)
+	jwt, jwtErr := login(ctx, row.ID.String(), string(row.Role), serviceName, s.cfg.Jwt, s.cfg.Client, s.cfg.Logger)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}

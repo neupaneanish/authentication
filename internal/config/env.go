@@ -7,8 +7,25 @@ import (
 	"os"
 	"strconv"
 	"strings"
+)
 
-	"neupaneanish.com.np/api/internal/utils"
+type Env struct {
+	DatabaseURL  string
+	ValkeyURL    string
+	JWTKey       string
+	TwoFactorKey string
+	Issuer       string
+	Port         string
+	ServiceName  string
+	Environment  string
+	TelemetryURL string
+	Domain       string
+	API          string
+}
+
+const (
+	envDevelopment = "development"
+	envProduction  = "production"
 )
 
 func LoadEnv(ctx context.Context) (*Env, error) {
@@ -65,7 +82,7 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		return nil, domainNameErr
 	}
 
-	validDomain, validDomainErr := utils.ValidateDomain(ctx, strings.ToLower(domain), domainVerification)
+	validDomain, validDomainErr := ValidateDomain(ctx, strings.ToLower(domain), domainVerification)
 	if validDomainErr != nil {
 		return nil, validDomainErr
 	}
@@ -82,7 +99,8 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		ServiceName:  validateDefaultEnv("SERVICE_NAME", api),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
-		Domain:       api,
+		Domain:       validDomain,
+		API:          api,
 	}, nil
 }
 

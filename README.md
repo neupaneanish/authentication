@@ -88,13 +88,28 @@ DOMAIN_NAME=
 
 ```mermaid
 flowchart TD
-    A[Login] --> B{Enabled 2FA?}
-    B -->|No| E[Token]
-    B -->|Yes| C{Method}
-    C -->|TOTP| D[Validate TOTP]
-    C -->|Recovery| F[Validate Recovery Code]
-    D --> E
-    F --> E
+    A[Login] --> B{Account Verified?}
+    B -->|Yes| C{Email Verified}
+    B -->|No| I[Send verification code]
+    C -->|No| I
+    C -->|Yes| D{Enabled 2FA?}
+    D -->|Yes| E{Method}
+    D -->|No| F[Token]
+    E -->|TOTP| G[Validate TOTP]
+    E -->|Recovery Code| H[Validate Recovery]
+    G --> F
+    H --> F
+```
+
+### Forget Password
+
+```mermaid
+flowchart TD
+    A[Forget Password] --> B{Account Verified?}
+    B -->|No| E[Send Verification code]
+    B -->|Yes| C{Email Verified?}
+    C -->|No| E
+    C -->|Yes| D[Send reset session]
 ```
 
 ---
@@ -132,13 +147,15 @@ go run cmd/server/main.go
 
 > Note: For IP will use envoy in future
 
-| Endpoint         | Key               |
-|------------------|-------------------|
-| Login            | Email             |
-| Login Two Factor | Session + User ID |
-| Forget Password  | Email             |
-| Verification     | Session           |
-| Reset Password   | Session           |
+| Endpoint                  | Layer 1 Key | Layer 1 Limit | Layer 2 Key | Layer 2 Limit |
+|---------------------------|-------------|---------------|-------------|---------------|
+| Login                     | Email       | 5 / 5 Min     | None        | None          |
+| Login Two Factor          | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Forget Password           | Email       | 5 / 5 Min     | None        | None          |
+| Verification              | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Reset Password            | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| AccountVerification       | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| ResendAccountVerification | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 
 ---
 

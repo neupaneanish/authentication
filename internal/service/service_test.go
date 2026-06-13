@@ -239,7 +239,7 @@ func runMigrations(url string) error {
 	return nil
 }
 
-func seedUser(ctx context.Context, email string, password string, status enum.UserStatus) (string, error) {
+func seedUser(ctx context.Context, email string, password string, status enum.UserStatus, active bool) (string, error) {
 	tx, txErr := cfg.Pool.Begin(ctx)
 	if txErr != nil {
 		return "", txErr
@@ -281,6 +281,19 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 
 	if affected.RowsAffected() == 0 {
 		return "", errors.New("cannot create credentials")
+	}
+
+	if active {
+		verifyEmailParams := &repository.VerifyEmailParams{
+			Status:    enum.UserStatusActive,
+			UpdatedBy: userRow.ID,
+			ID:        userRow.ID,
+		}
+
+		_, userErr := qtx.VerifyEmail(ctx, verifyEmailParams)
+		if userErr != nil {
+			return "", userErr
+		}
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {

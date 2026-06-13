@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -13,6 +12,7 @@ import (
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
 	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func (s *AuthService) ForgetPassword(
@@ -24,15 +24,20 @@ func (s *AuthService) ForgetPassword(
 
 	result, resultErr := s.cfg.RateLimiter.ForgetPassword.Allow(ctx, email)
 
-	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, email); limiterErr != nil {
+	if limiterErr := LimiterCheck(ctx, &result, resultErr, serviceName, email, s.cfg.Logger); limiterErr != nil {
 		return nil, limiterErr
 	}
 
-	params := &repository.UserByEmailParams{Email: email}
-
 	session := rand.Text()
 
-	response := &authv1.ForgetPasswordResponse{Session: session}
+	response := &authv1.ForgetPasswordResponse{Response: &authv1.ForgetPasswordResponse_Session{Session: session}}
+
+	if !s.cfg.Domain.ValidateEmail(email) {
+		s.cfg.Logger.WarnContext(ctx, "invalid email", "email", email)
+		return response, nil
+	}
+
+	params := &repository.UserByEmailParams{Email: email}
 
 	row, rowErr := s.cfg.Repository.UserByEmail(ctx, params)
 	if rowErr != nil {
@@ -42,6 +47,26 @@ func (s *AuthService) ForgetPassword(
 		}
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" database", "error", rowErr)
 		return nil, errs.ErrInternalServer
+	}
+
+	if row.Status == enum.UserStatusPending && row.EmailVerifiedAt == nil {
+		emailErr := EmailVerification(
+			ctx,
+			serviceName,
+			enum.MethodForgetPassword,
+			session,
+			row.ID.String(),
+			string(row.Role),
+			false,
+			s.cfg.Client,
+			s.cfg.Logger,
+		)
+		if emailErr != nil {
+			return nil, emailErr
+		}
+		return &authv1.ForgetPasswordResponse{
+			Response: &authv1.ForgetPasswordResponse_Verification{Verification: session},
+		}, nil
 	}
 
 	switch row.Status {
@@ -59,23 +84,19 @@ func (s *AuthService) ForgetPassword(
 		return response, nil
 	}
 
-	codeByte := make([]byte, emailCodeBytes)
-	if _, err := rand.Read(codeByte); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" Email code", "error", err)
-		return nil, err
+	code, _, emailErr := GenerateEmailCode(ctx, s.cfg.Logger)
+	if emailErr != nil {
+		return nil, emailErr
 	}
 
-	code := fmt.Sprintf("%X", codeByte)
-	_ = fmt.Sprintf("%s-%s", code[0:4], code[4:8])
-
-	data := &ForgetPasswordSession{
+	data := &utils.ForgetPasswordSession{
 		Key:    session,
-		ExAt:   time.Now().Add(SessionExpiry),
+		ExAt:   time.Now().Add(utils.SessionExpiry),
 		UserID: row.ID.String(),
 		Code:   code,
 	}
 
-	hSetErr := redis.HSet[ForgetPasswordSession](ctx, ForgetPasswordSessionPrefix, data, s.cfg.Client)
+	hSetErr := redis.HSet[utils.ForgetPasswordSession](ctx, utils.ForgetPasswordSessionPrefix, data, s.cfg.Client)
 	if hSetErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
 		return nil, errs.ErrInternalServer

@@ -9,6 +9,7 @@ import (
 	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func (s *AuthService) Verification(
@@ -20,14 +21,20 @@ func (s *AuthService) Verification(
 	session := req.GetSession()
 
 	result, resultErr := s.cfg.RateLimiter.Verification.Allow(ctx, session)
-
-	if limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, session); limiterErr != nil {
+	if limiterErr := LimiterCheck(
+		ctx,
+		&result,
+		resultErr,
+		serviceName,
+		session,
+		s.cfg.Logger,
+	); limiterErr != nil {
 		return nil, limiterErr
 	}
 
-	fpSession, fpSessionErr := redis.HGet[ForgetPasswordSession](
+	fpSession, fpSessionErr := redis.HGet[utils.ForgetPasswordSession](
 		ctx,
-		ForgetPasswordSessionPrefix,
+		utils.ForgetPasswordSessionPrefix,
 		session,
 		s.cfg.Client,
 	)
@@ -46,19 +53,24 @@ func (s *AuthService) Verification(
 	}
 
 	newSession := rand.Text()
-	resetSession := &ResetPasswordSession{
+	resetSession := &utils.ResetPasswordSession{
 		Key:    newSession,
-		ExAt:   time.Now().Add(SessionExpiry),
+		ExAt:   time.Now().Add(utils.SessionExpiry),
 		UserID: fpSession.UserID,
 	}
 
-	hSetErr := redis.HSet[ResetPasswordSession](ctx, ResetPasswordSessionPrefix, resetSession, s.cfg.Client)
+	hSetErr := redis.HSet[utils.ResetPasswordSession](ctx, utils.ResetPasswordSessionPrefix, resetSession, s.cfg.Client)
 	if hSetErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" new session set", "error", hSetErr)
 		return nil, errs.ErrInternalServer
 	}
 
-	hDeleteErr := redis.HDelete[ForgetPasswordSession](ctx, ForgetPasswordSessionPrefix, session, s.cfg.Client)
+	hDeleteErr := redis.HDelete[utils.ForgetPasswordSession](
+		ctx,
+		utils.ForgetPasswordSessionPrefix,
+		session,
+		s.cfg.Client,
+	)
 	if hDeleteErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" session delete", "error", hDeleteErr)
 		return nil, errs.ErrInternalServer

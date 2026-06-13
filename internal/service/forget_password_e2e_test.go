@@ -4,7 +4,6 @@ package service_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,18 +12,18 @@ import (
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
 	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func TestForgetPasswordE2E(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	email := fmt.Sprintf("%s@test.com", rand.Text())
+	email := cfg.Domain.GenerateEmail(rand.Text())
 	oldPassword := "Test@123456"
 	newPassword := "Test@1234567"
 
-	seedID, seedErr := seedUser(ctx, email, oldPassword, enum.UserStatusActive)
+	seedID, seedErr := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
 	require.NoError(t, seedErr)
 	assert.NotNil(t, seedID)
 
@@ -32,9 +31,9 @@ func TestForgetPasswordE2E(t *testing.T) {
 	forgetPasswordRes, forgetPasswordResErr := authServiceClient.ForgetPassword(ctx, forgetPasswordParams)
 	require.NoError(t, forgetPasswordResErr)
 
-	hGet, hGetErr := redis.HGet[service.ForgetPasswordSession](
+	hGet, hGetErr := redis.HGet[utils.ForgetPasswordSession](
 		ctx,
-		service.ForgetPasswordSessionPrefix,
+		utils.ForgetPasswordSessionPrefix,
 		forgetPasswordRes.GetSession(),
 		cfg.Client,
 	)

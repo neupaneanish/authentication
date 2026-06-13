@@ -4,7 +4,6 @@ package service_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"sync/atomic"
 	"testing"
 
@@ -19,8 +18,8 @@ func BenchmarkLogin(b *testing.B) {
 
 	requests := make([]*authv1.LoginRequest, b.N)
 	for i := 0; i < b.N; i++ {
-		email := fmt.Sprintf("%s@test.com", rand.Text())
-		_, err := seedUser(ctx, email, raw, enum.UserStatusActive)
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		_, err := seedUser(ctx, email, raw, enum.UserStatusActive, true)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed: %v", err)
 		}
