@@ -10,9 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"neupaneanish.com.np/api/internal/enum"
+	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
 	"neupaneanish.com.np/api/internal/repository"
@@ -20,8 +19,27 @@ import (
 
 func TestLogin(t *testing.T) {
 	t.Parallel()
+
 	t.Run("Not register", func(t *testing.T) {
 		t.Parallel()
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		req := &authv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: "Password@1234",
+			},
+		}
+
+		response, responseErr := authServiceClient.Login(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
+	})
+
+	t.Run("Invalid email", func(t *testing.T) {
+		t.Parallel()
+
 		email := fmt.Sprintf("%s@test.com", rand.Text())
 		req := &authv1.LoginRequest{
 			Email: email,
@@ -34,15 +52,14 @@ func TestLogin(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Unauthenticated, st.Code())
+		assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
 	})
 
 	t.Run("Registered user", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 		require.NoError(t, err)
 
 		req := &authv1.LoginRequest{
@@ -57,9 +74,9 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Invalid Credentials", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 		require.NoError(t, err)
 
 		req := &authv1.LoginRequest{
@@ -73,16 +90,26 @@ func TestLogin(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Unauthenticated, st.Code())
+		assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
 	})
 
 	t.Run("Pending", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending)
+		userIDStr, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
 		require.NoError(t, err)
+
+		userID := uuid.MustParse(userIDStr)
+		verifyEmailParams := &repository.VerifyEmailParams{
+			Status:    enum.UserStatusPending,
+			UpdatedBy: userID,
+			ID:        userID,
+		}
+
+		user, verifyEmailErr := cfg.Repository.VerifyEmail(t.Context(), verifyEmailParams)
+		require.NoError(t, verifyEmailErr)
+		assert.NotNil(t, user)
 
 		req := &authv1.LoginRequest{
 			Email: email,
@@ -95,15 +122,14 @@ func TestLogin(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.PermissionDenied, st.Code())
+		assert.Equal(t, errs.ErrAccountPending, responseErr)
 	})
 
 	t.Run("Restricted", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked, false)
 		require.NoError(t, err)
 
 		req := &authv1.LoginRequest{
@@ -117,15 +143,14 @@ func TestLogin(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.PermissionDenied, st.Code())
+		assert.Equal(t, errs.ErrAccountRestricted, responseErr)
 	})
 
 	t.Run("Soft Delete", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted, false)
 		require.NoError(t, err)
 
 		req := &authv1.LoginRequest{
@@ -139,15 +164,14 @@ func TestLogin(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Unauthenticated, st.Code())
+		assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
 	})
 
 	t.Run("Two factor", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		uID, err := seedUser(t.Context(), email, password, enum.UserStatusActive)
+		uID, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 		require.NoError(t, err)
 
 		secret, secretErr := cfg.TwoFactor.Generate("Test")
@@ -180,40 +204,95 @@ func TestLogin(t *testing.T) {
 		assert.NotNil(t, response)
 	})
 
-	t.Run("Rate Limiter", func(t *testing.T) {
-		email := fmt.Sprintf("%s@test.com", rand.Text())
-		t.Run("Allowed", func(t *testing.T) {
-			for range 5 {
-				req := &authv1.LoginRequest{
-					Email: email,
-					Password: &passwordv1.Password{
-						Value: "Password@1234",
-					},
-				}
+	t.Run("Verification", func(t *testing.T) {
+		t.Parallel()
 
-				response, err := authServiceClient.Login(t.Context(), req)
-				require.Error(t, err)
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		password := "Test@123456"
+
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
+		require.NoError(t, err)
+
+		req := &authv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: password,
+			},
+		}
+
+		response, responseErr := authServiceClient.Login(t.Context(), req)
+		require.NoError(t, responseErr)
+		assert.NotNil(t, response)
+	})
+
+	t.Run("Verification invalid password", func(t *testing.T) {
+		t.Parallel()
+
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		password := "Test@123456"
+
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
+		require.NoError(t, err)
+
+		req := &authv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: "Test@1234567",
+			},
+		}
+
+		response, responseErr := authServiceClient.Login(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
+	})
+
+	t.Run("Verification email not verified", func(t *testing.T) {
+		t.Parallel()
+
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		password := "Test@123456"
+
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, false)
+		require.NoError(t, err)
+
+		req := &authv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: "Test@123456",
+			},
+		}
+
+		response, responseErr := authServiceClient.Login(t.Context(), req)
+		require.NoError(t, responseErr)
+		assert.NotNil(t, response)
+	})
+
+	t.Run("Rate Limiter", func(t *testing.T) {
+		t.Parallel()
+
+		email := cfg.Domain.GenerateEmail(rand.Text())
+
+		req := &authv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: "Password@1234",
+			},
+		}
+
+		for i := range 6 {
+			response, responseErr := authServiceClient.Login(t.Context(), req)
+			if i < 5 {
+				require.Error(t, responseErr)
+				assert.Nil(t, response)
+				assert.Equal(t, errs.ErrInvalidCredentials, responseErr)
+			} else {
+				require.Error(t, responseErr)
 				assert.Nil(t, response)
 
-				st, _ := status.FromError(err)
-				assert.Equal(t, codes.Unauthenticated, st.Code())
+				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 			}
-		})
-
-		t.Run("Blocked", func(t *testing.T) {
-			req := &authv1.LoginRequest{
-				Email: email,
-				Password: &passwordv1.Password{
-					Value: "Password@1234",
-				},
-			}
-
-			response, err := authServiceClient.Login(t.Context(), req)
-			require.Error(t, err)
-			assert.Nil(t, response)
-
-			st, _ := status.FromError(err)
-			assert.Equal(t, codes.ResourceExhausted, st.Code())
-		})
+		}
 	})
 }

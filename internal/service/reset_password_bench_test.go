@@ -4,7 +4,6 @@ package service_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -13,7 +12,7 @@ import (
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
 	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func BenchmarkResetPassword(b *testing.B) {
@@ -23,20 +22,20 @@ func BenchmarkResetPassword(b *testing.B) {
 
 	requests := make([]*authv1.ResetPasswordRequest, b.N)
 	for i := 0; i < b.N; i++ {
-		email := fmt.Sprintf("%s@test.com", rand.Text())
-		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive)
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed benchmark user: %v", err)
 		}
 
 		session := rand.Text()
-		data := &service.ResetPasswordSession{
+		data := &utils.ResetPasswordSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: userID,
 		}
 
-		hSetErr := redis.HSet[service.ResetPasswordSession](ctx, service.ResetPasswordSessionPrefix, data, cfg.Client)
+		hSetErr := redis.HSet[utils.ResetPasswordSession](ctx, utils.ResetPasswordSessionPrefix, data, cfg.Client)
 		if hSetErr != nil {
 			b.Fatalf("Failed to seed session %v", hSetErr)
 		}

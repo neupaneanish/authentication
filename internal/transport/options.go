@@ -40,21 +40,21 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 		grpc.StatsHandler(oTelHandler),
 		grpc.ChainUnaryInterceptor(
 			recovery.UnaryServerInterceptor(recoveryOpt),
+			UnaryTimeoutInterceptor(interceptorTimeout),
 			logging.UnaryServerInterceptor(
 				LoggerInterceptor(cfg.Logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			protovalidatemiddleware.UnaryServerInterceptor(validator),
-			UnaryTimeoutInterceptor(interceptorTimeout),
 		),
 		grpc.ChainStreamInterceptor(
 			recovery.StreamServerInterceptor(recoveryOpt),
+			StreamTimeoutInterceptor(maxTimeout),
 			logging.StreamServerInterceptor(
 				LoggerInterceptor(cfg.Logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			protovalidatemiddleware.StreamServerInterceptor(validator),
-			StreamTimeoutInterceptor(maxTimeout),
 		),
 	}
 

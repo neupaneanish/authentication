@@ -4,7 +4,6 @@ package service_test
 
 import (
 	"crypto/rand"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -13,21 +12,20 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"neupaneanish.com.np/api/internal/enum"
+	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
 	"neupaneanish.com.np/api/internal/repository"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func TestLoginTwoFactor(t *testing.T) {
 	ctx := t.Context()
 
 	t.Run("TOTP", func(t *testing.T) {
-		email := fmt.Sprintf("%s@tst.com", rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive)
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive, true)
 		require.NoError(t, seedErr)
 
 		userID := uuid.MustParse(seed)
@@ -49,16 +47,16 @@ func TestLoginTwoFactor(t *testing.T) {
 		assert.GreaterOrEqual(t, row.RowsAffected(), int64(1))
 
 		session := rand.Text()
-		value := &service.LoginTwoFactorSession{
+		value := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: seed,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[service.LoginTwoFactorSession](
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
 			ctx,
-			service.LoginTwoFactorSessionPrefix,
+			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
 		)
@@ -72,8 +70,8 @@ func TestLoginTwoFactor(t *testing.T) {
 			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.Aborted, st.Code())
+
+			assert.Equal(t, errs.ErrSessionExpired, responseErr)
 		})
 
 		t.Run("Invalid Code", func(t *testing.T) {
@@ -85,8 +83,7 @@ func TestLoginTwoFactor(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.InvalidArgument, st.Code())
+			assert.Equal(t, errs.ErrInvalidCode, responseErr)
 		})
 
 		t.Run("Valid Session and Code", func(t *testing.T) {
@@ -105,8 +102,8 @@ func TestLoginTwoFactor(t *testing.T) {
 	})
 
 	t.Run("Recovery", func(t *testing.T) {
-		email := fmt.Sprintf("%s@tst.com", rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive)
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive, true)
 		require.NoError(t, seedErr)
 
 		userID := uuid.MustParse(seed)
@@ -117,16 +114,16 @@ func TestLoginTwoFactor(t *testing.T) {
 		assert.Equal(t, len(recoveryCodes.Hash), 10)
 
 		session := rand.Text()
-		value := &service.LoginTwoFactorSession{
+		value := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: seed,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[service.LoginTwoFactorSession](
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
 			ctx,
-			service.LoginTwoFactorSessionPrefix,
+			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
 		)
@@ -154,8 +151,8 @@ func TestLoginTwoFactor(t *testing.T) {
 			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.Aborted, st.Code())
+
+			assert.Equal(t, errs.ErrSessionExpired, responseErr)
 		})
 
 		t.Run("Invalid Code", func(t *testing.T) {
@@ -166,8 +163,8 @@ func TestLoginTwoFactor(t *testing.T) {
 			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.InvalidArgument, st.Code())
+
+			assert.Equal(t, errs.ErrInvalidCode, responseErr)
 		})
 
 		t.Run("Valid session and Code", func(t *testing.T) {
@@ -184,16 +181,16 @@ func TestLoginTwoFactor(t *testing.T) {
 
 		t.Run("Valid session and Reuse Code", func(t *testing.T) {
 			s := rand.Text()
-			data := &service.LoginTwoFactorSession{
+			data := &utils.LoginTwoFactorSession{
 				Key:    s,
-				ExAt:   time.Now().Add(service.SessionExpiry),
+				ExAt:   time.Now().Add(utils.SessionExpiry),
 				UserID: seed,
 				Role:   string(enum.UserRoleUser),
 			}
 
-			setErr := redis.HSet[service.LoginTwoFactorSession](
+			setErr := redis.HSet[utils.LoginTwoFactorSession](
 				ctx,
-				service.LoginTwoFactorSessionPrefix,
+				utils.LoginTwoFactorSessionPrefix,
 				data,
 				cfg.Client,
 			)
@@ -209,8 +206,7 @@ func TestLoginTwoFactor(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.InvalidArgument, st.Code())
+			assert.Equal(t, errs.ErrInvalidCode, responseErr)
 		})
 	})
 
@@ -227,8 +223,7 @@ func TestLoginTwoFactor(t *testing.T) {
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 
-				st, _ := status.FromError(responseErr)
-				assert.Equal(t, codes.Aborted, st.Code())
+				assert.Equal(t, errs.ErrSessionExpired, responseErr)
 			}
 		})
 
@@ -241,8 +236,7 @@ func TestLoginTwoFactor(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.ResourceExhausted, st.Code())
+			assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 		})
 	})
 
@@ -250,16 +244,16 @@ func TestLoginTwoFactor(t *testing.T) {
 		session := rand.Text()
 		userID := uuid.NewString()
 
-		value := &service.LoginTwoFactorSession{
+		value := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: userID,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[service.LoginTwoFactorSession](
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
 			ctx,
-			service.LoginTwoFactorSessionPrefix,
+			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
 		)
@@ -275,24 +269,23 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.InvalidArgument, st.Code())
+		assert.Equal(t, errs.ErrInvalidCode, responseErr)
 	})
 
 	t.Run("No User in TOTP DB", func(t *testing.T) {
 		session := rand.Text()
 		userID := uuid.NewString()
 
-		value := &service.LoginTwoFactorSession{
+		value := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: userID,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[service.LoginTwoFactorSession](
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
 			ctx,
-			service.LoginTwoFactorSessionPrefix,
+			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
 		)
@@ -308,24 +301,23 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.NotFound, st.Code())
+		assert.Equal(t, errs.ErrNotFound, responseErr)
 	})
 
 	t.Run("No User in Recovery DB", func(t *testing.T) {
 		session := rand.Text()
 		userID := uuid.NewString()
 
-		value := &service.LoginTwoFactorSession{
+		value := &utils.LoginTwoFactorSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: userID,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[service.LoginTwoFactorSession](
+		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
 			ctx,
-			service.LoginTwoFactorSessionPrefix,
+			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
 		)
@@ -341,7 +333,6 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.NotFound, st.Code())
+		assert.Equal(t, errs.ErrNotFound, responseErr)
 	})
 }

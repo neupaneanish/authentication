@@ -14,10 +14,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"neupaneanish.com.np/api/internal/enum"
+	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
 	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 func TestResetPassword(t *testing.T) {
@@ -43,7 +44,7 @@ func TestResetPassword(t *testing.T) {
 
 	t.Run("Valid session previous password", func(t *testing.T) {
 		t.Parallel()
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		session := seedUserResetPassword(t, email, oldPassword)
 		req := &authv1.ResetPasswordRequest{
 			Session:         session,
@@ -55,8 +56,7 @@ func TestResetPassword(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.AlreadyExists, st.Code())
+		assert.Equal(t, errs.ErrPreviousPassword, responseErr)
 	})
 
 	t.Run("Valid session and password", func(t *testing.T) {
@@ -79,15 +79,15 @@ func TestResetPassword(t *testing.T) {
 		session := rand.Text()
 		userID := uuid.NewString()
 
-		data := &service.ResetPasswordSession{
+		data := &utils.ResetPasswordSession{
 			Key:    session,
-			ExAt:   time.Now().Add(service.SessionExpiry),
+			ExAt:   time.Now().Add(utils.SessionExpiry),
 			UserID: userID,
 		}
 
-		hSetErr := redis.HSet[service.ResetPasswordSession](
+		hSetErr := redis.HSet[utils.ResetPasswordSession](
 			t.Context(),
-			service.ResetPasswordSessionPrefix,
+			utils.ResetPasswordSessionPrefix,
 			data,
 			cfg.Client,
 		)
@@ -102,12 +102,12 @@ func TestResetPassword(t *testing.T) {
 		response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Aborted, st.Code())
+
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
 	})
 
 	t.Run("Rate limiter", func(t *testing.T) {
-		email := fmt.Sprintf("%s@test.com", rand.Text())
+		email := cfg.Domain.GenerateEmail(rand.Text())
 		session := seedUserResetPassword(t, email, oldPassword)
 		req := &authv1.ResetPasswordRequest{
 			Session:         session,
@@ -121,8 +121,7 @@ func TestResetPassword(t *testing.T) {
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 
-				st, _ := status.FromError(responseErr)
-				assert.Equal(t, codes.AlreadyExists, st.Code())
+				assert.Equal(t, errs.ErrPreviousPassword, responseErr)
 			}
 		})
 
@@ -131,8 +130,7 @@ func TestResetPassword(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
-			st, _ := status.FromError(responseErr)
-			assert.Equal(t, codes.ResourceExhausted, st.Code())
+			assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 		})
 	})
 }
@@ -140,18 +138,18 @@ func TestResetPassword(t *testing.T) {
 func seedUserResetPassword(t *testing.T, email string, password string) string {
 	t.Helper()
 	session := rand.Text()
-	userID, seedErr := seedUser(t.Context(), email, password, enum.UserStatusActive)
+	userID, seedErr := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 	require.NoError(t, seedErr)
 
-	data := &service.ResetPasswordSession{
+	data := &utils.ResetPasswordSession{
 		Key:    session,
-		ExAt:   time.Now().Add(service.SessionExpiry),
+		ExAt:   time.Now().Add(utils.SessionExpiry),
 		UserID: userID,
 	}
 
-	hSetErr := redis.HSet[service.ResetPasswordSession](
+	hSetErr := redis.HSet[utils.ResetPasswordSession](
 		t.Context(),
-		service.ResetPasswordSessionPrefix,
+		utils.ResetPasswordSessionPrefix,
 		data,
 		cfg.Client,
 	)

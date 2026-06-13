@@ -2,8 +2,17 @@ package config
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const (
+	databaseMinConnection = 5
+	databaseMaxConnection = 25
+	databaseConnLifeTime  = 30 * time.Minute
+	databaseConnIdle      = 1 * time.Minute
+	databasePingTimeout   = 5 * time.Second
 )
 
 func NewDatabase(

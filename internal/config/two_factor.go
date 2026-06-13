@@ -17,6 +17,29 @@ import (
 	"neupaneanish.com.np/api/internal/repository"
 )
 
+type GenerateTwoFactor struct {
+	Secret string
+	Image  []byte
+	URL    string
+}
+
+const (
+	recoveryCodeCount = 10
+	recoveryCodeBytes = 5
+	imageSize         = 250
+	period            = 30
+)
+
+type RecoveryCodes struct {
+	Plain []string
+	Hash  [][]byte
+}
+
+type TwoFactor struct {
+	key    []byte
+	issuer string
+}
+
 func NewTwoFactor(
 	key string,
 	issuer string,

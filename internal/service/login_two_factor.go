@@ -14,6 +14,7 @@ import (
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
 	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/api/internal/utils"
 )
 
 type validateTwoFactor struct {
@@ -42,12 +43,17 @@ func (s *AuthService) LoginTwoFactor(
 	session := req.GetSession()
 
 	resultSession, resultSessionErr := s.cfg.RateLimiter.LoginTwoFactor.Allow(ctx, session)
-	limiterSessionErr := s.limiterCheck(ctx, &resultSession, resultSessionErr, serviceName, session)
+	limiterSessionErr := LimiterCheck(ctx, &resultSession, resultSessionErr, serviceName, session, s.cfg.Logger)
 	if limiterSessionErr != nil {
 		return nil, limiterSessionErr
 	}
 
-	data, dataErr := redis.HGet[LoginTwoFactorSession](ctx, LoginTwoFactorSessionPrefix, session, s.cfg.Client)
+	data, dataErr := redis.HGet[utils.LoginTwoFactorSession](
+		ctx,
+		utils.LoginTwoFactorSessionPrefix,
+		session,
+		s.cfg.Client,
+	)
 	if dataErr != nil {
 		if om.IsRecordNotFound(dataErr) {
 			s.cfg.Logger.WarnContext(ctx, serviceName+" not found", "session", session)
@@ -57,8 +63,8 @@ func (s *AuthService) LoginTwoFactor(
 		return nil, errs.ErrInternalServer
 	}
 
-	result, resultErr := s.cfg.RateLimiter.LoginTwoFactor.Allow(ctx, data.UserID)
-	limiterErr := s.limiterCheck(ctx, &result, resultErr, serviceName, data.UserID)
+	result, resultErr := s.cfg.RateLimiter.LoginTwoFactorUserID.Allow(ctx, data.UserID)
+	limiterErr := LimiterCheck(ctx, &result, resultErr, serviceName, data.UserID, s.cfg.Logger)
 	if limiterErr != nil {
 		return nil, limiterErr
 	}
@@ -169,7 +175,12 @@ func (s *AuthService) validateRecoveryCode(
 }
 
 func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.LoginTwoFactorResponse, error) {
-	hDErr := redis.HDelete[LoginTwoFactorSession](ctx, LoginTwoFactorSessionPrefix, tf.session, s.cfg.Client)
+	hDErr := redis.HDelete[utils.LoginTwoFactorSession](
+		ctx,
+		utils.LoginTwoFactorSessionPrefix,
+		tf.session,
+		s.cfg.Client,
+	)
 	if hDErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, tf.serviceName+" valkey delete", "error", hDErr)
 		return nil, errs.ErrInternalServer
@@ -201,11 +212,14 @@ func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.
 		return nil, errs.ErrInternalServer
 	}
 
-	jwt, jwtErr := s.login(
+	jwt, jwtErr := login(
 		ctx,
 		tf.userID.String(),
 		tf.role,
 		tf.serviceName,
+		s.cfg.Jwt,
+		s.cfg.Client,
+		s.cfg.Logger,
 	)
 	if jwtErr != nil {
 		return nil, jwtErr
