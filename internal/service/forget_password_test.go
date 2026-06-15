@@ -52,6 +52,20 @@ func TestForgetPassword(t *testing.T) {
 		assert.NotNil(t, response)
 	})
 
+	t.Run("Email not verified", func(t *testing.T) {
+		t.Parallel()
+
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive, false)
+		require.NoError(t, seedErr)
+
+		req := &authv1.ForgetPasswordRequest{Email: email}
+
+		response, responseErr := authServiceClient.ForgetPassword(t.Context(), req)
+		require.NoError(t, responseErr)
+		assert.NotNil(t, response)
+	})
+
 	t.Run("Pending", func(t *testing.T) {
 		t.Parallel()
 

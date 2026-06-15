@@ -61,8 +61,11 @@ func (s *AuthService) Login(
 			row.ID.String(),
 			string(row.Role),
 			row.TwoFactor,
+			true,
+			email,
 			s.cfg.Client,
 			s.cfg.Logger,
+			s.cfg.Worker,
 		); emailErr != nil {
 			return nil, emailErr
 		}
@@ -98,8 +101,11 @@ func (s *AuthService) Login(
 			row.ID.String(),
 			string(row.Role),
 			row.TwoFactor,
+			false,
+			email,
 			s.cfg.Client,
 			s.cfg.Logger,
+			s.cfg.Worker,
 		)
 		if emailErr != nil {
 			return nil, emailErr

@@ -48,11 +48,11 @@ func TestNewConfig(t *testing.T) {
 	t.Parallel()
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
+	_, private, privateKeyErr := ed25519.GenerateKey(nil)
+	require.NoError(t, privateKeyErr)
+
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
-
-		_, private, privateKeyErr := ed25519.GenerateKey(nil)
-		require.NoError(t, privateKeyErr)
 
 		env := &config.Env{
 			DatabaseURL:  databaseURL,
@@ -116,8 +116,6 @@ func TestNewConfig(t *testing.T) {
 	t.Run("Invalid two factor", func(t *testing.T) {
 		t.Parallel()
 
-		_, private, err := ed25519.GenerateKey(nil)
-		require.NoError(t, err)
 		env := &config.Env{
 			DatabaseURL:  databaseURL,
 			ValkeyURL:    valkeyURL,

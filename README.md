@@ -23,6 +23,7 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 - OpenTelemetry observability
 - Dockerized testing (testcontainers)
 - Benchmarks, E2E
+- Background Worker (asynq)
 
 ---
 
@@ -49,6 +50,8 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 ---
 
 ## Environments
+
+### Server
 
 |        Name         |          Default          |                                   Options                                    |
 |:-------------------:|:-------------------------:|:----------------------------------------------------------------------------:|
@@ -77,9 +80,18 @@ ENVIRONMENT=development
 TELEMETRY_URL=127.0.0.1:4317
 DOMAIN=neupaneanish.com.np
 DOMAIN_VERIFICATION=
-DOMAIN_NAME=
+DOMAIN_NAME=api
 ```
 
+### Worker
+
+```dotenv
+VALKEY_URL=127.0.0.1:6379
+SMTP2GO_API=
+SENDER_DOMAIN=neupaneanish.com.np
+```
+
+> **Note:** Server and Worker valkey should be same
 ---
 
 ## Flow Chart
@@ -135,8 +147,12 @@ sqlc generate
 go test -v -tags=unit ./...
 go test -v -tags=integration ./...
 go test -v -tags=benchmark ./...
+go test -v -tags=e2e ./...
 
-# 6. Launch the local microservice API server
+# 6. Launch the asynchronous background worker daemon
+go run cmd/worker/main.go
+
+# 7. Launch the local microservice API server
 # (Note: Requires an active OpenTelemetry collector instance, e.g., SigNoz)
 go run cmd/server/main.go
 ```

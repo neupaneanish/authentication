@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/hibiken/asynq"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"neupaneanish.com.np/api/internal/config"
 	"neupaneanish.com.np/api/internal/enum"
 	"neupaneanish.com.np/api/internal/errs"
 	"neupaneanish.com.np/api/internal/redis"
+	"neupaneanish.com.np/api/internal/task"
 	"neupaneanish.com.np/api/internal/utils"
 )
 
@@ -105,10 +107,13 @@ func EmailVerification(
 	userID string,
 	role string,
 	twoFactor bool,
+	account bool,
+	email string,
 	client valkey.Client,
 	logger *slog.Logger,
+	worker *asynq.Client,
 ) error {
-	code, _, err := GenerateEmailCode(ctx, logger)
+	code, plain, err := GenerateEmailCode(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -125,10 +130,86 @@ func EmailVerification(
 
 	hSetErr := redis.HSet[utils.AccountVerificationSession](ctx, utils.AccountVerificationSessionPrefix, data, client)
 	if hSetErr != nil {
-		logger.ErrorContext(ctx, serviceName+" account verification ", "error", hSetErr, "method", method)
+		logger.ErrorContext(ctx, "Account verification ", "service", serviceName, "error", hSetErr, "method", method)
 		return errs.ErrInternalServer
 	}
 
-	// TODO: Send Email Verification
+	var taskType string
+
+	if account {
+		taskType = task.TypeAccountVerification
+	} else {
+		taskType = task.TypeEmailVerification
+	}
+
+	t, tErr := task.AuthEmailTask(taskType, email, plain)
+	return EmailEnqueue(ctx, t, tErr, serviceName, logger, worker)
+}
+
+func EmailForgetPassword(
+	ctx context.Context,
+	session string,
+	userID string,
+	email string,
+	serviceName string,
+	client valkey.Client,
+	logger *slog.Logger,
+	worker *asynq.Client,
+) error {
+	code, plain, codeErr := GenerateEmailCode(ctx, logger)
+	if codeErr != nil {
+		return codeErr
+	}
+
+	data := &utils.ForgetPasswordSession{
+		Key:    session,
+		ExAt:   time.Now().Add(utils.SessionExpiry),
+		UserID: userID,
+		Code:   code,
+		Email:  email,
+	}
+
+	hSetErr := redis.HSet[utils.ForgetPasswordSession](ctx, utils.ForgetPasswordSessionPrefix, data, client)
+	if hSetErr != nil {
+		logger.ErrorContext(ctx, "Valkey Access HSet", "service", serviceName, "error", hSetErr)
+		return errs.ErrInternalServer
+	}
+
+	t, tErr := task.AuthEmailTask(task.TypeForgetPassword, email, plain)
+	return EmailEnqueue(ctx, t, tErr, serviceName, logger, worker)
+}
+
+func EmailEnqueue(
+	ctx context.Context,
+	t *asynq.Task,
+	tErr error,
+	serviceName string,
+	logger *slog.Logger,
+	worker *asynq.Client,
+) error {
+	if tErr != nil {
+		logger.ErrorContext(ctx, "New email task failed", "service", serviceName, "error", tErr)
+		return errs.ErrInternalServer
+	}
+
+	info, workerErr := worker.Enqueue(t)
+	if workerErr != nil {
+		logger.ErrorContext(ctx, "Failed to enqueue email task", "service", serviceName, "error", workerErr)
+		return errs.ErrInternalServer
+	}
+
+	logger.InfoContext(
+		ctx,
+		"Successfully enqueue task",
+		"service",
+		serviceName,
+		"task_id",
+		info.ID,
+		"queue",
+		info.Queue,
+		"type",
+		info.Type,
+	)
+
 	return nil
 }

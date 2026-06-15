@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
+
+	"neupaneanish.com.np/api/internal/domain"
+	"neupaneanish.com.np/api/internal/env"
 )
 
 type Env struct {
@@ -23,66 +25,61 @@ type Env struct {
 	API          string
 }
 
-const (
-	envDevelopment = "development"
-	envProduction  = "production"
-)
-
 func LoadEnv(ctx context.Context) (*Env, error) {
-	databaseURL, databaseURLErr := validateEnv("DATABASE_URL")
+	databaseURL, databaseURLErr := env.ValidateEnv("DATABASE_URL")
 	if databaseURLErr != nil {
 		return nil, databaseURLErr
 	}
 
-	valkeyURL, valkeyURLErr := validateEnv("VALKEY_URL")
+	valkeyURL, valkeyURLErr := env.ValidateEnv("VALKEY_URL")
 	if valkeyURLErr != nil {
 		return nil, valkeyURLErr
 	}
 
-	jwtKey, jwtKeyErr := validateEnv("JWT_KEY")
+	jwtKey, jwtKeyErr := env.ValidateEnv("JWT_KEY")
 	if jwtKeyErr != nil {
 		return nil, jwtKeyErr
 	}
 
-	twoFactorKey, twoFactorKeyErr := validateEnv("TWO_FACTOR_KEY")
+	twoFactorKey, twoFactorKeyErr := env.ValidateEnv("TWO_FACTOR_KEY")
 	if twoFactorKeyErr != nil {
 		return nil, twoFactorKeyErr
 	}
 
-	port := validateDefaultEnv("PORT", "50051")
+	port := env.ValidateDefaultEnv("PORT", "50051")
 	value, valueErr := strconv.Atoi(port)
 	if valueErr != nil || value < 80 || value > 65535 {
 		return nil, errors.New("PORT must be between 80  and 65535")
 	}
 
-	environment := validateDefaultEnv("ENVIRONMENT", "development")
+	environment := env.ValidateDefaultEnv("ENVIRONMENT", env.Development)
 	switch environment {
-	case envDevelopment, envProduction:
+	case env.Development, env.Production:
 	default:
-		return nil, fmt.Errorf("ENVIRONMENT must be %s or %s", envDevelopment, envProduction)
+		return nil, fmt.Errorf("ENVIRONMENT must be %s or %s", env.Development, env.Production)
 	}
 
-	telemetryURL, telemetryURLErr := validateEnv("TELEMETRY_URL")
+	telemetryURL, telemetryURLErr := env.ValidateEnv("TELEMETRY_URL")
 	if telemetryURLErr != nil {
 		return nil, telemetryURLErr
 	}
 
-	domain, domainErr := validateEnv("DOMAIN")
-	if domainErr != nil {
-		return nil, domainErr
+	url, urlErr := env.ValidateEnv("DOMAIN")
+	if urlErr != nil {
+		return nil, urlErr
 	}
 
-	domainVerification, domainVerificationErr := validateEnv("DOMAIN_VERIFICATION")
+	domainVerification, domainVerificationErr := env.ValidateEnv("DOMAIN_VERIFICATION")
 	if domainVerificationErr != nil {
 		return nil, domainVerificationErr
 	}
 
-	domainName, domainNameErr := validateEnv("DOMAIN_NAME")
+	domainName, domainNameErr := env.ValidateEnv("DOMAIN_NAME")
 	if domainNameErr != nil {
 		return nil, domainNameErr
 	}
 
-	validDomain, validDomainErr := ValidateDomain(ctx, strings.ToLower(domain), domainVerification)
+	validDomain, validDomainErr := domain.ValidateDomainWithTXT(ctx, strings.ToLower(url), domainVerification)
 	if validDomainErr != nil {
 		return nil, validDomainErr
 	}
@@ -94,30 +91,12 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		ValkeyURL:    valkeyURL,
 		JWTKey:       jwtKey,
 		TwoFactorKey: twoFactorKey,
-		Issuer:       validateDefaultEnv("ISSUER", "Anish Neupane"),
+		Issuer:       env.ValidateDefaultEnv("ISSUER", "Anish Neupane"),
 		Port:         port,
-		ServiceName:  validateDefaultEnv("SERVICE_NAME", api),
+		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", api),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
 		Domain:       validDomain,
 		API:          api,
 	}, nil
-}
-
-func validateEnv(key string) (string, error) {
-	env := os.Getenv(key)
-	value := strings.TrimSpace(env)
-	if value == "" {
-		return "", fmt.Errorf("%s is missing", key)
-	}
-	return value, nil
-}
-
-func validateDefaultEnv(key string, def string) string {
-	env := os.Getenv(key)
-	value := strings.TrimSpace(env)
-	if value == "" {
-		return def
-	}
-	return value
 }

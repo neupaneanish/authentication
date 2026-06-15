@@ -9,9 +9,11 @@ import (
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
 	"neupaneanish.com.np/api/internal/redis"
 	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/api/internal/task"
 	"neupaneanish.com.np/api/internal/utils"
 )
 
+//nolint:funlen
 func (s *AuthService) ResetPassword(
 	ctx context.Context,
 	req *authv1.ResetPasswordRequest,
@@ -101,6 +103,9 @@ func (s *AuthService) ResetPassword(
 		return nil, errs.ErrInternalServer
 	}
 
+	t, tErr := task.SecurityNotification(task.TypePasswordReset, resetSession.Email)
+	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
+
 	hDeleteErr := redis.HDelete[utils.ResetPasswordSession](
 		ctx,
 		utils.ResetPasswordSessionPrefix,
@@ -110,8 +115,6 @@ func (s *AuthService) ResetPassword(
 	if hDeleteErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey delete", "error", hDeleteErr)
 	}
-
-	// TODO: Send notification via email
 
 	return &authv1.ResetPasswordResponse{}, nil
 }

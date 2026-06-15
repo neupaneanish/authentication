@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/valkey-io/valkey-go"
 	"neupaneanish.com.np/api/internal/repository"
@@ -21,6 +22,7 @@ type Config struct {
 	RateLimiter *RateLimiter
 	Repository  repository.Querier
 	Domain      *Domain
+	Worker      *asynq.Client
 }
 
 func NewConfig(
@@ -53,6 +55,11 @@ func NewConfig(
 		return nil, rateLimiterErr
 	}
 
+	worker, workerErr := NewWorker(env.ValkeyURL)
+	if workerErr != nil {
+		return nil, workerErr
+	}
+
 	return &Config{
 		Pool:        pool,
 		Client:      client,
@@ -65,6 +72,7 @@ func NewConfig(
 		RateLimiter: rateLimiter,
 		Repository:  repository.New(pool),
 		Domain:      NewDomain(env.Domain, env.API),
+		Worker:      worker,
 	}, nil
 }
 
@@ -74,5 +82,10 @@ func (c *Config) Close() {
 	}
 	if c.Client != nil {
 		c.Client.Close()
+	}
+	if c.Worker != nil {
+		if err := c.Worker.Close(); err != nil {
+			c.Logger.Error("failed to close asynq worker client gracefully", "error", err)
+		}
 	}
 }

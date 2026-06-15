@@ -57,6 +57,7 @@ func (s *AuthService) Verification(
 		Key:    newSession,
 		ExAt:   time.Now().Add(utils.SessionExpiry),
 		UserID: fpSession.UserID,
+		Email:  fpSession.Email,
 	}
 
 	hSetErr := redis.HSet[utils.ResetPasswordSession](ctx, utils.ResetPasswordSessionPrefix, resetSession, s.cfg.Client)
