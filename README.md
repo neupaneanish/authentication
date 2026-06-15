@@ -185,10 +185,10 @@ go run cmd/server/main.go
 
 ```bash
 # Generate coverage
-go test -v -tags=unit,integration,benchmark,e2e -coverprofile=total.out ./... 
+go test -v -tags=unit,integration,benchmark,e2e -coverprofile=coverage.out ./... 
 
 # Filter out external boundaries, generated code, and tooling 
-grep -v -E "cmd/server/|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" coverage.out > coverage_clean.out
+grep -v -E "cmd/|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" coverage.out > coverage_clean.out
 
 # Export to interactive HTML for local branch analysis
 go tool cover -html=coverage_clean.out -o coverage_clean.html 
