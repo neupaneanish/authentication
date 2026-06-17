@@ -3,6 +3,7 @@
 package redis_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -57,5 +58,14 @@ func TestRedis(t *testing.T) {
 	t.Run("Delete Delete", func(t *testing.T) {
 		hDeleteErr := redis.HDelete[data](t.Context(), prefix, value.Key, client)
 		require.NoError(t, hDeleteErr)
+	})
+
+	t.Run("Om failed", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Microsecond)
+		defer cancel()
+
+		hGetData, hGetErr := redis.HGet[data](ctx, prefix, value.Key, client)
+		require.Error(t, hGetErr)
+		assert.Nil(t, hGetData)
 	})
 }

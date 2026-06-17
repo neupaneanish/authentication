@@ -13,7 +13,7 @@ import (
 	"neupaneanish.com.np/api/tests"
 )
 
-func TestNewLimiter(t *testing.T) {
+func TestRateNewLimiter(t *testing.T) {
 	t.Parallel()
 	client, clientErr := config.NewValkey(t.Context(), valkeyURL)
 	require.NoError(t, clientErr)
