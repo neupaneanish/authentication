@@ -52,7 +52,7 @@ func login(
 
 	token, tokenErr := jwt.GenerateToken(userID, role, id)
 	if tokenErr != nil {
-		return nil, errs.ErrInternalServer
+		return nil, tokenErr
 	}
 
 	accessSession := &utils.LoginAccessSession{
@@ -126,6 +126,7 @@ func EmailVerification(
 		Method:    string(method),
 		Code:      code,
 		TwoFactor: twoFactor,
+		Email:     email,
 	}
 
 	hSetErr := redis.HSet[utils.AccountVerificationSession](ctx, utils.AccountVerificationSessionPrefix, data, client)

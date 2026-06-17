@@ -40,7 +40,7 @@ func NewConfig(
 		return nil, clientErr
 	}
 
-	jwt, jwtErr := NewJWT(env.JWTKey, env.Issuer)
+	jwt, jwtErr := NewJWT(env.JWTKey, env.Issuer, logger)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}
