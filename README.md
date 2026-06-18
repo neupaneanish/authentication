@@ -175,7 +175,7 @@ go run cmd/server/main.go
 
 ---
 
-## Coverage ~84.50%
+## Coverage ~84.00%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.
@@ -225,14 +225,16 @@ a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to ca
 
 | Endpoints        | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |
 |------------------|------|-----------------|---------------|------------------|------------------------------|
-| Login            | 195  | 6519490         | 65418         | 595              | 1                            |
+| Register         | 166  | 7447487         | 64068         | 908              | 1                            |
+| Login            | 132  | 7665446         | 73483         | 618              | 1                            |
 | Login Two Factor | N/A  | N/A             | N/A           | N/A              | 0 (TOTP) / Max 10 (Recovery) |
 | Forget Password  | N/A  | N/A             | N/A           | N/A              | 0                            |
 | Verification     | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Reset Password   | 99   | 13423608        | 56968         | 539              | 2 (Max 6)                    |
+| Reset Password   | 81   | 14111253        | 62284         | 597              | 2 (Max 6)                    |
 
 #### Security Architecture Notes:
 
+- **Register:** 1 Bcrypt operation using `GenerateFromPassword` to hash raw password before storing in database.
 - **Login:** 1 Bcrypt operation baseline (utilizes `CompareHashAndPassword` to verify the incoming credentials against
   the database record).
 - **Login Two Factor:** Execution cost depends on the validation type:
@@ -248,13 +250,29 @@ a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to ca
 
 This execution chart was exported using `go tool pprof` during a standard benchmark run:
 
-![Login CPU Benchmark Image](docs/images/bench_login_cpu.svg)
+##### Register CPU
 
-[Login CPU Benchmark Image](docs/images/bench_login_cpu.svg)
+![Register CPU Benchmark Image](docs/images/bench_register_cpu.png)
 
-![Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.svg)
+##### Register Memory
 
-[Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.svg)
+![Register Memory Benchmark Image](docs/images/bench_register_mem.png)
+
+##### Login CPU
+
+![Login CPU Benchmark Image](docs/images/bench_login_cpu.png)
+
+##### Login memory
+
+![Login Memory Benchmark Image](docs/images/bench_login_mem.png)
+
+##### ResetPassword CPU
+
+![Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.png)
+
+##### ResetPassword Memory
+
+![Reset Password Memory Benchmark Image](docs/images/bench_reset_password_mem.png)
 
 ---
 

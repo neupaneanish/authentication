@@ -1,0 +1,136 @@
+package service
+
+import (
+	"context"
+	"crypto/rand"
+	"errors"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+	"neupaneanish.com.np/api/internal/enum"
+	"neupaneanish.com.np/api/internal/errs"
+	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/api/internal/utils"
+)
+
+func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+	serviceName := "Register"
+
+	if !s.cfg.Domain.ValidateEmail(req.GetEmail()) {
+		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid email", "email", req.GetEmail())
+		return nil, errs.ErrInvalidEmail
+	}
+
+	phoneNumber, phoneNumberErr := utils.PhoneNumber(req.GetPhone())
+	if phoneNumberErr != nil {
+		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid phone", "phone", req.GetPhone())
+		return nil, errs.ErrInvalidPhone
+	}
+
+	hashPassword, hashPasswordErr := utils.CreatePassword(req.GetPassword().GetValue())
+	if hashPasswordErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Password hash", "service", serviceName, "error", hashPasswordErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	userParams := &repository.CreateUserParams{
+		Email:     req.GetEmail(),
+		Username:  s.cfg.Domain.GenerateUsername(req.GetEmail()),
+		Role:      enum.UserRoleUser,
+		Status:    enum.UserStatusPending,
+		CreatedBy: uuid.Nil,
+		UpdatedBy: uuid.Nil,
+	}
+
+	tx, txErr := s.cfg.Pool.Begin(ctx)
+	if txErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "transactions begin", "service", serviceName, "error", txErr)
+		return nil, errs.ErrInternalServer
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := repository.New(tx)
+
+	user, userErr := qtx.CreateUser(ctx, userParams)
+	if userErr != nil {
+		if pgxErr, ok := errors.AsType[*pgconn.PgError](userErr); ok && pgxErr.Code == pgerrcode.UniqueViolation {
+			s.cfg.Logger.WarnContext(
+				ctx,
+				"User registration collision on user",
+				"service",
+				serviceName,
+				"email",
+				userParams.Email,
+			)
+			return nil, errs.ErrEmailAlreadyExists
+		}
+		s.cfg.Logger.ErrorContext(ctx, "Create user failed", "service", serviceName, "error", userErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	credentials, credentialsErr := qtx.CreateCredential(ctx, &repository.CreateCredentialParams{
+		UserID:    user.ID,
+		Password:  hashPassword,
+		CreatedBy: uuid.Nil,
+	})
+
+	if credentialsErr != nil || credentials.RowsAffected() == 0 {
+		s.cfg.Logger.ErrorContext(ctx, "Create credentials failed", "service", serviceName, "error", credentialsErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	_, profileErr := qtx.CreateProfile(ctx, &repository.CreateProfileParams{
+		UserID:    user.ID,
+		Name:      req.GetName(),
+		Dob:       req.GetDob().AsTime(),
+		Phone:     phoneNumber,
+		CreatedBy: uuid.Nil,
+		UpdatedBy: uuid.Nil,
+	})
+	if profileErr != nil {
+		if pgxErr, ok := errors.AsType[*pgconn.PgError](profileErr); ok && pgxErr.Code == pgerrcode.UniqueViolation {
+			s.cfg.Logger.WarnContext(
+				ctx,
+				"User registration collision on profile",
+				"service",
+				serviceName,
+				"phone",
+				phoneNumber,
+			)
+			return nil, errs.ErrPhoneAlreadyExists
+		}
+		s.cfg.Logger.ErrorContext(ctx, "Create profile failed", "service", serviceName, "error", profileErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Commit", "service", serviceName, "error", txCommitErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	session := rand.Text()
+
+	emailErr := EmailVerification(
+		ctx,
+		serviceName,
+		enum.MethodRegister,
+		session,
+		user.ID.String(),
+		string(user.Role),
+		false,
+		true,
+		user.Email,
+		s.cfg.Client,
+		s.cfg.Logger,
+		s.cfg.Worker,
+	)
+	if emailErr != nil {
+		return nil, emailErr
+	}
+
+	return &authv1.RegisterResponse{Session: session}, nil
+}

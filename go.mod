@@ -10,7 +10,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/grpc-ecosystem/go-grpc-middleware/v2 v2.3.3
 	github.com/hibiken/asynq v0.26.0
+	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa
 	github.com/jackc/pgx/v5 v5.10.0
+	github.com/nyaruka/phonenumbers/v2 v2.0.1
 	github.com/pquerna/otp v1.5.0
 	github.com/smtp2go-oss/smtp2go-go v1.0.4
 	github.com/stretchr/testify v1.11.1

@@ -84,8 +84,6 @@ func (c *Config) Close() {
 		c.Client.Close()
 	}
 	if c.Worker != nil {
-		if err := c.Worker.Close(); err != nil {
-			c.Logger.Error("failed to close asynq worker client gracefully", "error", err)
-		}
+		_ = c.Worker.Close()
 	}
 }
