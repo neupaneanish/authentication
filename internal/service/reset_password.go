@@ -47,6 +47,18 @@ func (s *AuthService) ResetPassword(
 		return nil, errs.ErrInternalServer
 	}
 
+	resultUserID, resultUserIDErr := s.cfg.RateLimiter.ResetPasswordUserID.Allow(ctx, resetSession.UserID)
+	if userIDLimiterErr := LimiterCheck(
+		ctx,
+		&resultUserID,
+		resultUserIDErr,
+		serviceName,
+		resetSession.UserID,
+		s.cfg.Logger,
+	); userIDLimiterErr != nil {
+		return nil, userIDLimiterErr
+	}
+
 	userID := uuid.MustParse(resetSession.UserID)
 	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: utils.CredentialsHistoryLimit}
 

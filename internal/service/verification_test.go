@@ -53,7 +53,9 @@ func TestVerification(t *testing.T) {
 		assert.NotNil(t, response)
 	})
 
-	t.Run("Rate limiter", func(t *testing.T) {
+	t.Run("Rate limiter Session", func(t *testing.T) {
+		t.Parallel()
+
 		session := rand.Text()
 
 		req := &authv1.VerificationRequest{Session: session, Code: "12345678"}
@@ -64,6 +66,61 @@ func TestVerification(t *testing.T) {
 			if i < 5 {
 				assert.Equal(t, errs.ErrSessionExpired, responseErr)
 			} else {
+				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
+			}
+		}
+	})
+
+	t.Run("Rate limiter UserID", func(t *testing.T) {
+		t.Parallel()
+
+		session := rand.Text()
+		code := "A1B2C3D4"
+		userID := uuid.NewString()
+
+		data := &utils.ForgetPasswordSession{
+			Key:    session,
+			ExAt:   time.Now().Add(utils.SessionExpiry),
+			UserID: userID,
+			Code:   code,
+		}
+
+		hSetErr := redis.HSet[utils.ForgetPasswordSession](
+			t.Context(),
+			utils.ForgetPasswordSessionPrefix,
+			data,
+			cfg.Client,
+		)
+		require.NoError(t, hSetErr)
+
+		for i := range 6 {
+			if i < 5 {
+				req := &authv1.VerificationRequest{Session: session, Code: "12345678"}
+				response, responseErr := authServiceClient.Verification(t.Context(), req)
+				require.Error(t, responseErr)
+				assert.Nil(t, response)
+				assert.Equal(t, errs.ErrInvalidCode, responseErr)
+			} else {
+				newSession := rand.Text()
+				newData := &utils.ForgetPasswordSession{
+					Key:    newSession,
+					ExAt:   time.Now().Add(utils.SessionExpiry),
+					UserID: userID,
+					Code:   code,
+				}
+
+				newHSetErr := redis.HSet[utils.ForgetPasswordSession](
+					t.Context(),
+					utils.ForgetPasswordSessionPrefix,
+					newData,
+					cfg.Client,
+				)
+
+				require.NoError(t, newHSetErr)
+				req := &authv1.VerificationRequest{Session: newSession, Code: "12345678"}
+				response, responseErr := authServiceClient.Verification(t.Context(), req)
+				require.Error(t, responseErr)
+				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 			}
 		}

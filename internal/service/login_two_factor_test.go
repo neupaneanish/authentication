@@ -210,24 +210,10 @@ func TestLoginTwoFactor(t *testing.T) {
 		})
 	})
 
-	t.Run("Rate Limiter", func(t *testing.T) {
+	t.Run("Rate Limiter Session", func(t *testing.T) {
+		t.Parallel()
 		session := rand.Text()
-
-		t.Run("Allowed", func(t *testing.T) {
-			for range 5 {
-				req := &authv1.LoginTwoFactorRequest{
-					Session: session,
-					Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
-				}
-				response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
-				require.Error(t, responseErr)
-				assert.Nil(t, response)
-
-				assert.Equal(t, errs.ErrSessionExpired, responseErr)
-			}
-		})
-
-		t.Run("Blocked", func(t *testing.T) {
+		for i := range 6 {
 			req := &authv1.LoginTwoFactorRequest{
 				Session: session,
 				Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
@@ -236,13 +222,18 @@ func TestLoginTwoFactor(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
-			assert.Equal(t, errs.ErrTooManyRequest, responseErr)
-		})
+			if i < 5 {
+				assert.Equal(t, errs.ErrSessionExpired, responseErr)
+			} else {
+				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
+			}
+		}
 	})
 
-	t.Run("Missing Code", func(t *testing.T) {
-		session := rand.Text()
+	t.Run("Rate Limiter UserID", func(t *testing.T) {
+		t.Parallel()
 		userID := uuid.NewString()
+		session := rand.Text()
 
 		value := &utils.LoginTwoFactorSession{
 			Key:    session,
@@ -259,17 +250,46 @@ func TestLoginTwoFactor(t *testing.T) {
 		)
 
 		require.NoError(t, hSetErr)
-		req := &authv1.LoginTwoFactorRequest{
-			Session: session,
-			Code:    nil,
+
+		for i := range 6 {
+			if i < 5 {
+				req := &authv1.LoginTwoFactorRequest{
+					Session: session,
+					Code:    nil,
+				}
+				response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+				require.Error(t, responseErr)
+				assert.Nil(t, response)
+				assert.Equal(t, errs.ErrInvalidCode, responseErr)
+			} else {
+				newSession := rand.Text()
+
+				newValue := &utils.LoginTwoFactorSession{
+					Key:    newSession,
+					ExAt:   time.Now().Add(utils.SessionExpiry),
+					UserID: userID,
+					Role:   string(enum.UserRoleUser),
+				}
+
+				newHSetErr := redis.HSet[utils.LoginTwoFactorSession](
+					ctx,
+					utils.LoginTwoFactorSessionPrefix,
+					newValue,
+					cfg.Client,
+				)
+
+				require.NoError(t, newHSetErr)
+
+				req := &authv1.LoginTwoFactorRequest{
+					Session: newSession,
+					Code:    nil,
+				}
+				response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+				require.Error(t, responseErr)
+				assert.Nil(t, response)
+				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
+			}
 		}
-
-		response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
-
-		require.Error(t, responseErr)
-		assert.Nil(t, response)
-
-		assert.Equal(t, errs.ErrInvalidCode, responseErr)
 	})
 
 	t.Run("No User in TOTP DB", func(t *testing.T) {

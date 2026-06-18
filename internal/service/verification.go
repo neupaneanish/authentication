@@ -47,6 +47,18 @@ func (s *AuthService) Verification(
 		return nil, errs.ErrInternalServer
 	}
 
+	resultUserID, resultUserIDErr := s.cfg.RateLimiter.VerificationUserID.Allow(ctx, fpSession.UserID)
+	if userIDLimiterErr := LimiterCheck(
+		ctx,
+		&resultUserID,
+		resultUserIDErr,
+		serviceName,
+		fpSession.UserID,
+		s.cfg.Logger,
+	); userIDLimiterErr != nil {
+		return nil, userIDLimiterErr
+	}
+
 	if fpSession.Code != code {
 		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid code", "userID", fpSession.UserID)
 		return nil, errs.ErrInvalidCode
