@@ -41,14 +41,15 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Endpoints
 
-- [X] Register
-- [ ] Account Verification
-- [ ] Resend Account Verification
-- [X] Login
-- [X] Login Two Factor
-- [X] Forget Password
-- [X] Verification
-- [X] Reset Password
+- [X] Auth
+    - [X] Register
+    - [X] Account Verification
+    - [X] Resend Account Verification
+    - [X] Login
+    - [X] Login Two Factor
+    - [X] Forget Password
+    - [X] Verification
+    - [X] Reset Password
 
 ---
 
@@ -179,7 +180,7 @@ go run cmd/server/main.go
 
 ---
 
-## Coverage ~84.30%
+## Coverage ~84.50%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.

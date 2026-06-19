@@ -124,6 +124,7 @@ func (s *AuthService) emailVerification(
 		Method:    string(method),
 		Code:      code,
 		TwoFactor: twoFactor,
+		Account:   account,
 		Email:     email,
 	}
 

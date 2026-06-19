@@ -22,43 +22,9 @@ func (s *AuthService) AccountVerification(
 	serviceName := "Account Verification"
 	session := req.GetSession()
 
-	sessionResult, sessionResultErr := s.cfg.RateLimiter.AccountVerification.Allow(ctx, session)
-	if sessionErr := LimiterCheck(
-		ctx,
-		&sessionResult,
-		sessionResultErr,
-		serviceName,
-		session,
-		s.cfg.Logger,
-	); sessionErr != nil {
-		return nil, sessionErr
-	}
-
-	accountSession, accountSessionErr := redis.HGet[utils.AccountVerificationSession](
-		ctx,
-		utils.AccountVerificationSessionPrefix,
-		session,
-		s.cfg.Client,
-	)
+	accountSession, accountSessionErr := s.accountVerificationSessionCheck(ctx, session, serviceName)
 	if accountSessionErr != nil {
-		if om.IsRecordNotFound(accountSessionErr) {
-			s.cfg.Logger.WarnContext(ctx, "Session not found", "service", serviceName, "session", session)
-			return nil, errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", accountSessionErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	userIDResult, userIDResultErr := s.cfg.RateLimiter.AccountVerificationUserID.Allow(ctx, accountSession.UserID)
-	if userIDLimiterErr := LimiterCheck(
-		ctx,
-		&userIDResult,
-		userIDResultErr,
-		serviceName,
-		session,
-		s.cfg.Logger,
-	); userIDLimiterErr != nil {
-		return nil, userIDLimiterErr
+		return nil, accountSessionErr
 	}
 
 	if req.GetCode() != accountSession.Code {
@@ -260,4 +226,51 @@ func (s *AuthService) accountVerificationMethodLogin(
 		serviceName,
 		accountSession.Key,
 	)
+}
+
+func (s *AuthService) accountVerificationSessionCheck(
+	ctx context.Context,
+	session string,
+	serviceName string,
+) (*utils.AccountVerificationSession, error) {
+	sessionResult, sessionResultErr := s.cfg.RateLimiter.AccountVerification.Allow(ctx, session)
+	if sessionErr := LimiterCheck(
+		ctx,
+		&sessionResult,
+		sessionResultErr,
+		serviceName,
+		session,
+		s.cfg.Logger,
+	); sessionErr != nil {
+		return nil, sessionErr
+	}
+
+	accountSession, accountSessionErr := redis.HGet[utils.AccountVerificationSession](
+		ctx,
+		utils.AccountVerificationSessionPrefix,
+		session,
+		s.cfg.Client,
+	)
+	if accountSessionErr != nil {
+		if om.IsRecordNotFound(accountSessionErr) {
+			s.cfg.Logger.WarnContext(ctx, "Session not found", "service", serviceName, "session", session)
+			return nil, errs.ErrSessionExpired
+		}
+		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", accountSessionErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	userIDResult, userIDResultErr := s.cfg.RateLimiter.AccountVerificationUserID.Allow(ctx, accountSession.UserID)
+	if userIDLimiterErr := LimiterCheck(
+		ctx,
+		&userIDResult,
+		userIDResultErr,
+		serviceName,
+		session,
+		s.cfg.Logger,
+	); userIDLimiterErr != nil {
+		return nil, userIDLimiterErr
+	}
+
+	return accountSession, nil
 }

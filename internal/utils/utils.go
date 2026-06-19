@@ -70,5 +70,6 @@ type AccountVerificationSession struct {
 	Method    string    `json:"method"`
 	Code      string    `json:"code"`
 	TwoFactor bool      `json:"two_factor"`
+	Account   bool      `json:"account"`
 	Email     string    `json:"email"`
 }
