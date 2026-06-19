@@ -12,7 +12,6 @@ import (
 	"neupaneanish.com.np/api/internal/repository"
 )
 
-//nolint:funlen
 func (s *AuthService) ForgetPassword(
 	ctx context.Context,
 	req *authv1.ForgetPasswordRequest,
@@ -46,7 +45,7 @@ func (s *AuthService) ForgetPassword(
 	}
 
 	if row.Status == enum.UserStatusPending && row.EmailVerifiedAt == nil {
-		emailErr := EmailVerification(
+		if emailErr := s.emailVerification(
 			ctx,
 			serviceName,
 			enum.MethodForgetPassword,
@@ -56,11 +55,7 @@ func (s *AuthService) ForgetPassword(
 			false,
 			true,
 			email,
-			s.cfg.Client,
-			s.cfg.Logger,
-			s.cfg.Worker,
-		)
-		if emailErr != nil {
+		); emailErr != nil {
 			return nil, emailErr
 		}
 		return &authv1.ForgetPasswordResponse{
@@ -84,7 +79,7 @@ func (s *AuthService) ForgetPassword(
 	}
 
 	if row.EmailVerifiedAt == nil {
-		emailErr := EmailVerification(
+		if emailErr := s.emailVerification(
 			ctx,
 			serviceName,
 			enum.MethodForgetPassword,
@@ -94,11 +89,7 @@ func (s *AuthService) ForgetPassword(
 			false,
 			false,
 			email,
-			s.cfg.Client,
-			s.cfg.Logger,
-			s.cfg.Worker,
-		)
-		if emailErr != nil {
+		); emailErr != nil {
 			return nil, emailErr
 		}
 		return &authv1.ForgetPasswordResponse{
@@ -106,15 +97,12 @@ func (s *AuthService) ForgetPassword(
 		}, nil
 	}
 
-	if emailErr := EmailForgetPassword(
+	if emailErr := s.emailForgetPassword(
 		ctx,
 		session,
 		row.ID.String(),
 		email,
 		serviceName,
-		s.cfg.Client,
-		s.cfg.Logger,
-		s.cfg.Worker,
 	); emailErr != nil {
 		return nil, emailErr
 	}

@@ -4,14 +4,12 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"neupaneanish.com.np/api/internal/enum"
 	"neupaneanish.com.np/api/internal/errs"
 	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	"neupaneanish.com.np/api/internal/redis"
 	"neupaneanish.com.np/api/internal/repository"
 	"neupaneanish.com.np/api/internal/utils"
 )
@@ -53,7 +51,7 @@ func (s *AuthService) Login(
 			return nil, errs.ErrInvalidCredentials
 		}
 
-		if emailErr := EmailVerification(
+		if emailErr := s.emailVerification(
 			ctx,
 			serviceName,
 			enum.MethodLogin,
@@ -63,14 +61,15 @@ func (s *AuthService) Login(
 			row.TwoFactor,
 			true,
 			email,
-			s.cfg.Client,
-			s.cfg.Logger,
-			s.cfg.Worker,
 		); emailErr != nil {
 			return nil, emailErr
 		}
 
-		return &authv1.LoginResponse{Response: &authv1.LoginResponse_Verification{Verification: session}}, nil
+		return &authv1.LoginResponse{
+			Response: &authv1.LoginResponse_Verification{
+				Verification: session,
+			},
+		}, nil
 	}
 
 	switch row.Status {
@@ -93,7 +92,7 @@ func (s *AuthService) Login(
 	}
 
 	if row.EmailVerifiedAt == nil {
-		emailErr := EmailVerification(
+		emailErr := s.emailVerification(
 			ctx,
 			serviceName,
 			enum.MethodLogin,
@@ -103,39 +102,33 @@ func (s *AuthService) Login(
 			row.TwoFactor,
 			false,
 			email,
-			s.cfg.Client,
-			s.cfg.Logger,
-			s.cfg.Worker,
 		)
 		if emailErr != nil {
 			return nil, emailErr
 		}
-		return &authv1.LoginResponse{Response: &authv1.LoginResponse_Verification{Verification: session}}, nil
-	}
-
-	if row.TwoFactor {
-		tfSession := &utils.LoginTwoFactorSession{
-			Key:    session,
-			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: row.ID.String(),
-			Role:   string(row.Role),
-		}
-		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
-			utils.LoginTwoFactorSessionPrefix,
-			tfSession,
-			s.cfg.Client,
-		)
-		if hSetErr != nil {
-			s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Two Factor HSet", "error", hSetErr)
-			return nil, errs.ErrInternalServer
-		}
 		return &authv1.LoginResponse{
-			Response: &authv1.LoginResponse_Session{Session: session},
+			Response: &authv1.LoginResponse_Verification{
+				Verification: session,
+			},
 		}, nil
 	}
 
-	jwt, jwtErr := login(ctx, row.ID.String(), string(row.Role), serviceName, s.cfg.Jwt, s.cfg.Client, s.cfg.Logger)
+	if row.TwoFactor {
+		if tfSessionErr := s.twoFactorSession(
+			ctx,
+			session,
+			row.ID.String(),
+			string(row.Role),
+			serviceName,
+		); tfSessionErr != nil {
+			return nil, tfSessionErr
+		}
+		return &authv1.LoginResponse{
+			Response: &authv1.LoginResponse_Totp{Totp: session},
+		}, nil
+	}
+
+	jwt, jwtErr := s.login(ctx, row.ID.String(), string(row.Role), serviceName)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}

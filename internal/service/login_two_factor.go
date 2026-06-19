@@ -212,14 +212,11 @@ func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.
 		return nil, errs.ErrInternalServer
 	}
 
-	jwt, jwtErr := login(
+	jwt, jwtErr := s.login(
 		ctx,
 		tf.userID.String(),
 		tf.role,
 		tf.serviceName,
-		s.cfg.Jwt,
-		s.cfg.Client,
-		s.cfg.Logger,
 	)
 	if jwtErr != nil {
 		return nil, jwtErr

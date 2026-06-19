@@ -3,9 +3,9 @@ package enum
 type Method string
 
 const (
-	MethodLogin          = "login"
-	MethodForgetPassword = "forgetPassword"
-	MethodRegister       = "register"
+	MethodLogin          Method = "login"
+	MethodForgetPassword Method = "forgetPassword"
+	MethodRegister       Method = "register"
 )
 
 func (m Method) Valid() bool {

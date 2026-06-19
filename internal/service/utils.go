@@ -9,7 +9,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
-	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"neupaneanish.com.np/api/internal/config"
 	"neupaneanish.com.np/api/internal/enum"
@@ -39,18 +38,15 @@ func LimiterCheck(
 	return nil
 }
 
-func login(
+func (s *AuthService) login(
 	ctx context.Context,
 	userID string,
 	role string,
 	serviceName string,
-	jwt *config.JWT,
-	client valkey.Client,
-	logger *slog.Logger,
 ) (*config.GenerateJwt, error) {
 	id := uuid.NewString()
 
-	token, tokenErr := jwt.GenerateToken(userID, role, id)
+	token, tokenErr := s.cfg.Jwt.GenerateToken(userID, role, id)
 	if tokenErr != nil {
 		return nil, tokenErr
 	}
@@ -61,9 +57,9 @@ func login(
 		UserID: userID,
 	}
 
-	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, client)
+	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, s.cfg.Client)
 	if hSetErr != nil {
-		logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
+		s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
 		return nil, errs.ErrInternalServer
 	}
 
@@ -75,9 +71,14 @@ func login(
 		ID:     id,
 	}
 
-	rHSetErr := redis.HSet[utils.LoginRefreshSession](ctx, utils.LoginRefreshSessionPrefix, refreshSession, client)
+	rHSetErr := redis.HSet[utils.LoginRefreshSession](
+		ctx,
+		utils.LoginRefreshSessionPrefix,
+		refreshSession,
+		s.cfg.Client,
+	)
 	if rHSetErr != nil {
-		logger.ErrorContext(ctx, serviceName+" Valkey Refresh HSet", "error", rHSetErr)
+		s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Refresh HSet", "error", rHSetErr)
 		return nil, errs.ErrInternalServer
 	}
 
@@ -99,7 +100,7 @@ func GenerateEmailCode(ctx context.Context, logger *slog.Logger) (string, string
 	return code, format, nil
 }
 
-func EmailVerification(
+func (s *AuthService) emailVerification(
 	ctx context.Context,
 	serviceName string,
 	method enum.Method,
@@ -109,11 +110,8 @@ func EmailVerification(
 	twoFactor bool,
 	account bool,
 	email string,
-	client valkey.Client,
-	logger *slog.Logger,
-	worker *asynq.Client,
 ) error {
-	code, plain, err := GenerateEmailCode(ctx, logger)
+	code, plain, err := GenerateEmailCode(ctx, s.cfg.Logger)
 	if err != nil {
 		return err
 	}
@@ -129,9 +127,23 @@ func EmailVerification(
 		Email:     email,
 	}
 
-	hSetErr := redis.HSet[utils.AccountVerificationSession](ctx, utils.AccountVerificationSessionPrefix, data, client)
+	hSetErr := redis.HSet[utils.AccountVerificationSession](
+		ctx,
+		utils.AccountVerificationSessionPrefix,
+		data,
+		s.cfg.Client,
+	)
 	if hSetErr != nil {
-		logger.ErrorContext(ctx, "Account verification ", "service", serviceName, "error", hSetErr, "method", method)
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Account verification ",
+			"service",
+			serviceName,
+			"error",
+			hSetErr,
+			"method",
+			method,
+		)
 		return errs.ErrInternalServer
 	}
 
@@ -144,20 +156,17 @@ func EmailVerification(
 	}
 
 	t, tErr := task.AuthEmailTask(taskType, email, plain)
-	return EmailEnqueue(ctx, t, tErr, serviceName, logger, worker)
+	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
 }
 
-func EmailForgetPassword(
+func (s *AuthService) emailForgetPassword(
 	ctx context.Context,
 	session string,
 	userID string,
 	email string,
 	serviceName string,
-	client valkey.Client,
-	logger *slog.Logger,
-	worker *asynq.Client,
 ) error {
-	code, plain, codeErr := GenerateEmailCode(ctx, logger)
+	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
 	if codeErr != nil {
 		return codeErr
 	}
@@ -170,14 +179,14 @@ func EmailForgetPassword(
 		Email:  email,
 	}
 
-	hSetErr := redis.HSet[utils.ForgetPasswordSession](ctx, utils.ForgetPasswordSessionPrefix, data, client)
+	hSetErr := redis.HSet[utils.ForgetPasswordSession](ctx, utils.ForgetPasswordSessionPrefix, data, s.cfg.Client)
 	if hSetErr != nil {
-		logger.ErrorContext(ctx, "Valkey Access HSet", "service", serviceName, "error", hSetErr)
+		s.cfg.Logger.ErrorContext(ctx, "Valkey Access HSet", "service", serviceName, "error", hSetErr)
 		return errs.ErrInternalServer
 	}
 
 	t, tErr := task.AuthEmailTask(task.TypeForgetPassword, email, plain)
-	return EmailEnqueue(ctx, t, tErr, serviceName, logger, worker)
+	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
 }
 
 func EmailEnqueue(
@@ -212,5 +221,31 @@ func EmailEnqueue(
 		info.Type,
 	)
 
+	return nil
+}
+
+func (s *AuthService) twoFactorSession(
+	ctx context.Context,
+	session string,
+	userID string,
+	role string,
+	serviceName string,
+) error {
+	tfSession := &utils.LoginTwoFactorSession{
+		Key:    session,
+		ExAt:   time.Now().Add(utils.SessionExpiry),
+		UserID: userID,
+		Role:   role,
+	}
+	hSetErr := redis.HSet[utils.LoginTwoFactorSession](
+		ctx,
+		utils.LoginTwoFactorSessionPrefix,
+		tfSession,
+		s.cfg.Client,
+	)
+	if hSetErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey Two Factor HSet", "service", serviceName, "error", hSetErr)
+		return errs.ErrInternalServer
+	}
 	return nil
 }

@@ -115,7 +115,7 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 
 	session := rand.Text()
 
-	emailErr := EmailVerification(
+	emailErr := s.emailVerification(
 		ctx,
 		serviceName,
 		enum.MethodRegister,
@@ -125,9 +125,6 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 		false,
 		true,
 		user.Email,
-		s.cfg.Client,
-		s.cfg.Logger,
-		s.cfg.Worker,
 	)
 	if emailErr != nil {
 		return nil, emailErr

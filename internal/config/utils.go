@@ -8,16 +8,18 @@ import (
 )
 
 const (
-	loginLimiterSessionPrefix              = "limiter:login:session"
-	loginTwoFactorLimiterPrefix            = "limiter:login:two:factor"
-	loginTwoFactorSessionLimiterPrefix     = "limiter:login:two:factor:session"
-	fpLimiterPrefix                        = "limiter:forget:password"
-	verificationLimiterPrefix              = "limiter:verification"
-	verificationSessionLimiterPrefix       = "limiter:verification:session"
-	rpLimiterPrefix                        = "limiter:reset:password"
-	rpSessionLimiterPrefix                 = "limiter:reset:password:session"
-	resendVerificationLimiterPrefix        = "limiter:resend:verification"
-	resendVerificationSessionLimiterPrefix = "limiter:resend:verification:session"
+	loginLimiterSessionPrefix               = "limiter:login:session"
+	loginTwoFactorLimiterPrefix             = "limiter:login:two:factor"
+	loginTwoFactorSessionLimiterPrefix      = "limiter:login:two:factor:session"
+	fpLimiterPrefix                         = "limiter:forget:password"
+	verificationLimiterPrefix               = "limiter:verification"
+	verificationSessionLimiterPrefix        = "limiter:verification:session"
+	rpLimiterPrefix                         = "limiter:reset:password"
+	rpSessionLimiterPrefix                  = "limiter:reset:password:session"
+	resendVerificationLimiterPrefix         = "limiter:resend:verification"
+	resendVerificationSessionLimiterPrefix  = "limiter:resend:verification:session"
+	accountVerificationLimiterPrefix        = "limiter:account:verification"
+	accountVerificationSessionLimiterPrefix = "limiter:account:verification:session"
 
 	limiterLimit         = 5
 	limiterWindowSession = 5 * time.Minute

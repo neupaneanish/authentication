@@ -8,16 +8,18 @@ import (
 )
 
 type RateLimiter struct {
-	Login                    valkeylimiter.RateLimiterClient
-	LoginTwoFactor           valkeylimiter.RateLimiterClient
-	LoginTwoFactorUserID     valkeylimiter.RateLimiterClient
-	ForgetPassword           valkeylimiter.RateLimiterClient
-	Verification             valkeylimiter.RateLimiterClient
-	VerificationUserID       valkeylimiter.RateLimiterClient
-	ResetPassword            valkeylimiter.RateLimiterClient
-	ResetPasswordUserID      valkeylimiter.RateLimiterClient
-	ResendVerification       valkeylimiter.RateLimiterClient
-	ResendVerificationUserID valkeylimiter.RateLimiterClient
+	Login                     valkeylimiter.RateLimiterClient
+	LoginTwoFactor            valkeylimiter.RateLimiterClient
+	LoginTwoFactorUserID      valkeylimiter.RateLimiterClient
+	ForgetPassword            valkeylimiter.RateLimiterClient
+	Verification              valkeylimiter.RateLimiterClient
+	VerificationUserID        valkeylimiter.RateLimiterClient
+	ResetPassword             valkeylimiter.RateLimiterClient
+	ResetPasswordUserID       valkeylimiter.RateLimiterClient
+	AccountVerification       valkeylimiter.RateLimiterClient
+	AccountVerificationUserID valkeylimiter.RateLimiterClient
+	ResendVerification        valkeylimiter.RateLimiterClient
+	ResendVerificationUserID  valkeylimiter.RateLimiterClient
 }
 
 func NewRateLimiter(client valkey.Client) (*RateLimiter, error) {
@@ -94,12 +96,23 @@ func initSessionLimiter(limiter *RateLimiter, client valkey.Client) error {
 		return resendVerificationErr
 	}
 
+	accountVerification, accountVerificationErr := Limiter(
+		accountVerificationSessionLimiterPrefix,
+		limiterLimit,
+		limiterWindowSession,
+		client,
+	)
+	if accountVerificationErr != nil {
+		return accountVerificationErr
+	}
+
 	limiter.Login = login
 	limiter.LoginTwoFactor = loginTwoFactor
 	limiter.ForgetPassword = forgetPassword
 	limiter.Verification = verification
 	limiter.ResetPassword = resetPassword
 	limiter.ResendVerification = resendVerification
+	limiter.AccountVerification = accountVerification
 
 	return nil
 }
@@ -145,10 +158,21 @@ func initUserIDLimiter(limiter *RateLimiter, client valkey.Client) error {
 		return resendVerificationUserIDErr
 	}
 
+	accountVerificationUserID, accountVerificationUserIDErr := Limiter(
+		accountVerificationLimiterPrefix,
+		limiterLimit,
+		limiterWindowUserID,
+		client,
+	)
+	if accountVerificationUserIDErr != nil {
+		return accountVerificationUserIDErr
+	}
+
 	limiter.LoginTwoFactorUserID = loginTwoFactorUserID
 	limiter.VerificationUserID = verificationUserID
 	limiter.ResetPasswordUserID = resetPasswordUserID
 	limiter.ResendVerificationUserID = resendVerificationUserID
+	limiter.AccountVerificationUserID = accountVerificationUserID
 
 	return nil
 }
