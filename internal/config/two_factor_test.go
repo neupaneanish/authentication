@@ -14,8 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
-	"neupaneanish.com.np/api/internal/config"
-	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/authentication/internal/config"
+	"neupaneanish.com.np/authentication/internal/repository"
 )
 
 func TestNewTwoFactor(t *testing.T) {

@@ -5,7 +5,7 @@ managed:
 
   override:
     - file_option: go_package_prefix
-      value: neupaneanish.com.np/api/internal/protobuf
+      value: neupaneanish.com.np/authentication/internal/protobuf
 
   disable:
     - file_option: go_package

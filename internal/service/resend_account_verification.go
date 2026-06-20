@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/rand"
 
-	"neupaneanish.com.np/api/internal/enum"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/enum"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 )
 
 func (s *AuthService) ResendAccountVerification(

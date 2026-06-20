@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"neupaneanish.com.np/api/internal/transport"
+	"neupaneanish.com.np/authentication/internal/transport"
 )
 
 func TestLoggerInterceptor(t *testing.T) {

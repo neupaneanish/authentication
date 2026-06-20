@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"neupaneanish.com.np/api/internal/enum"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/enum"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func BenchmarkResetPassword(b *testing.B) {

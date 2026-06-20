@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/telemetry"
-	"neupaneanish.com.np/api/tests"
+	"neupaneanish.com.np/authentication/internal/telemetry"
+	"neupaneanish.com.np/authentication/tests"
 )
 
 func TestNewTelemetry(t *testing.T) {

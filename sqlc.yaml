@@ -57,10 +57,10 @@ sql:
 
           - column: "users.status"
             go_type:
-              import: "neupaneanish.com.np/api/internal/enum"
+              import: "neupaneanish.com.np/authentication/internal/enum"
               type: "UserStatus"
 
           - column: "users.role"
             go_type:
-              import: "neupaneanish.com.np/api/internal/enum"
+              import: "neupaneanish.com.np/authentication/internal/enum"
               type: "UserRole"

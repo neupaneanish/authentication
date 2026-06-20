@@ -3,8 +3,8 @@ package task
 import (
 	"fmt"
 
-	"neupaneanish.com.np/api/internal/domain"
-	"neupaneanish.com.np/api/internal/env"
+	"neupaneanish.com.np/authentication/internal/domain"
+	"neupaneanish.com.np/authentication/internal/env"
 )
 
 type Env struct {

@@ -1,4 +1,4 @@
-# Portfolio API
+# Portfolio Authentication Microservice
 
 ###### Design and Developed by [Anish Neupane](https://neupaneanish.com.np)
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
+Distributed Portfolio Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ---
 
@@ -41,15 +41,14 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Endpoints
 
-- [X] Auth
-    - [X] Register
-    - [X] Account Verification
-    - [X] Resend Account Verification
-    - [X] Login
-    - [X] Login Two Factor
-    - [X] Forget Password
-    - [X] Verification
-    - [X] Reset Password
+- [X] Register
+- [X] Account Verification
+- [X] Resend Account Verification
+- [X] Login
+- [X] Login Two Factor
+- [X] Forget Password
+- [X] Verification
+- [X] Reset Password
 
 ---
 
@@ -73,7 +72,7 @@ Distributed portfolio API with Go, gRPC, PostgreSQL, and Valkey.
 |     DOMAIN_NAME     |                           | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
 
 ```dotenv
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/api?sslmode=disable
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/authentication?sslmode=disable
 VALKEY_URL=127.0.0.1:6379
 JWT_KEY=
 TWO_FACTOR_KEY=

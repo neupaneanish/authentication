@@ -8,8 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
 )
 
 func BenchmarkRegister(b *testing.B) {

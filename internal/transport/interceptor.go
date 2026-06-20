@@ -8,7 +8,7 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
-	"neupaneanish.com.np/api/internal/errs"
+	"neupaneanish.com.np/authentication/internal/errs"
 )
 
 func LoggerInterceptor(logger *slog.Logger) logging.Logger {

@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"neupaneanish.com.np/api/internal/config"
-	"neupaneanish.com.np/api/internal/telemetry"
-	"neupaneanish.com.np/api/internal/transport"
+	"neupaneanish.com.np/authentication/internal/config"
+	"neupaneanish.com.np/authentication/internal/telemetry"
+	"neupaneanish.com.np/authentication/internal/transport"
 )
 
 const (

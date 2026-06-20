@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"neupaneanish.com.np/api/internal/enum"
+	"neupaneanish.com.np/authentication/internal/enum"
 )
 
 func TestMethod(t *testing.T) {

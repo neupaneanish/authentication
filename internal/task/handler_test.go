@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/task"
+	"neupaneanish.com.np/authentication/internal/task"
 )
 
 func TestHandler(t *testing.T) {
