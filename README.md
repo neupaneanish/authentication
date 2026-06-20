@@ -1,6 +1,6 @@
 # Portfolio API
 
-###### Developed by [Anish Neupane](https://neupaneanish.com.np)
+###### Design and Developed by [Anish Neupane](https://neupaneanish.com.np)
 
 --- 
 

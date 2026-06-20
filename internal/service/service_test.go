@@ -8,11 +8,13 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 
 	"github.com/google/uuid"
@@ -39,6 +41,7 @@ import (
 var (
 	cfg               *config.Config
 	authServiceClient authv1.AuthServiceClient
+	phoneCounter      uint64
 )
 
 type container struct {
@@ -202,7 +205,7 @@ func testClientServer(cfg *config.Config) (*grpc.ClientConn, *grpc.Server, error
 func runMigrations(url string) error {
 	_, b, _, _ := runtime.Caller(0)
 	root := filepath.Join(filepath.Dir(b), "..", "..")
-	migrationsPath := filepath.Join(root, "database", "migrations")
+	migrationsPath := filepath.Join(root, "database", "authentication/migrations")
 
 	db, dbErr := sql.Open("postgres", url)
 	if dbErr != nil {
@@ -248,11 +251,15 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 		_ = tx.Rollback(ctx)
 	}()
 
+	id := atomic.AddUint64(&phoneCounter, 1)
+	phone := fmt.Sprintf("+1571%07d", 5000000+id)
+
 	qtx := repository.New(tx)
 
 	userParams := &repository.CreateUserParams{
 		Email:     email,
 		Username:  email,
+		Phone:     phone,
 		Role:      enum.UserRoleUser,
 		Status:    status,
 		CreatedBy: uuid.Nil,

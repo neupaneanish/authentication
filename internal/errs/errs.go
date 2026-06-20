@@ -15,6 +15,7 @@ var (
 	ErrEmailAlreadyExists     = status.Error(codes.AlreadyExists, "Email already exists")
 	ErrInvalidPhone           = status.Error(codes.InvalidArgument, "Invalid phone number")
 	ErrPhoneAlreadyExists     = status.Error(codes.AlreadyExists, "Phone already exists")
+	ErrUsernameAlreadyExists  = status.Error(codes.AlreadyExists, "username already exists")
 	ErrAccountAlreadyVerified = status.Error(codes.AlreadyExists, "Account already verified")
 	ErrPreviousPassword       = status.Error(codes.AlreadyExists, "Cannot use previously used password")
 	ErrAccountRestricted      = status.Error(codes.PermissionDenied, "Account restricted")

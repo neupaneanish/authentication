@@ -250,3 +250,8 @@ func (s *AuthService) twoFactorSession(
 	}
 	return nil
 }
+
+const (
+	UsersEmailKey = "users_email_key"
+	UsersPhoneKey = "users_phone_key"
+)

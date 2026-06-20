@@ -39,6 +39,7 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 	userParams := &repository.CreateUserParams{
 		Email:     req.GetEmail(),
 		Username:  s.cfg.Domain.GenerateUsername(req.GetEmail()),
+		Phone:     phoneNumber,
 		Role:      enum.UserRoleUser,
 		Status:    enum.UserStatusPending,
 		CreatedBy: uuid.Nil,
@@ -59,15 +60,37 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 	user, userErr := qtx.CreateUser(ctx, userParams)
 	if userErr != nil {
 		if pgxErr, ok := errors.AsType[*pgconn.PgError](userErr); ok && pgxErr.Code == pgerrcode.UniqueViolation {
-			s.cfg.Logger.WarnContext(
-				ctx,
-				"User registration collision on user",
-				"service",
-				serviceName,
-				"email",
-				userParams.Email,
-			)
-			return nil, errs.ErrEmailAlreadyExists
+			switch pgxErr.ConstraintName {
+			case UsersEmailKey:
+				s.cfg.Logger.WarnContext(
+					ctx,
+					"User registration collision: email already exists",
+					"service",
+					serviceName,
+					"email",
+					userParams.Email,
+				)
+				return nil, errs.ErrEmailAlreadyExists
+			case UsersPhoneKey:
+				s.cfg.Logger.WarnContext(
+					ctx,
+					"User registration collision: phone already exists",
+					"service",
+					serviceName,
+					"phone",
+					userParams.Phone,
+				)
+				return nil, errs.ErrPhoneAlreadyExists
+			default:
+				s.cfg.Logger.WarnContext(
+					ctx,
+					"User registration collision: username already exists",
+					"service",
+					serviceName,
+					"username", userParams.Username,
+				)
+				return nil, errs.ErrUsernameAlreadyExists
+			}
 		}
 		s.cfg.Logger.ErrorContext(ctx, "Create user failed", "service", serviceName, "error", userErr)
 		return nil, errs.ErrInternalServer
@@ -81,30 +104,6 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 
 	if credentialsErr != nil || credentials.RowsAffected() == 0 {
 		s.cfg.Logger.ErrorContext(ctx, "Create credentials failed", "service", serviceName, "error", credentialsErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	_, profileErr := qtx.CreateProfile(ctx, &repository.CreateProfileParams{
-		UserID:    user.ID,
-		Name:      req.GetName(),
-		Dob:       req.GetDob().AsTime(),
-		Phone:     phoneNumber,
-		CreatedBy: uuid.Nil,
-		UpdatedBy: uuid.Nil,
-	})
-	if profileErr != nil {
-		if pgxErr, ok := errors.AsType[*pgconn.PgError](profileErr); ok && pgxErr.Code == pgerrcode.UniqueViolation {
-			s.cfg.Logger.WarnContext(
-				ctx,
-				"User registration collision on profile",
-				"service",
-				serviceName,
-				"phone",
-				phoneNumber,
-			)
-			return nil, errs.ErrPhoneAlreadyExists
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Create profile failed", "service", serviceName, "error", profileErr)
 		return nil, errs.ErrInternalServer
 	}
 
