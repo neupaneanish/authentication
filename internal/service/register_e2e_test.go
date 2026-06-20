@@ -10,10 +10,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/utils"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func TestRegisterToLoginE2E(t *testing.T) {

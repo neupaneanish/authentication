@@ -8,11 +8,11 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/filters"
-	"neupaneanish.com.np/api/internal/errs"
+	"neupaneanish.com.np/authentication/internal/errs"
 
 	protovalidatemiddleware "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"google.golang.org/grpc"
-	"neupaneanish.com.np/api/internal/config"
+	"neupaneanish.com.np/authentication/internal/config"
 )
 
 const (

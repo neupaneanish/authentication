@@ -9,8 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/config"
-	"neupaneanish.com.np/api/tests"
+	"neupaneanish.com.np/authentication/internal/config"
+	"neupaneanish.com.np/authentication/tests"
 )
 
 func TestRateNewLimiter(t *testing.T) {

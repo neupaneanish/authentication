@@ -7,7 +7,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/valkey-io/valkey-go"
-	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/authentication/internal/repository"
 )
 
 type Config struct {

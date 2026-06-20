@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"neupaneanish.com.np/api/internal/enum"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
+	"neupaneanish.com.np/authentication/internal/enum"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
 )
 
 func BenchmarkLogin(b *testing.B) {

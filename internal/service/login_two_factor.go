@@ -10,11 +10,11 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/valkey-io/valkey-go/om"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"neupaneanish.com.np/api/internal/errs"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/repository"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/errs"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/repository"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 type validateTwoFactor struct {

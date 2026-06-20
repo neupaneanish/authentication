@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"neupaneanish.com.np/api/internal/errs"
+	"neupaneanish.com.np/authentication/internal/errs"
 )
 
 type JWT struct {

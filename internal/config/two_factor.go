@@ -14,7 +14,7 @@ import (
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
-	"neupaneanish.com.np/api/internal/repository"
+	"neupaneanish.com.np/authentication/internal/repository"
 )
 
 type GenerateTwoFactor struct {

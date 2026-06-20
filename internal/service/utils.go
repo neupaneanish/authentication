@@ -10,12 +10,12 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
-	"neupaneanish.com.np/api/internal/config"
-	"neupaneanish.com.np/api/internal/enum"
-	"neupaneanish.com.np/api/internal/errs"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/task"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/config"
+	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/errs"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/task"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func LimiterCheck(

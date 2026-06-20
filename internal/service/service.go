@@ -1,8 +1,8 @@
 package service
 
 import (
-	"neupaneanish.com.np/api/internal/config"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/config"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 )
 
 type AuthService struct {

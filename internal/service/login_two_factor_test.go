@@ -12,12 +12,12 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/enum"
-	"neupaneanish.com.np/api/internal/errs"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/repository"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/errs"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/repository"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func TestLoginTwoFactor(t *testing.T) {

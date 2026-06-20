@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/valkey-io/valkey-go/om"
-	"neupaneanish.com.np/api/internal/errs"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/errs"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func (s *AuthService) Verification(

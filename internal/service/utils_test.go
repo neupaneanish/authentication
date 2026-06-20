@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/service"
+	"neupaneanish.com.np/authentication/internal/service"
 )
 
 func TestLimiterCheck(t *testing.T) {

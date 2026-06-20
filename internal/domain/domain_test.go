@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"neupaneanish.com.np/api/internal/domain"
+	"neupaneanish.com.np/authentication/internal/domain"
 )
 
 func TestDomain(t *testing.T) {

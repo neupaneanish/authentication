@@ -8,11 +8,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"neupaneanish.com.np/api/internal/enum"
-	"neupaneanish.com.np/api/internal/errs"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	"neupaneanish.com.np/api/internal/repository"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/errs"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	"neupaneanish.com.np/authentication/internal/repository"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 //nolint:funlen

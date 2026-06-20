@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"neupaneanish.com.np/api/internal/enum"
-	"neupaneanish.com.np/api/internal/errs"
-	authv1 "neupaneanish.com.np/api/internal/protobuf/auth/v1"
-	passwordv1 "neupaneanish.com.np/api/internal/protobuf/common/password/v1"
-	"neupaneanish.com.np/api/internal/redis"
-	"neupaneanish.com.np/api/internal/utils"
+	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/errs"
+	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func TestResetPassword(t *testing.T) {

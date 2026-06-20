@@ -7,7 +7,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/smtp2go-oss/smtp2go-go"
-	"neupaneanish.com.np/api/internal/task"
+	"neupaneanish.com.np/authentication/internal/task"
 )
 
 const (
