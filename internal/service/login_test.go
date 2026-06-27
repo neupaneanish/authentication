@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 )
 
@@ -23,14 +23,14 @@ func TestLogin(t *testing.T) {
 	t.Run("Not register", func(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@1234",
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -41,14 +41,14 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 
 		email := fmt.Sprintf("%s@test.com", rand.Text())
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@1234",
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -62,12 +62,12 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email:    email,
 			Password: &passwordv1.Password{Value: password},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -79,14 +79,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@123",
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -111,14 +111,14 @@ func TestLogin(t *testing.T) {
 		require.NoError(t, verifyEmailErr)
 		assert.NotNil(t, user)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: password,
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -132,14 +132,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked, false)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: password,
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -153,14 +153,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted, false)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: password,
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -192,14 +192,14 @@ func TestLogin(t *testing.T) {
 		require.NoError(t, rowErr)
 		assert.Equal(t, int64(1), row.RowsAffected())
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: password,
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -213,14 +213,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: password,
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -234,14 +234,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Test@1234567",
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -257,14 +257,14 @@ func TestLogin(t *testing.T) {
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, false)
 		require.NoError(t, err)
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Test@123456",
 			},
 		}
 
-		response, responseErr := authServiceClient.Login(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -274,7 +274,7 @@ func TestLogin(t *testing.T) {
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
 
-		req := &authv1.LoginRequest{
+		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
 				Value: "Password@1234",
@@ -282,7 +282,7 @@ func TestLogin(t *testing.T) {
 		}
 
 		for i := range 6 {
-			response, responseErr := authServiceClient.Login(t.Context(), req)
+			response, responseErr := externalAuthenticationServiceClient.Login(t.Context(), req)
 			if i < 5 {
 				require.Error(t, responseErr)
 				assert.Nil(t, response)

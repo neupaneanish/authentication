@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -28,13 +28,13 @@ func TestResetPassword(t *testing.T) {
 
 	t.Run("Invalid session", func(t *testing.T) {
 		t.Parallel()
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         rand.Text(),
 			Password:        &passwordv1.Password{Value: newPassword},
 			ConfirmPassword: &passwordv1.Password{Value: newPassword},
 		}
 
-		response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -46,13 +46,13 @@ func TestResetPassword(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		session := seedUserResetPassword(t, email, oldPassword)
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: oldPassword},
 			ConfirmPassword: &passwordv1.Password{Value: oldPassword},
 		}
 
-		response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -63,13 +63,13 @@ func TestResetPassword(t *testing.T) {
 		t.Parallel()
 		email := fmt.Sprintf("%s@test.com", rand.Text())
 		session := seedUserResetPassword(t, email, oldPassword)
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: newPassword},
 			ConfirmPassword: &passwordv1.Password{Value: newPassword},
 		}
 
-		response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -93,13 +93,13 @@ func TestResetPassword(t *testing.T) {
 		)
 		require.NoError(t, hSetErr)
 
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: oldPassword},
 			ConfirmPassword: &passwordv1.Password{Value: oldPassword},
 		}
 
-		response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -110,13 +110,13 @@ func TestResetPassword(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
 
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: oldPassword},
 			ConfirmPassword: &passwordv1.Password{Value: oldPassword},
 		}
 		for i := range 6 {
-			response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+			response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 			if i < 5 {
@@ -146,7 +146,7 @@ func TestResetPassword(t *testing.T) {
 		)
 		require.NoError(t, hSetErr)
 
-		req := &authv1.ResetPasswordRequest{
+		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: oldPassword},
 			ConfirmPassword: &passwordv1.Password{Value: oldPassword},
@@ -154,7 +154,7 @@ func TestResetPassword(t *testing.T) {
 
 		for i := range 6 {
 			if i < 5 {
-				response, responseErr := authServiceClient.ResetPassword(t.Context(), req)
+				response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrSessionExpired, responseErr)
@@ -173,12 +173,12 @@ func TestResetPassword(t *testing.T) {
 					cfg.Client,
 				)
 				require.NoError(t, newHSetErr)
-				newReq := &authv1.ResetPasswordRequest{
+				newReq := &externalAuthenticationv1.ResetPasswordRequest{
 					Session:         newSession,
 					Password:        &passwordv1.Password{Value: oldPassword},
 					ConfirmPassword: &passwordv1.Password{Value: oldPassword},
 				}
-				response, responseErr := authServiceClient.ResetPassword(t.Context(), newReq)
+				response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), newReq)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)

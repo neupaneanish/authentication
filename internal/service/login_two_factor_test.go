@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/utils"
@@ -63,11 +63,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.NoError(t, hSetErr)
 
 		t.Run("Invalid Session", func(t *testing.T) {
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: rand.Text(),
-				Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -75,11 +75,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		})
 
 		t.Run("Invalid Code", func(t *testing.T) {
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
-				Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -90,12 +90,12 @@ func TestLoginTwoFactor(t *testing.T) {
 			code, codeErr := totp.GenerateCode(secret.Secret, time.Now())
 			require.NoError(t, codeErr)
 
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
-				Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: code},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: code},
 			}
 
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.NoError(t, responseErr)
 			assert.NotNil(t, response)
 		})
@@ -144,11 +144,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		assert.Equal(t, row, int64(10))
 
 		t.Run("Invalid Session", func(t *testing.T) {
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: rand.Text(),
-				Code:    &authv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -156,11 +156,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		})
 
 		t.Run("Invalid Code", func(t *testing.T) {
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
-				Code:    &authv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -170,11 +170,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		t.Run("Valid session and Code", func(t *testing.T) {
 			recovery := strings.ReplaceAll(recoveryCodes.Plain[0], "-", "")
 
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
-				Code:    &authv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.NoError(t, responseErr)
 			assert.NotNil(t, response)
 		})
@@ -198,11 +198,11 @@ func TestLoginTwoFactor(t *testing.T) {
 
 			recovery := strings.ReplaceAll(recoveryCodes.Plain[0], "-", "")
 
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: s,
-				Code:    &authv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -214,11 +214,11 @@ func TestLoginTwoFactor(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
 		for i := range 6 {
-			req := &authv1.LoginTwoFactorRequest{
+			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
-				Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 			}
-			response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -253,11 +253,11 @@ func TestLoginTwoFactor(t *testing.T) {
 
 		for i := range 6 {
 			if i < 5 {
-				req := &authv1.LoginTwoFactorRequest{
+				req := &externalAuthenticationv1.LoginTwoFactorRequest{
 					Session: session,
 					Code:    nil,
 				}
-				response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrInvalidCode, responseErr)
@@ -280,11 +280,11 @@ func TestLoginTwoFactor(t *testing.T) {
 
 				require.NoError(t, newHSetErr)
 
-				req := &authv1.LoginTwoFactorRequest{
+				req := &externalAuthenticationv1.LoginTwoFactorRequest{
 					Session: newSession,
 					Code:    nil,
 				}
-				response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
@@ -311,12 +311,12 @@ func TestLoginTwoFactor(t *testing.T) {
 		)
 
 		require.NoError(t, hSetErr)
-		req := &authv1.LoginTwoFactorRequest{
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
 			Session: session,
-			Code:    &authv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 		}
 
-		response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
@@ -343,12 +343,12 @@ func TestLoginTwoFactor(t *testing.T) {
 		)
 
 		require.NoError(t, hSetErr)
-		req := &authv1.LoginTwoFactorRequest{
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
 			Session: session,
-			Code:    &authv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
 		}
 
-		response, responseErr := authServiceClient.LoginTwoFactor(ctx, req)
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
 
 		require.Error(t, responseErr)
 		assert.Nil(t, response)

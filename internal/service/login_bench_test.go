@@ -8,22 +8,22 @@ import (
 	"testing"
 
 	"neupaneanish.com.np/authentication/internal/enum"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
 func BenchmarkLogin(b *testing.B) {
 	raw := "BenchPassword@123456"
 	ctx := b.Context()
 
-	requests := make([]*authv1.LoginRequest, b.N)
+	requests := make([]*externalAuthenticationv1.LoginRequest, b.N)
 	for i := 0; i < b.N; i++ {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		_, err := seedUser(ctx, email, raw, enum.UserStatusActive, true)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed: %v", err)
 		}
-		requests[i] = &authv1.LoginRequest{
+		requests[i] = &externalAuthenticationv1.LoginRequest{
 			Email:    email,
 			Password: &passwordv1.Password{Value: raw},
 		}
@@ -38,7 +38,7 @@ func BenchmarkLogin(b *testing.B) {
 			idx := atomic.AddUint64(&counter, 1) - 1
 			req := requests[idx%uint64(len(requests))]
 
-			_, err := authServiceClient.Login(ctx, req)
+			_, err := externalAuthenticationServiceClient.Login(ctx, req)
 			if err != nil {
 				b.Fatalf("Login failed: %v", err)
 			}

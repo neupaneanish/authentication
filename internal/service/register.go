@@ -10,13 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 //nolint:funlen
-func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest) (*authv1.RegisterResponse, error) {
+func (s *ExternalAuthenticationService) Register(
+	ctx context.Context,
+	req *externalAuthenticationv1.RegisterRequest,
+) (*externalAuthenticationv1.RegisterResponse, error) {
 	serviceName := "Register"
 
 	if !s.cfg.Domain.ValidateEmail(req.GetEmail()) {
@@ -129,5 +132,5 @@ func (s *AuthService) Register(ctx context.Context, req *authv1.RegisterRequest)
 		return nil, emailErr
 	}
 
-	return &authv1.RegisterResponse{Session: session}, nil
+	return &externalAuthenticationv1.RegisterResponse{Session: session}, nil
 }

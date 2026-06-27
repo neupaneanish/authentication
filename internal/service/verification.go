@@ -7,15 +7,15 @@ import (
 
 	"github.com/valkey-io/valkey-go/om"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
-func (s *AuthService) Verification(
+func (s *ExternalAuthenticationService) Verification(
 	ctx context.Context,
-	req *authv1.VerificationRequest,
-) (*authv1.VerificationResponse, error) {
+	req *externalAuthenticationv1.VerificationRequest,
+) (*externalAuthenticationv1.VerificationResponse, error) {
 	serviceName := "Verification"
 	code := req.GetCode()
 	session := req.GetSession()
@@ -89,5 +89,5 @@ func (s *AuthService) Verification(
 		return nil, errs.ErrInternalServer
 	}
 
-	return &authv1.VerificationResponse{Session: newSession}, nil
+	return &externalAuthenticationv1.VerificationResponse{Session: newSession}, nil
 }

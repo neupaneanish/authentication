@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
 func TestResendAccountVerification(t *testing.T) {
@@ -20,10 +20,10 @@ func TestResendAccountVerification(t *testing.T) {
 	t.Run("Rate Limiter Session", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		req := &authv1.ResendAccountVerificationRequest{Session: session}
+		req := &externalAuthenticationv1.ResendAccountVerificationRequest{Session: session}
 
 		for i := range 6 {
-			response, responseErr := authServiceClient.ResendAccountVerification(t.Context(), req)
+			response, responseErr := externalAuthenticationServiceClient.ResendAccountVerification(t.Context(), req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 			if i < 5 {
@@ -51,8 +51,8 @@ func TestResendAccountVerification(t *testing.T) {
 				cfg.Domain.GenerateEmail(session),
 				cfg.Client,
 			)
-			req := &authv1.ResendAccountVerificationRequest{Session: session}
-			response, responseErr := authServiceClient.ResendAccountVerification(t.Context(), req)
+			req := &externalAuthenticationv1.ResendAccountVerificationRequest{Session: session}
+			response, responseErr := externalAuthenticationServiceClient.ResendAccountVerification(t.Context(), req)
 
 			if i < 5 {
 				assert.NoError(t, responseErr)

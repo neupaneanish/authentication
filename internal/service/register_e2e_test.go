@@ -10,8 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -26,14 +26,14 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	email := cfg.Domain.GenerateEmail(rand.Text())
 	phone := fmt.Sprintf("+1562%07d", 5000000+id)
 
-	req := &authv1.RegisterRequest{
+	req := &externalAuthenticationv1.RegisterRequest{
 		Email:           email,
 		Password:        &passwordv1.Password{Value: rawPassword},
 		ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 		Phone:           phone,
 	}
 
-	response, err := authServiceClient.Register(ctx, req)
+	response, err := externalAuthenticationServiceClient.Register(ctx, req)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 
@@ -46,12 +46,15 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	require.NoError(t, accountSessionErr)
 	assert.NotNil(t, accountSession)
 
-	verificationReq := &authv1.AccountVerificationRequest{
+	verificationReq := &externalAuthenticationv1.AccountVerificationRequest{
 		Session: response.GetSession(),
 		Code:    accountSession.Code,
 	}
 
-	verificationResponse, verificationResponseErr := authServiceClient.AccountVerification(ctx, verificationReq)
+	verificationResponse, verificationResponseErr := externalAuthenticationServiceClient.AccountVerification(
+		ctx,
+		verificationReq,
+	)
 	require.NoError(t, verificationResponseErr)
 	assert.NotNil(t, verificationResponse.GetToken())
 	assert.NotEmpty(t, verificationResponse.GetToken().GetAccess())

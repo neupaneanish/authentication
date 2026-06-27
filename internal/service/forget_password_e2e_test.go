@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"neupaneanish.com.np/authentication/internal/enum"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -27,8 +27,11 @@ func TestForgetPasswordE2E(t *testing.T) {
 	require.NoError(t, seedErr)
 	assert.NotNil(t, seedID)
 
-	forgetPasswordParams := &authv1.ForgetPasswordRequest{Email: email}
-	forgetPasswordRes, forgetPasswordResErr := authServiceClient.ForgetPassword(ctx, forgetPasswordParams)
+	forgetPasswordParams := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
+	forgetPasswordRes, forgetPasswordResErr := externalAuthenticationServiceClient.ForgetPassword(
+		ctx,
+		forgetPasswordParams,
+	)
 	require.NoError(t, forgetPasswordResErr)
 
 	hGet, hGetErr := redis.HGet[utils.ForgetPasswordSession](
@@ -39,29 +42,29 @@ func TestForgetPasswordE2E(t *testing.T) {
 	)
 	require.NoError(t, hGetErr)
 
-	verificationParams := &authv1.VerificationRequest{
+	verificationParams := &externalAuthenticationv1.VerificationRequest{
 		Session: forgetPasswordRes.GetSession(),
 		Code:    hGet.Code,
 	}
 
-	verificationRes, verificationResErr := authServiceClient.Verification(ctx, verificationParams)
+	verificationRes, verificationResErr := externalAuthenticationServiceClient.Verification(ctx, verificationParams)
 	require.NoError(t, verificationResErr)
 
-	resetPasswordParams := &authv1.ResetPasswordRequest{
+	resetPasswordParams := &externalAuthenticationv1.ResetPasswordRequest{
 		Session:         verificationRes.GetSession(),
 		Password:        &passwordv1.Password{Value: newPassword},
 		ConfirmPassword: &passwordv1.Password{Value: newPassword},
 	}
 
-	resetPasswordRes, resetPasswordResErr := authServiceClient.ResetPassword(ctx, resetPasswordParams)
+	resetPasswordRes, resetPasswordResErr := externalAuthenticationServiceClient.ResetPassword(ctx, resetPasswordParams)
 	require.NoError(t, resetPasswordResErr)
 	assert.NotNil(t, resetPasswordRes)
 
-	loginParams := &authv1.LoginRequest{
+	loginParams := &externalAuthenticationv1.LoginRequest{
 		Email:    email,
 		Password: &passwordv1.Password{Value: newPassword},
 	}
-	loginRes, loginResErr := authServiceClient.Login(ctx, loginParams)
+	loginRes, loginResErr := externalAuthenticationServiceClient.Login(ctx, loginParams)
 	require.NoError(t, loginResErr)
 	assert.NotNil(t, loginRes)
 }

@@ -8,17 +8,17 @@ import (
 	"sync/atomic"
 	"testing"
 
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
 func BenchmarkRegister(b *testing.B) {
-	requests := make([]*authv1.RegisterRequest, b.N)
+	requests := make([]*externalAuthenticationv1.RegisterRequest, b.N)
 
 	for i := 0; i < b.N; i++ {
 		id := atomic.AddUint64(&phoneCounter, 1)
 		phone := fmt.Sprintf("+97798041%d", 10000+id)
-		requests[i] = &authv1.RegisterRequest{
+		requests[i] = &externalAuthenticationv1.RegisterRequest{
 			Email:           cfg.Domain.GenerateEmail(rand.Text()),
 			Password:        &passwordv1.Password{Value: "Password@12345"},
 			ConfirmPassword: &passwordv1.Password{Value: "Password@12345"},
@@ -34,7 +34,7 @@ func BenchmarkRegister(b *testing.B) {
 			idx := atomic.AddUint64(&phoneCounter, 1) - 1
 			req := requests[idx%uint64(len(requests))]
 
-			_, err := authServiceClient.Register(b.Context(), req)
+			_, err := externalAuthenticationServiceClient.Register(b.Context(), req)
 			if err != nil {
 				b.Fatalf("Register Failed %v", err)
 			}

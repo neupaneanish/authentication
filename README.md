@@ -133,7 +133,7 @@ flowchart TD
 
 ```bash
 # 1. Clone the core framework engine
-git clone https://github.com/neupaneanish/api.git
+git clone https://github.com/neupaneanish/authentication.git
 cd api
 
 # 2. Initialize Git submodules

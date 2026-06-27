@@ -9,16 +9,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
-func (s *AuthService) AccountVerification(
+func (s *ExternalAuthenticationService) AccountVerification(
 	ctx context.Context,
-	req *authv1.AccountVerificationRequest,
-) (*authv1.AccountVerificationResponse, error) {
+	req *externalAuthenticationv1.AccountVerificationRequest,
+) (*externalAuthenticationv1.AccountVerificationResponse, error) {
 	serviceName := "Account Verification"
 	session := req.GetSession()
 
@@ -46,7 +46,7 @@ func (s *AuthService) AccountVerification(
 	}
 }
 
-func (s *AuthService) deleteAccountVerificationSession(
+func (s *ExternalAuthenticationService) deleteAccountVerificationSession(
 	ctx context.Context,
 	session string,
 	serviceName string,
@@ -62,13 +62,13 @@ func (s *AuthService) deleteAccountVerificationSession(
 	}
 }
 
-func (s *AuthService) accountVerificationLogin(
+func (s *ExternalAuthenticationService) accountVerificationLogin(
 	ctx context.Context,
 	userID string,
 	role string,
 	serviceName string,
 	session string,
-) (*authv1.AccountVerificationResponse, error) {
+) (*externalAuthenticationv1.AccountVerificationResponse, error) {
 	token, tokenErr := s.login(
 		ctx,
 		userID,
@@ -84,9 +84,9 @@ func (s *AuthService) accountVerificationLogin(
 	}
 
 	s.deleteAccountVerificationSession(ctx, session, serviceName)
-	return &authv1.AccountVerificationResponse{
-		Response: &authv1.AccountVerificationResponse_Token{
-			Token: &authv1.Token{
+	return &externalAuthenticationv1.AccountVerificationResponse{
+		Response: &externalAuthenticationv1.AccountVerificationResponse_Token{
+			Token: &externalAuthenticationv1.Token{
 				Access:   token.Access,
 				Refresh:  token.Refresh,
 				ExpireAt: timestamppb.New(token.ExpiryAt),
@@ -95,7 +95,7 @@ func (s *AuthService) accountVerificationLogin(
 	}, nil
 }
 
-func (s *AuthService) verifyEmail(
+func (s *ExternalAuthenticationService) verifyEmail(
 	ctx context.Context,
 	userIDStr string,
 	serviceName string,
@@ -126,11 +126,11 @@ func (s *AuthService) verifyEmail(
 	return nil
 }
 
-func (s *AuthService) accountVerificationMethodRegister(
+func (s *ExternalAuthenticationService) accountVerificationMethodRegister(
 	ctx context.Context,
 	accountSession *utils.AccountVerificationSession,
 	serviceName string,
-) (*authv1.AccountVerificationResponse, error) {
+) (*externalAuthenticationv1.AccountVerificationResponse, error) {
 	if accountSession.TwoFactor {
 		s.cfg.Logger.WarnContext(
 			ctx,
@@ -152,11 +152,11 @@ func (s *AuthService) accountVerificationMethodRegister(
 	)
 }
 
-func (s *AuthService) accountVerificationMethodForgetPassword(
+func (s *ExternalAuthenticationService) accountVerificationMethodForgetPassword(
 	ctx context.Context,
 	accountSession *utils.AccountVerificationSession,
 	serviceName string,
-) (*authv1.AccountVerificationResponse, error) {
+) (*externalAuthenticationv1.AccountVerificationResponse, error) {
 	newSession := rand.Text()
 	if accountSession.TwoFactor {
 		s.cfg.Logger.WarnContext(
@@ -184,18 +184,18 @@ func (s *AuthService) accountVerificationMethodForgetPassword(
 	}
 
 	s.deleteAccountVerificationSession(ctx, accountSession.Key, serviceName)
-	return &authv1.AccountVerificationResponse{
-		Response: &authv1.AccountVerificationResponse_ResetSession{
+	return &externalAuthenticationv1.AccountVerificationResponse{
+		Response: &externalAuthenticationv1.AccountVerificationResponse_ResetSession{
 			ResetSession: newSession,
 		},
 	}, nil
 }
 
-func (s *AuthService) accountVerificationMethodLogin(
+func (s *ExternalAuthenticationService) accountVerificationMethodLogin(
 	ctx context.Context,
 	accountSession *utils.AccountVerificationSession,
 	serviceName string,
-) (*authv1.AccountVerificationResponse, error) {
+) (*externalAuthenticationv1.AccountVerificationResponse, error) {
 	newSession := rand.Text()
 	if accountSession.TwoFactor {
 		if tfSessionErr := s.twoFactorSession(
@@ -212,8 +212,8 @@ func (s *AuthService) accountVerificationMethodLogin(
 			return nil, verifyEmailErr
 		}
 		s.deleteAccountVerificationSession(ctx, accountSession.Key, serviceName)
-		return &authv1.AccountVerificationResponse{
-			Response: &authv1.AccountVerificationResponse_TotpSession{
+		return &externalAuthenticationv1.AccountVerificationResponse{
+			Response: &externalAuthenticationv1.AccountVerificationResponse_TotpSession{
 				TotpSession: newSession,
 			},
 		}, nil
@@ -228,7 +228,7 @@ func (s *AuthService) accountVerificationMethodLogin(
 	)
 }
 
-func (s *AuthService) accountVerificationSessionCheck(
+func (s *ExternalAuthenticationService) accountVerificationSessionCheck(
 	ctx context.Context,
 	session string,
 	serviceName string,

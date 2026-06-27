@@ -2,6 +2,10 @@
 version: v2
 modules:
   - path: protobuf
+    includes:
+      - protobuf/external/authentication
+      - protobuf/gateway/authentication
+      - protobuf/common
 lint:
   use:
     - STANDARD

@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/service"
 	"neupaneanish.com.np/authentication/internal/telemetry"
@@ -39,9 +39,9 @@ import (
 )
 
 var (
-	cfg               *config.Config
-	authServiceClient authv1.AuthServiceClient
-	phoneCounter      uint64
+	cfg                                 *config.Config
+	externalAuthenticationServiceClient externalAuthenticationv1.AuthenticationServiceClient
+	phoneCounter                        uint64
 )
 
 type container struct {
@@ -85,7 +85,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	authServiceClient = authv1.NewAuthServiceClient(client)
+	externalAuthenticationServiceClient = externalAuthenticationv1.NewAuthenticationServiceClient(client)
 
 	code := m.Run()
 	loggerCleanupErr := loggerCleanup(ctx)
@@ -178,7 +178,7 @@ func testClientServer(cfg *config.Config) (*grpc.ClientConn, *grpc.Server, error
 
 	server := grpc.NewServer(opts...)
 
-	authv1.RegisterAuthServiceServer(server, service.NewAuthService(cfg))
+	externalAuthenticationv1.RegisterAuthenticationServiceServer(server, service.NewExternalAuthenticationService(cfg))
 
 	go func() {
 		if err := server.Serve(listen); err != nil {

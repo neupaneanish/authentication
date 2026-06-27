@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 )
 
@@ -22,9 +22,9 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Invalid email", func(t *testing.T) {
 		t.Parallel()
 		email := fmt.Sprintf("%s@test.com", rand.Text())
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, response)
 	})
@@ -32,9 +32,9 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Unregister email", func(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, response)
 	})
@@ -45,9 +45,9 @@ func TestForgetPassword(t *testing.T) {
 		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive, true)
 		require.NoError(t, seedErr)
 
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, response)
 	})
@@ -59,9 +59,9 @@ func TestForgetPassword(t *testing.T) {
 		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive, false)
 		require.NoError(t, seedErr)
 
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, responseErr := authServiceClient.ForgetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -84,9 +84,9 @@ func TestForgetPassword(t *testing.T) {
 		require.NoError(t, verifyEmailErr)
 		assert.NotNil(t, user)
 
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, responseErr := authServiceClient.ForgetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
@@ -100,9 +100,9 @@ func TestForgetPassword(t *testing.T) {
 		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusPending, false)
 		require.NoError(t, seedErr)
 
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, responseErr := authServiceClient.ForgetPassword(t.Context(), req)
+		response, responseErr := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -114,9 +114,9 @@ func TestForgetPassword(t *testing.T) {
 		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusLocked, false)
 		require.NoError(t, seedErr)
 
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
-		response, err := authServiceClient.ForgetPassword(t.Context(), req)
+		response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, response)
 	})
@@ -125,10 +125,10 @@ func TestForgetPassword(t *testing.T) {
 		t.Parallel()
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		req := &authv1.ForgetPasswordRequest{Email: email}
+		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
 		for i := range 5 {
-			response, err := authServiceClient.ForgetPassword(t.Context(), req)
+			response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
 
 			if i < 5 {
 				require.NoError(t, err)

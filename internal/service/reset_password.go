@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/valkey-io/valkey-go/om"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/task"
@@ -14,10 +14,10 @@ import (
 )
 
 //nolint:funlen
-func (s *AuthService) ResetPassword(
+func (s *ExternalAuthenticationService) ResetPassword(
 	ctx context.Context,
-	req *authv1.ResetPasswordRequest,
-) (*authv1.ResetPasswordResponse, error) {
+	req *externalAuthenticationv1.ResetPasswordRequest,
+) (*externalAuthenticationv1.ResetPasswordResponse, error) {
 	serviceName := "ResetPassword"
 
 	result, resultErr := s.cfg.RateLimiter.ResetPassword.Allow(ctx, req.GetSession())
@@ -128,5 +128,5 @@ func (s *AuthService) ResetPassword(
 		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey delete", "error", hDeleteErr)
 	}
 
-	return &authv1.ResetPasswordResponse{}, nil
+	return &externalAuthenticationv1.ResetPasswordResponse{}, nil
 }

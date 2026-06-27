@@ -9,16 +9,16 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 //nolint:funlen
-func (s *AuthService) Login(
+func (s *ExternalAuthenticationService) Login(
 	ctx context.Context,
-	req *authv1.LoginRequest,
-) (*authv1.LoginResponse, error) {
+	req *externalAuthenticationv1.LoginRequest,
+) (*externalAuthenticationv1.LoginResponse, error) {
 	serviceName := "Login"
 	email := req.GetEmail()
 
@@ -65,8 +65,8 @@ func (s *AuthService) Login(
 			return nil, emailErr
 		}
 
-		return &authv1.LoginResponse{
-			Response: &authv1.LoginResponse_Verification{
+		return &externalAuthenticationv1.LoginResponse{
+			Response: &externalAuthenticationv1.LoginResponse_Verification{
 				Verification: session,
 			},
 		}, nil
@@ -106,8 +106,8 @@ func (s *AuthService) Login(
 		if emailErr != nil {
 			return nil, emailErr
 		}
-		return &authv1.LoginResponse{
-			Response: &authv1.LoginResponse_Verification{
+		return &externalAuthenticationv1.LoginResponse{
+			Response: &externalAuthenticationv1.LoginResponse_Verification{
 				Verification: session,
 			},
 		}, nil
@@ -123,8 +123,8 @@ func (s *AuthService) Login(
 		); tfSessionErr != nil {
 			return nil, tfSessionErr
 		}
-		return &authv1.LoginResponse{
-			Response: &authv1.LoginResponse_Totp{Totp: session},
+		return &externalAuthenticationv1.LoginResponse{
+			Response: &externalAuthenticationv1.LoginResponse_Totp{Totp: session},
 		}, nil
 	}
 
@@ -133,9 +133,9 @@ func (s *AuthService) Login(
 		return nil, jwtErr
 	}
 
-	return &authv1.LoginResponse{
-		Response: &authv1.LoginResponse_Token{
-			Token: &authv1.Token{
+	return &externalAuthenticationv1.LoginResponse{
+		Response: &externalAuthenticationv1.LoginResponse_Token{
+			Token: &externalAuthenticationv1.Token{
 				Access:   jwt.Access,
 				Refresh:  jwt.Refresh,
 				ExpireAt: timestamppb.New(jwt.ExpiryAt),

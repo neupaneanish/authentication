@@ -8,14 +8,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 )
 
-func (s *AuthService) ForgetPassword(
+func (s *ExternalAuthenticationService) ForgetPassword(
 	ctx context.Context,
-	req *authv1.ForgetPasswordRequest,
-) (*authv1.ForgetPasswordResponse, error) {
+	req *externalAuthenticationv1.ForgetPasswordRequest,
+) (*externalAuthenticationv1.ForgetPasswordResponse, error) {
 	serviceName := "ForgetPassword"
 	email := req.GetEmail()
 
@@ -25,7 +25,9 @@ func (s *AuthService) ForgetPassword(
 	}
 
 	session := rand.Text()
-	response := &authv1.ForgetPasswordResponse{Response: &authv1.ForgetPasswordResponse_Session{Session: session}}
+	response := &externalAuthenticationv1.ForgetPasswordResponse{
+		Response: &externalAuthenticationv1.ForgetPasswordResponse_Session{Session: session},
+	}
 
 	if !s.cfg.Domain.ValidateEmail(email) {
 		s.cfg.Logger.WarnContext(ctx, "invalid email", "email", email)
@@ -58,8 +60,8 @@ func (s *AuthService) ForgetPassword(
 		); emailErr != nil {
 			return nil, emailErr
 		}
-		return &authv1.ForgetPasswordResponse{
-			Response: &authv1.ForgetPasswordResponse_Verification{Verification: session},
+		return &externalAuthenticationv1.ForgetPasswordResponse{
+			Response: &externalAuthenticationv1.ForgetPasswordResponse_Verification{Verification: session},
 		}, nil
 	}
 
@@ -92,8 +94,8 @@ func (s *AuthService) ForgetPassword(
 		); emailErr != nil {
 			return nil, emailErr
 		}
-		return &authv1.ForgetPasswordResponse{
-			Response: &authv1.ForgetPasswordResponse_Verification{Verification: session},
+		return &externalAuthenticationv1.ForgetPasswordResponse{
+			Response: &externalAuthenticationv1.ForgetPasswordResponse_Verification{Verification: session},
 		}, nil
 	}
 

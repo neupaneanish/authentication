@@ -11,7 +11,7 @@ import (
 	"github.com/valkey-io/valkey-go/om"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/utils"
@@ -35,10 +35,10 @@ type loginTF struct {
 	totp        bool
 }
 
-func (s *AuthService) LoginTwoFactor(
+func (s *ExternalAuthenticationService) LoginTwoFactor(
 	ctx context.Context,
-	req *authv1.LoginTwoFactorRequest,
-) (*authv1.LoginTwoFactorResponse, error) {
+	req *externalAuthenticationv1.LoginTwoFactorRequest,
+) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
 	serviceName := "LoginTwoFactor"
 	session := req.GetSession()
 
@@ -72,7 +72,7 @@ func (s *AuthService) LoginTwoFactor(
 	userID := uuid.MustParse(data.UserID)
 
 	switch m := req.GetCode().(type) {
-	case *authv1.LoginTwoFactorRequest_Totp:
+	case *externalAuthenticationv1.LoginTwoFactorRequest_Totp:
 		validate := &validateTwoFactor{
 			code:        m.Totp,
 			userID:      userID,
@@ -81,7 +81,7 @@ func (s *AuthService) LoginTwoFactor(
 			serviceName: serviceName,
 		}
 		return s.validTotpCode(ctx, validate)
-	case *authv1.LoginTwoFactorRequest_Recovery:
+	case *externalAuthenticationv1.LoginTwoFactorRequest_Recovery:
 		validate := &validateTwoFactor{
 			code:        m.Recovery,
 			userID:      userID,
@@ -94,10 +94,10 @@ func (s *AuthService) LoginTwoFactor(
 	return nil, errs.ErrInvalidCode
 }
 
-func (s *AuthService) validTotpCode(
+func (s *ExternalAuthenticationService) validTotpCode(
 	ctx context.Context,
 	validate *validateTwoFactor,
-) (*authv1.LoginTwoFactorResponse, error) {
+) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
 	params := &repository.TwoFactorSecretParams{UserID: validate.userID}
 	row, rowErr := s.cfg.Repository.TwoFactorSecret(ctx, params)
 	if rowErr != nil {
@@ -132,10 +132,10 @@ func (s *AuthService) validTotpCode(
 	return s.loginTwoFactor(ctx, tf)
 }
 
-func (s *AuthService) validateRecoveryCode(
+func (s *ExternalAuthenticationService) validateRecoveryCode(
 	ctx context.Context,
 	validate *validateTwoFactor,
-) (*authv1.LoginTwoFactorResponse, error) {
+) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
 	params := &repository.RecoveryCodesParams{UserID: validate.userID}
 	row, rowErr := s.cfg.Repository.RecoveryCodes(ctx, params)
 	if rowErr != nil {
@@ -174,7 +174,10 @@ func (s *AuthService) validateRecoveryCode(
 	return s.loginTwoFactor(ctx, tf)
 }
 
-func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.LoginTwoFactorResponse, error) {
+func (s *ExternalAuthenticationService) loginTwoFactor(
+	ctx context.Context,
+	tf *loginTF,
+) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
 	tx, txErr := s.cfg.Pool.Begin(ctx)
 	if txErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, tf.serviceName+" transactions", "error", txErr)
@@ -213,8 +216,8 @@ func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.
 
 	s.twoFactorSessionDelete(ctx, tf.session, tf.serviceName)
 
-	return &authv1.LoginTwoFactorResponse{
-		Token: &authv1.Token{
+	return &externalAuthenticationv1.LoginTwoFactorResponse{
+		Token: &externalAuthenticationv1.Token{
 			Access:   jwt.Access,
 			Refresh:  jwt.Refresh,
 			ExpireAt: timestamppb.New(jwt.ExpiryAt),
@@ -222,7 +225,7 @@ func (s *AuthService) loginTwoFactor(ctx context.Context, tf *loginTF) (*authv1.
 	}, nil
 }
 
-func (s *AuthService) handleTwoFactorUpdate(
+func (s *ExternalAuthenticationService) handleTwoFactorUpdate(
 	ctx context.Context,
 	tf *loginTF,
 	qtx *repository.Queries,
@@ -248,7 +251,11 @@ func (s *AuthService) handleTwoFactorUpdate(
 	return nil
 }
 
-func (s *AuthService) handleRecoveryCodeUpdate(ctx context.Context, tf *loginTF, qtx *repository.Queries) error {
+func (s *ExternalAuthenticationService) handleRecoveryCodeUpdate(
+	ctx context.Context,
+	tf *loginTF,
+	qtx *repository.Queries,
+) error {
 	params := &repository.UpdateRecoveryCodeParams{
 		ID:        tf.id,
 		UserID:    tf.userID,
@@ -270,7 +277,7 @@ func (s *AuthService) handleRecoveryCodeUpdate(ctx context.Context, tf *loginTF,
 	return nil
 }
 
-func (s *AuthService) updateCheckTwoFactor(
+func (s *ExternalAuthenticationService) updateCheckTwoFactor(
 	ctx context.Context,
 	userID string,
 	serviceName string,
@@ -292,7 +299,7 @@ func (s *AuthService) updateCheckTwoFactor(
 	return nil
 }
 
-func (s *AuthService) twoFactorSessionDelete(
+func (s *ExternalAuthenticationService) twoFactorSessionDelete(
 	ctx context.Context,
 	session string,
 	serviceName string,

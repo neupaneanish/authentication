@@ -13,7 +13,7 @@ import (
 	"github.com/valkey-io/valkey-go"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -25,8 +25,8 @@ func TestAccountVerification(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
 		code := "12345678"
-		req := &authv1.AccountVerificationRequest{Session: session, Code: code}
-		response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+		req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: code}
+		response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 		assert.Equal(t, errs.ErrSessionExpired, responseErr)
@@ -51,8 +51,8 @@ func TestAccountVerification(t *testing.T) {
 		)
 
 		for i := range 6 {
-			req := &authv1.AccountVerificationRequest{Session: session, Code: code}
-			response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+			req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: code}
+			response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 			if i < 5 {
@@ -94,14 +94,14 @@ func TestAccountVerification(t *testing.T) {
 
 		for i := range 6 {
 			if i < 5 {
-				req := &authv1.AccountVerificationRequest{Session: session, Code: "12345679"}
-				response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+				req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: "12345679"}
+				response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrInvalidCode, responseErr)
 			} else {
-				req := &authv1.AccountVerificationRequest{Session: newSession, Code: "12345679"}
-				response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+				req := &externalAuthenticationv1.AccountVerificationRequest{Session: newSession, Code: "12345679"}
+				response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
@@ -196,8 +196,8 @@ func verificationMethod(t *testing.T, method enum.Method) {
 			)
 		}
 
-		req := &authv1.AccountVerificationRequest{Session: session, Code: code}
-		response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+		req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: code}
+		response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 
 		if method == enum.MethodLogin {
 			require.NoError(t, responseErr)
@@ -234,8 +234,8 @@ func verificationMethod(t *testing.T, method enum.Method) {
 			email,
 			cfg.Client,
 		)
-		req := &authv1.AccountVerificationRequest{Session: session, Code: code}
-		response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+		req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: code}
+		response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 		require.NoError(t, responseErr)
 		assert.NotNil(t, response)
 	})
@@ -256,8 +256,8 @@ func verificationMethod(t *testing.T, method enum.Method) {
 			cfg.Client,
 		)
 
-		req := &authv1.AccountVerificationRequest{Session: session, Code: code}
-		response, responseErr := authServiceClient.AccountVerification(t.Context(), req)
+		req := &externalAuthenticationv1.AccountVerificationRequest{Session: session, Code: code}
+		response, responseErr := externalAuthenticationServiceClient.AccountVerification(t.Context(), req)
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 		assert.Equal(t, errs.ErrAccountAlreadyVerified, responseErr)

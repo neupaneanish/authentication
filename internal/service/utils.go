@@ -38,7 +38,7 @@ func LimiterCheck(
 	return nil
 }
 
-func (s *AuthService) login(
+func (s *ExternalAuthenticationService) login(
 	ctx context.Context,
 	userID string,
 	role string,
@@ -100,7 +100,7 @@ func GenerateEmailCode(ctx context.Context, logger *slog.Logger) (string, string
 	return code, format, nil
 }
 
-func (s *AuthService) emailVerification(
+func (s *ExternalAuthenticationService) emailVerification(
 	ctx context.Context,
 	serviceName string,
 	method enum.Method,
@@ -160,7 +160,7 @@ func (s *AuthService) emailVerification(
 	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
 }
 
-func (s *AuthService) emailForgetPassword(
+func (s *ExternalAuthenticationService) emailForgetPassword(
 	ctx context.Context,
 	session string,
 	userID string,
@@ -225,7 +225,7 @@ func EmailEnqueue(
 	return nil
 }
 
-func (s *AuthService) twoFactorSession(
+func (s *ExternalAuthenticationService) twoFactorSession(
 	ctx context.Context,
 	session string,
 	userID string,

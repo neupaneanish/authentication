@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"neupaneanish.com.np/authentication/internal/enum"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -20,7 +20,7 @@ func BenchmarkResetPassword(b *testing.B) {
 	oldPassword := "Bench@Password1"
 	newPassword := "Bench@Password12"
 
-	requests := make([]*authv1.ResetPasswordRequest, b.N)
+	requests := make([]*externalAuthenticationv1.ResetPasswordRequest, b.N)
 	for i := 0; i < b.N; i++ {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
@@ -40,7 +40,7 @@ func BenchmarkResetPassword(b *testing.B) {
 			b.Fatalf("Failed to seed session %v", hSetErr)
 		}
 
-		requests[i] = &authv1.ResetPasswordRequest{
+		requests[i] = &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,
 			Password:        &passwordv1.Password{Value: newPassword},
 			ConfirmPassword: &passwordv1.Password{Value: newPassword},
@@ -56,7 +56,7 @@ func BenchmarkResetPassword(b *testing.B) {
 			idx := atomic.AddUint64(&counter, 1) - 1
 			req := requests[idx%uint64(len(requests))]
 
-			_, err := authServiceClient.ResetPassword(ctx, req)
+			_, err := externalAuthenticationServiceClient.ResetPassword(ctx, req)
 			if err != nil {
 				b.Fatalf("ResetPassword failed %v", err)
 			}

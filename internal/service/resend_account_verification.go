@@ -5,13 +5,13 @@ import (
 	"crypto/rand"
 
 	"neupaneanish.com.np/authentication/internal/enum"
-	authv1 "neupaneanish.com.np/authentication/internal/protobuf/auth/v1"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
-func (s *AuthService) ResendAccountVerification(
+func (s *ExternalAuthenticationService) ResendAccountVerification(
 	ctx context.Context,
-	req *authv1.ResendAccountVerificationRequest,
-) (*authv1.ResendAccountVerificationResponse, error) {
+	req *externalAuthenticationv1.ResendAccountVerificationRequest,
+) (*externalAuthenticationv1.ResendAccountVerificationResponse, error) {
 	serviceName := "ResendAccountVerification"
 	session := req.GetSession()
 
@@ -38,7 +38,7 @@ func (s *AuthService) ResendAccountVerification(
 
 	s.deleteAccountVerificationSession(ctx, session, serviceName)
 
-	return &authv1.ResendAccountVerificationResponse{
+	return &externalAuthenticationv1.ResendAccountVerificationResponse{
 		Session: newSession,
 	}, nil
 }
