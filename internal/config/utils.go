@@ -20,10 +20,16 @@ const (
 	resendVerificationSessionLimiterPrefix  = "limiter:resend:verification:session"
 	accountVerificationLimiterPrefix        = "limiter:account:verification"
 	accountVerificationSessionLimiterPrefix = "limiter:account:verification:session"
+	refreshSessionLimiterPrefix             = "limiter:refresh:session"
+	refreshLimiterPrefix                    = "limiter:refresh"
 
-	limiterLimit         = 5
-	limiterWindowSession = 5 * time.Minute
-	limiterWindowUserID  = time.Hour
+	limiterLimit                = 5
+	refreshSessionLimiterLimit  = 2
+	refreshUserIDLimiterLimit   = 4
+	limiterRefreshWindowSession = 15 * time.Minute
+	limiterRefreshWindowUserID  = 30 * time.Minute
+	limiterWindowSession        = 5 * time.Minute
+	limiterWindowUserID         = time.Hour
 )
 
 func validateKey(key string) ([]byte, ed25519.PrivateKey, ed25519.PublicKey, error) {
