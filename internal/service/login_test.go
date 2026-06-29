@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
@@ -294,5 +295,30 @@ func TestLogin(t *testing.T) {
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 			}
 		}
+	})
+
+	t.Run("Permission Denied", func(t *testing.T) {
+		t.Parallel()
+		md := metadata.Pairs(
+			"x-user-id", uuid.NewString(),
+			"x-role", "test",
+			"x-jti", uuid.NewString(),
+		)
+
+		ctx := metadata.NewOutgoingContext(t.Context(), md)
+
+		email := cfg.Domain.GenerateEmail(rand.Text())
+		req := &externalAuthenticationv1.LoginRequest{
+			Email: email,
+			Password: &passwordv1.Password{
+				Value: "Password@1234",
+			},
+		}
+
+		response, responseErr := externalAuthenticationServiceClient.Login(ctx, req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrPermissionDenied, responseErr)
 	})
 }

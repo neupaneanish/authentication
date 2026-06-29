@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/metadata"
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -40,11 +41,19 @@ func TestRefresh(t *testing.T) {
 		t.Parallel()
 		userID := uuid.NewString()
 
+		md := metadata.Pairs(
+			"x-user-id", userID,
+			"x-role", "test",
+			"x-jti", uuid.NewString(),
+		)
+
+		ctx := metadata.NewOutgoingContext(t.Context(), md)
+
 		for i := range 5 {
 			refresh := setupAccessRefreshRedis(t, userID)
 
 			req := &externalAuthenticationv1.RefreshRequest{Refresh: refresh}
-			response, responseErr := externalAuthenticationServiceClient.Refresh(t.Context(), req)
+			response, responseErr := externalAuthenticationServiceClient.Refresh(ctx, req)
 			if i < 4 {
 				require.NoError(t, responseErr)
 				assert.NotNil(t, response)

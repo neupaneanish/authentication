@@ -1,4 +1,4 @@
-# Portfolio Authentication Microservice
+# Authentication Microservice
 
 ###### Design and Developed by [Anish Neupane](https://neupaneanish.com.np)
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Distributed Portfolio Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
+Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ---
 
@@ -56,20 +56,20 @@ Distributed Portfolio Authentication Microservice with Go, gRPC, PostgreSQL, and
 
 ### Server
 
-|        Name         |          Default          |                                   Options                                    |
-|:-------------------:|:-------------------------:|:----------------------------------------------------------------------------:|
-|    DATABASE_URL     |                           |                                                                              |
-|     VALKEY_URL      |                           |                                                                              |
-|       JWT_KEY       |                           |                      `ed25519` Private Key Seed Size 32                      |
-|   TWO_FACTOR_KEY    |                           |                      `ed25519` Private Key Seed Size 32                      |
-|       ISSUER        |      `Anish Neupane`      |                                                                              |
-|        PORT         |          `50051`          |                               `80` to `65535`                                |
-|    SERVICE_NAME     | `neupaneanish.com.np/api` |                                                                              |
-|     ENVIRONMENT     |       `development`       |                        `development` or `production`                         |
-|    TELEMETRY_URL    |                           |                                gRPC port only                                |
-|       DOMAIN        |                           |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
-| DOMAIN_VERIFICATION |                           |                Random token string generated via rand.Text()                 |
-|     DOMAIN_NAME     |                           | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
+|        Name         |               Default                |                                   Options                                    |
+|:-------------------:|:------------------------------------:|:----------------------------------------------------------------------------:|
+|    DATABASE_URL     |                                      |                                                                              |
+|     VALKEY_URL      |                                      |                                                                              |
+|       JWT_KEY       |                                      |                      `ed25519` Private Key Seed Size 32                      |
+|   TWO_FACTOR_KEY    |                                      |                      `ed25519` Private Key Seed Size 32                      |
+|       ISSUER        |           `Anish Neupane`            |                                                                              |
+|        PORT         |               `50051`                |                               `80` to `65535`                                |
+|    SERVICE_NAME     | `neupaneanish.com.np/authentication` |                                                                              |
+|     ENVIRONMENT     |            `development`             |                        `development` or `production`                         |
+|    TELEMETRY_URL    |                                      |                                gRPC port only                                |
+|       DOMAIN        |                                      |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
+| DOMAIN_VERIFICATION |                                      |                Random token string generated via rand.Text()                 |
+|     DOMAIN_NAME     |                                      | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
 
 ```dotenv
 DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/authentication?sslmode=disable
@@ -134,7 +134,7 @@ flowchart TD
 ```bash
 # 1. Clone the core framework engine
 git clone https://github.com/neupaneanish/authentication.git
-cd api
+cd authentication
 
 # 2. Initialize Git submodules
 # (Note: if HTTP use git config --global url."https://github.com/".insteadOf "git@github.com:")
@@ -176,10 +176,11 @@ go run cmd/server/main.go
 | Reset Password            | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 | AccountVerification       | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 | ResendAccountVerification | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Refresh                   | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
 
 ---
 
-## Coverage ~84.60%
+## Coverage ~85.00%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.
@@ -224,17 +225,19 @@ Benchmarks were executed on:
 ### Benchmarks (Parallel)
 
 Used Bcrypt **(Default Cost)** to secure sensitive fields. To see how well this gRPC server scales under heavy traffic,
-ran
-a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to capture pure execution data.
+ran a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to capture pure execution data.
 
-| Endpoints        | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |
-|------------------|------|-----------------|---------------|------------------|------------------------------|
-| Register         | 166  | 7447487         | 64068         | 908              | 1                            |
-| Login            | 132  | 7665446         | 73483         | 618              | 1                            |
-| Login Two Factor | N/A  | N/A             | N/A           | N/A              | 0 (TOTP) / Max 10 (Recovery) |
-| Forget Password  | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Verification     | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Reset Password   | 81   | 14111253        | 62284         | 597              | 2 (Max 6)                    |
+| Endpoints                   | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |
+|-----------------------------|------|-----------------|---------------|------------------|------------------------------|
+| Register                    | 166  | 7447487         | 64068         | 908              | 1                            |
+| Login                       | 132  | 7665446         | 73483         | 618              | 1                            |
+| Login Two Factor            | N/A  | N/A             | N/A           | N/A              | 0 (TOTP) / Max 10 (Recovery) |
+| Forget Password             | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Verification                | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Reset Password              | 81   | 14111253        | 62284         | 597              | 2 (Max 6)                    |
+| Account Verification        | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Resend Account Verification | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Refresh                     | N/A  | N/A             | N/A           | N/A              | 0                            |
 
 #### Security Architecture Notes:
 

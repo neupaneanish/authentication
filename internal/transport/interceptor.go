@@ -8,7 +8,10 @@ import (
 
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"neupaneanish.com.np/authentication/internal/errs"
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
+	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 func LoggerInterceptor(logger *slog.Logger) logging.Logger {
@@ -77,4 +80,68 @@ type WrappedTimeoutStream struct {
 
 func (w *WrappedTimeoutStream) Context() context.Context {
 	return w.StreamContext
+}
+
+func AuthInterceptor(ctx context.Context, external, gateway map[string]struct{}) (context.Context, error) {
+	fullMethod, ok := grpc.Method(ctx)
+	if !ok {
+		return ctx, errs.ErrInternalServer
+	}
+	userID := userDetail(ctx, "x-user-id")
+	role := userDetail(ctx, "x-role")
+	jti := userDetail(ctx, "x-jti")
+
+	hasUserDetail := userID != "" && role != "" && jti != ""
+
+	_, isExternalEndpoint := external[fullMethod]
+	_, isGatewayEndpoint := gateway[fullMethod]
+
+	switch {
+	case isGatewayEndpoint:
+		if hasUserDetail {
+			return setContextValue(ctx, userID, role, jti), nil
+		}
+		return ctx, errs.ErrSessionExpired
+
+	case isExternalEndpoint:
+		if hasUserDetail {
+			return ctx, errs.ErrPermissionDenied
+		}
+		return ctx, nil
+
+	case isRefreshEndpoint(fullMethod):
+		if hasUserDetail {
+			return setContextValue(ctx, userID, role, jti), nil
+		}
+		return ctx, nil
+
+	default:
+		return ctx, errs.ErrPermissionDenied
+	}
+}
+
+func userDetail(ctx context.Context, header string) string {
+	value := metadata.ValueFromIncomingContext(ctx, header)
+	if len(value) == 0 {
+		return ""
+	}
+	return value[0]
+}
+
+func isRefreshEndpoint(fullMethod string) bool {
+	return fullMethod == externalAuthenticationv1.AuthenticationService_Refresh_FullMethodName
+}
+
+func setContextValue(ctx context.Context, userID string, role string, jti string) context.Context {
+	ctx = logging.InjectFields(ctx, logging.Fields{
+		"user_id", userID,
+		"role", role,
+		"jti", jti,
+	})
+
+	return context.WithValue(ctx, utils.SessionKey, utils.UserSession{
+		UserID: userID,
+		Role:   role,
+		Jti:    jti,
+	})
 }

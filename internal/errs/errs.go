@@ -24,4 +24,5 @@ var (
 	ErrRequestTimeout         = status.Error(codes.DeadlineExceeded, "Request timeout exceeded")
 	ErrCanceled               = status.Error(codes.Canceled, "Request canceled by client")
 	ErrTooManyRequest         = status.Error(codes.ResourceExhausted, "Too many requests rate limit exceeded")
+	ErrPermissionDenied       = status.Error(codes.PermissionDenied, "Don't have access")
 )

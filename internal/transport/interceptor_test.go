@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"neupaneanish.com.np/authentication/internal/errs"
 	"neupaneanish.com.np/authentication/internal/transport"
 )
 
@@ -147,5 +148,22 @@ func TestStreamTimeoutInterceptor(t *testing.T) {
 		})
 
 		require.Error(t, err)
+	})
+}
+
+func TestAuthInterceptor(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Method Error", func(t *testing.T) {
+		t.Parallel()
+
+		t.Context()
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+
+		ct, err := transport.AuthInterceptor(ctx, nil, nil)
+		require.Error(t, err)
+		assert.Equal(t, ctx, ct)
+		assert.Equal(t, errs.ErrInternalServer, err)
 	})
 }

@@ -1,6 +1,8 @@
 package utils
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	SessionExpiry        = time.Minute * 5
@@ -72,4 +74,20 @@ type AccountVerificationSession struct {
 	TwoFactor bool      `json:"two_factor"`
 	Account   bool      `json:"account"`
 	Email     string    `json:"email"`
+}
+
+type ContextKey string
+
+const (
+	UserIDKey ContextKey = "user_id"
+	RoleKey   ContextKey = "role"
+	JtiKey    ContextKey = "jti"
+)
+
+const SessionKey ContextKey = "user_session"
+
+type UserSession struct {
+	UserID string
+	Role   string
+	Jti    string
 }
