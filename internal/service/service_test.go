@@ -24,6 +24,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
+	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/service"
 	"neupaneanish.com.np/authentication/internal/telemetry"
@@ -41,6 +42,7 @@ import (
 var (
 	cfg                                 *config.Config
 	externalAuthenticationServiceClient externalAuthenticationv1.AuthenticationServiceClient
+	gatewayAuthenticationServiceClient  gatewayAuthenticationv1.AuthenticationServiceClient
 	phoneCounter                        uint64
 )
 
@@ -86,6 +88,7 @@ func TestMain(m *testing.M) {
 	}
 
 	externalAuthenticationServiceClient = externalAuthenticationv1.NewAuthenticationServiceClient(client)
+	gatewayAuthenticationServiceClient = gatewayAuthenticationv1.NewAuthenticationServiceClient(client)
 
 	code := m.Run()
 	loggerCleanupErr := loggerCleanup(ctx)
@@ -179,6 +182,7 @@ func testClientServer(cfg *config.Config) (*grpc.ClientConn, *grpc.Server, error
 	server := grpc.NewServer(opts...)
 
 	externalAuthenticationv1.RegisterAuthenticationServiceServer(server, service.NewExternalAuthenticationService(cfg))
+	gatewayAuthenticationv1.RegisterAuthenticationServiceServer(server, service.NewGatewayAuthenticationService(cfg))
 
 	go func() {
 		if err := server.Serve(listen); err != nil {

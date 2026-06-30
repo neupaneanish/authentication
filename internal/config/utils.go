@@ -22,6 +22,8 @@ const (
 	accountVerificationSessionLimiterPrefix = "limiter:account:verification:session"
 	refreshSessionLimiterPrefix             = "limiter:refresh:session"
 	refreshLimiterPrefix                    = "limiter:refresh"
+	passwordWorkflowLimiterPrefix           = "limiter:password:workflow"
+	twoFactorWorkflowLimiterPrefix          = "limiter:two:factor:workflow"
 
 	limiterLimit                = 5
 	refreshSessionLimiterLimit  = 2

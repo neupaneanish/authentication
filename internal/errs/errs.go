@@ -18,6 +18,7 @@ var (
 	ErrUsernameAlreadyExists  = status.Error(codes.AlreadyExists, "username already exists")
 	ErrAccountAlreadyVerified = status.Error(codes.AlreadyExists, "Account already verified")
 	ErrPreviousPassword       = status.Error(codes.AlreadyExists, "Cannot use previously used password")
+	ErrInvalidPassword        = status.Error(codes.InvalidArgument, "Invalid password")
 	ErrAccountRestricted      = status.Error(codes.PermissionDenied, "Account restricted")
 	ErrAccountPending         = status.Error(codes.PermissionDenied, "Account not verified")
 	ErrInternalServer         = status.Error(codes.Internal, "Internal Server Error")

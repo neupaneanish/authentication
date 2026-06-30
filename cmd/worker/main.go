@@ -61,7 +61,7 @@ func main() {
 	mux.HandleFunc(task.TypeAccountVerification, emailTask.HandleAuthEmailTask)
 	mux.HandleFunc(task.TypePasswordReset, emailTask.HandleSecurityEmailTask)
 	mux.HandleFunc(task.TypePasswordChanged, emailTask.HandleSecurityEmailTask)
-	mux.HandleFunc(task.TypeTwoFactorEnabled, emailTask.HandleSecurityEmailTask)
+	mux.HandleFunc(task.TypeTwoFactor, emailTask.HandleSecurityEmailTask)
 
 	logger.Info("Go Asynq Worker running and listening for jobs...")
 	if err := srv.Run(mux); err != nil {

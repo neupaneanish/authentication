@@ -12,8 +12,9 @@ const (
 	TypeForgetPassword      = "forget-password"
 	TypeEmailVerification   = "email-verification"
 	TypePasswordReset       = "password-reset"
+	TypeChangePassword      = "change-password"
 	TypePasswordChanged     = "password-changed"
-	TypeTwoFactorEnabled    = "two-factor-enabled"
+	TypeTwoFactor           = "two-factor"
 
 	maxRetry     = 5
 	asyncTimeout = 20 * time.Second

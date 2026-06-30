@@ -255,3 +255,79 @@ const (
 	UsersEmailKey = "users_email_key"
 	UsersPhoneKey = "users_phone_key"
 )
+
+func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflow(
+	ctx context.Context,
+	userID string,
+	serviceName string,
+	password bool,
+) error {
+	var result valkeylimiter.Result
+	var resultErr error
+	if password {
+		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userID)
+	} else {
+		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userID)
+	}
+
+	if limiterErr := LimiterCheck(
+		ctx,
+		&result,
+		resultErr,
+		serviceName,
+		userID,
+		s.cfg.Logger,
+	); limiterErr != nil {
+		return limiterErr
+	}
+	return nil
+}
+
+func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflowCache(
+	ctx context.Context,
+	userID string,
+	email string,
+	session string,
+	serviceName string,
+	password bool,
+) error {
+	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
+	if codeErr != nil {
+		return codeErr
+	}
+
+	data := &utils.GatewaySecuritySession{
+		Key:     userID,
+		ExAt:    time.Now().Add(utils.SessionExpiry),
+		Code:    code,
+		Email:   email,
+		Session: session,
+	}
+
+	var prefix string
+	var emailType string
+
+	if password {
+		prefix = utils.ChangePasswordSessionPrefix
+		emailType = task.TypeChangePassword
+	} else {
+		prefix = utils.TwoFactorSessionPrefix
+		emailType = task.TypeTwoFactor
+	}
+
+	if hSetErr := redis.HSet[utils.GatewaySecuritySession](
+		ctx,
+		prefix,
+		data,
+		s.cfg.Client,
+	); hSetErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey HSet", "service", serviceName, "error", hSetErr)
+		return errs.ErrInternalServer
+	}
+
+	t, tErr := task.AuthEmailTask(emailType, email, plain)
+	if emailEnqueueErr := EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker); emailEnqueueErr != nil {
+		return emailEnqueueErr
+	}
+	return nil
+}

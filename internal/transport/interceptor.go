@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -139,8 +140,8 @@ func setContextValue(ctx context.Context, userID string, role string, jti string
 		"jti", jti,
 	})
 
-	return context.WithValue(ctx, utils.SessionKey, utils.UserSession{
-		UserID: userID,
+	return context.WithValue(ctx, utils.SessionKey, &utils.UserSession{
+		UserID: uuid.MustParse(userID),
 		Role:   role,
 		Jti:    jti,
 	})
