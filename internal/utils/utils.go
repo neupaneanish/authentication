@@ -27,6 +27,7 @@ const (
 	AccountVerificationSessionPrefix = "account:verification:session"
 	ChangePasswordSessionPrefix      = "change:password:session"
 	TwoFactorSessionPrefix           = "two:factor:session"
+	DeleteTwoFactorSessionPrefix     = "delete:two:factor:session"
 )
 
 type LoginTwoFactorSession struct {
@@ -68,6 +69,14 @@ type GatewaySecuritySession struct {
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
 	Session string    `json:"session"`
 	Code    string    `json:"code"`
+	Email   string    `json:"email"`
+}
+
+type GatewaySecurityVerificationSession struct {
+	Key     string    `json:"key"     valkey:",key"`
+	Ver     int64     `json:"ver"     valkey:",ver"`
+	ExAt    time.Time `json:"exat"    valkey:",exat"`
+	Session string    `json:"session"`
 	Email   string    `json:"email"`
 }
 

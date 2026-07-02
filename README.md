@@ -177,10 +177,11 @@ go run cmd/server/main.go
 | AccountVerification       | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 | ResendAccountVerification | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 | Refresh                   | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
+| Change Password           | UserID      | 6 / 60 Min    | None        | None          |
 
 ---
 
-## Coverage ~85.00%
+## Coverage ~85.40%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.

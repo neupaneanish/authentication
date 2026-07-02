@@ -3,17 +3,20 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/repository"
 	"neupaneanish.com.np/authentication/internal/task"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -256,18 +259,47 @@ const (
 	UsersPhoneKey = "users_phone_key"
 )
 
-func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflow(
+//nolint:funlen
+func (s *GatewayAuthenticationService) gatewayCheckPassword(
 	ctx context.Context,
-	userID string,
 	serviceName string,
-	password bool,
-) error {
+	rawPassword string,
+	securityMethod enum.SecurityMethod,
+) (string, error) {
+	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
+	if userSessionErr != nil {
+		return "", userSessionErr
+	}
+
 	var result valkeylimiter.Result
 	var resultErr error
-	if password {
-		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userID)
-	} else {
-		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userID)
+
+	var prefix string
+	var emailType string
+
+	switch securityMethod {
+	case enum.ChangePassword:
+		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.ChangePasswordSessionPrefix
+		emailType = task.TypeChangePassword
+	case enum.TwoFactor:
+		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.TwoFactorSessionPrefix
+		emailType = task.TypeTwoFactor
+	case enum.DisableTwoFactor:
+		result, resultErr = s.cfg.RateLimiter.DeleteTwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.DeleteTwoFactorSessionPrefix
+		emailType = task.TypeDeleteTwoFactor
+	default:
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Unmapped security method encountered",
+			"service",
+			serviceName,
+			"method",
+			securityMethod,
+		)
+		return "", errs.ErrInternalServer
 	}
 
 	if limiterErr := LimiterCheck(
@@ -275,44 +307,56 @@ func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflow(
 		&result,
 		resultErr,
 		serviceName,
-		userID,
+		userSession.UserID.String(),
 		s.cfg.Logger,
 	); limiterErr != nil {
-		return limiterErr
+		return "", limiterErr
 	}
-	return nil
-}
 
-func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflowCache(
-	ctx context.Context,
-	userID string,
-	email string,
-	session string,
-	serviceName string,
-	password bool,
-) error {
+	params := &repository.CredentialParams{UserID: userSession.UserID}
+	row, rowErr := s.cfg.Repository.Credential(ctx, params)
+	if rowErr != nil {
+		if errors.Is(rowErr, pgx.ErrNoRows) {
+			s.cfg.Logger.WarnContext(
+				ctx,
+				"No credentials found",
+				"service",
+				serviceName,
+				"userID",
+				userSession.UserID.String(),
+			)
+			// TODO: Delete Access and Refresh
+			return "", errs.ErrSessionExpired
+		}
+		s.cfg.Logger.ErrorContext(ctx, "Postgres get", "service", serviceName, "error", rowErr)
+		return "", errs.ErrInternalServer
+	}
+
+	if !utils.ComparePassword(row.Password, rawPassword) {
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Password",
+			"service",
+			serviceName,
+			"userID",
+			userSession.UserID.String(),
+		)
+		return "", errs.ErrInvalidPassword
+	}
+
+	session := rand.Text()
+
 	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
 	if codeErr != nil {
-		return codeErr
+		return "", codeErr
 	}
 
 	data := &utils.GatewaySecuritySession{
-		Key:     userID,
+		Key:     userSession.UserID.String(),
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Code:    code,
-		Email:   email,
+		Email:   row.Email,
 		Session: session,
-	}
-
-	var prefix string
-	var emailType string
-
-	if password {
-		prefix = utils.ChangePasswordSessionPrefix
-		emailType = task.TypeChangePassword
-	} else {
-		prefix = utils.TwoFactorSessionPrefix
-		emailType = task.TypeTwoFactor
 	}
 
 	if hSetErr := redis.HSet[utils.GatewaySecuritySession](
@@ -322,12 +366,13 @@ func (s *GatewayAuthenticationService) gatewayAuthenticationSecurityWorkflowCach
 		s.cfg.Client,
 	); hSetErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey HSet", "service", serviceName, "error", hSetErr)
-		return errs.ErrInternalServer
+		return "", errs.ErrInternalServer
 	}
 
-	t, tErr := task.AuthEmailTask(emailType, email, plain)
+	t, tErr := task.AuthEmailTask(emailType, row.Email, plain)
 	if emailEnqueueErr := EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker); emailEnqueueErr != nil {
-		return emailEnqueueErr
+		return "", emailEnqueueErr
 	}
-	return nil
+
+	return session, nil
 }

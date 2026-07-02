@@ -24,6 +24,7 @@ const (
 	refreshLimiterPrefix                    = "limiter:refresh"
 	passwordWorkflowLimiterPrefix           = "limiter:password:workflow"
 	twoFactorWorkflowLimiterPrefix          = "limiter:two:factor:workflow"
+	deleteTwoFactorWorkflowLimiterPrefix    = "limiter:delete:two:factor:workflow"
 
 	limiterLimit                = 5
 	refreshSessionLimiterLimit  = 2
