@@ -25,7 +25,7 @@ func TestChangePassword(t *testing.T) {
 	t.Run("Rate Limiter", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := seedChangePassword(t, oldPassword)
+		ctx := seedSecurity(t, oldPassword)
 
 		req := &gatewayAuthenticationv1.ChangePasswordRequest{
 			Password: &passwordv1.Password{Value: newPassword},
@@ -64,7 +64,7 @@ func TestChangePassword(t *testing.T) {
 
 	t.Run("Valid Password", func(t *testing.T) {
 		t.Parallel()
-		ctx := seedChangePassword(t, oldPassword)
+		ctx := seedSecurity(t, oldPassword)
 
 		req := &gatewayAuthenticationv1.ChangePasswordRequest{
 			Password: &passwordv1.Password{Value: oldPassword},
@@ -87,7 +87,7 @@ func TestChangePassword(t *testing.T) {
 	})
 }
 
-func seedChangePassword(t *testing.T, password string) context.Context {
+func seedSecurity(t *testing.T, password string) context.Context {
 	t.Helper()
 
 	email := cfg.Domain.GenerateEmail(rand.Text())

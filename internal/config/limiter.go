@@ -24,6 +24,7 @@ type RateLimiter struct {
 	RefreshUserID             valkeylimiter.RateLimiterClient
 	PasswordWorkflow          valkeylimiter.RateLimiterClient
 	TwoFactorWorkflow         valkeylimiter.RateLimiterClient
+	DeleteTwoFactorWorkflow   valkeylimiter.RateLimiterClient
 }
 
 type limiterTask struct {
@@ -54,6 +55,7 @@ func NewRateLimiter(client valkey.Client) (*RateLimiter, error) {
 		{&limiter.RefreshUserID, refreshLimiterPrefix, refreshUserIDLimiterLimit, limiterRefreshWindowUserID},
 		{&limiter.PasswordWorkflow, passwordWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
 		{&limiter.TwoFactorWorkflow, twoFactorWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
+		{&limiter.DeleteTwoFactorWorkflow, twoFactorWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
 	}
 
 	for _, task := range tasks {

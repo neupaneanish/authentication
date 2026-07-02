@@ -16,3 +16,20 @@ func (m Method) Valid() bool {
 		return false
 	}
 }
+
+type SecurityMethod string
+
+const (
+	ChangePassword   SecurityMethod = "changePassword"
+	TwoFactor        SecurityMethod = "twoFactor"
+	DisableTwoFactor SecurityMethod = "disableTwoFactor"
+)
+
+func (m SecurityMethod) Valid() bool {
+	switch m {
+	case ChangePassword, TwoFactor, DisableTwoFactor:
+		return true
+	default:
+		return false
+	}
+}
