@@ -19,15 +19,17 @@ const (
 )
 
 const (
-	LoginTwoFactorSessionPrefix      = "login:two:factor:session"
-	LoginAccessSessionPrefix         = "login:access:session"
-	LoginRefreshSessionPrefix        = "login:refresh:session"
-	ForgetPasswordSessionPrefix      = "forget:password:session"
-	ResetPasswordSessionPrefix       = "reset:password:session"
-	AccountVerificationSessionPrefix = "account:verification:session"
-	ChangePasswordSessionPrefix      = "change:password:session"
-	TwoFactorSessionPrefix           = "two:factor:session"
-	DeleteTwoFactorSessionPrefix     = "delete:two:factor:session"
+	LoginTwoFactorSessionPrefix       = "login:two:factor:session"
+	LoginAccessSessionPrefix          = "login:access:session"
+	LoginRefreshSessionPrefix         = "login:refresh:session"
+	ForgetPasswordSessionPrefix       = "forget:password:session"
+	ResetPasswordSessionPrefix        = "reset:password:session"
+	AccountVerificationSessionPrefix  = "account:verification:session"
+	ChangePasswordSessionPrefix       = "change:password:session"
+	TwoFactorSessionPrefix            = "two:factor:session"
+	VerifyChangePasswordSessionPrefix = "verify:change:password:session"
+	VerifyTwoFactorSessionPrefix      = "verify:two:factor:session"
+	DeleteTwoFactorSessionPrefix      = "delete:two:factor:session"
 )
 
 type LoginTwoFactorSession struct {
@@ -72,12 +74,21 @@ type GatewaySecuritySession struct {
 	Email   string    `json:"email"`
 }
 
-type GatewaySecurityVerificationSession struct {
+type GatewaySecurityVerificationChangePasswordSession struct {
 	Key     string    `json:"key"     valkey:",key"`
 	Ver     int64     `json:"ver"     valkey:",ver"`
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
 	Session string    `json:"session"`
 	Email   string    `json:"email"`
+}
+
+type GatewaySecurityVerificationTwoFactorSession struct {
+	Key     string    `json:"key"     valkey:",key"`
+	Ver     int64     `json:"ver"     valkey:",ver"`
+	ExAt    time.Time `json:"exat"    valkey:",exat"`
+	Session string    `json:"session"`
+	Email   string    `json:"email"`
+	Secret  string    `json:"secret"`
 }
 
 type ResetPasswordSession struct {
