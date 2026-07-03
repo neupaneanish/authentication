@@ -1,13 +1,11 @@
 package config
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"image/png"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,14 +17,12 @@ import (
 
 type GenerateTwoFactor struct {
 	Secret string
-	Image  []byte
 	URL    string
 }
 
 const (
 	recoveryCodeCount = 10
 	recoveryCodeBytes = 5
-	imageSize         = 250
 	period            = 30
 )
 
@@ -71,19 +67,8 @@ func (f *TwoFactor) Generate(name string) (
 		return nil, err
 	}
 
-	var buf bytes.Buffer
-	img, imgErr := key.Image(imageSize, imageSize)
-	if imgErr != nil {
-		return nil, imgErr
-	}
-
-	if pngEncoderErr := png.Encode(&buf, img); pngEncoderErr != nil {
-		return nil, pngEncoderErr
-	}
-
 	return &GenerateTwoFactor{
 		Secret: key.Secret(),
-		Image:  buf.Bytes(),
 		URL:    key.URL(),
 	}, nil
 }

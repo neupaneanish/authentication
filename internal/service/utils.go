@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
@@ -259,58 +260,15 @@ const (
 	UsersPhoneKey = "users_phone_key"
 )
 
-//nolint:funlen
 func (s *GatewayAuthenticationService) gatewayCheckPassword(
 	ctx context.Context,
 	serviceName string,
 	rawPassword string,
 	securityMethod enum.SecurityMethod,
 ) (string, error) {
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return "", userSessionErr
-	}
-
-	var result valkeylimiter.Result
-	var resultErr error
-
-	var prefix string
-	var emailType string
-
-	switch securityMethod {
-	case enum.ChangePassword:
-		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.ChangePasswordSessionPrefix
-		emailType = task.TypeChangePassword
-	case enum.TwoFactor:
-		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.TwoFactorSessionPrefix
-		emailType = task.TypeTwoFactor
-	case enum.DisableTwoFactor:
-		result, resultErr = s.cfg.RateLimiter.DeleteTwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.DeleteTwoFactorSessionPrefix
-		emailType = task.TypeDeleteTwoFactor
-	default:
-		s.cfg.Logger.ErrorContext(
-			ctx,
-			"Unmapped security method encountered",
-			"service",
-			serviceName,
-			"method",
-			securityMethod,
-		)
-		return "", errs.ErrInternalServer
-	}
-
-	if limiterErr := LimiterCheck(
-		ctx,
-		&result,
-		resultErr,
-		serviceName,
-		userSession.UserID.String(),
-		s.cfg.Logger,
-	); limiterErr != nil {
-		return "", limiterErr
+	userSession, prefix, emailType, err := s.gatewayUserSessionLimiter(ctx, serviceName, securityMethod)
+	if err != nil {
+		return "", err
 	}
 
 	params := &repository.CredentialParams{UserID: userSession.UserID}
@@ -375,4 +333,102 @@ func (s *GatewayAuthenticationService) gatewayCheckPassword(
 	}
 
 	return session, nil
+}
+
+func (s *GatewayAuthenticationService) gatewaySecuritySessionVerify(
+	ctx context.Context,
+	serviceName string,
+	securityMethod enum.SecurityMethod,
+	session string,
+) (*utils.GatewaySecuritySession, error) {
+	userSession, prefix, _, err := s.gatewayUserSessionLimiter(ctx, serviceName, securityMethod)
+	if err != nil {
+		return nil, err
+	}
+	data, dataErr := redis.HGet[utils.GatewaySecuritySession](ctx, prefix, userSession.UserID.String(), s.cfg.Client)
+	if dataErr != nil {
+		if om.IsRecordNotFound(dataErr) {
+			s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
+			return nil, errs.ErrSessionExpired
+		}
+		s.cfg.Logger.ErrorContext(ctx, "valkey", "service", serviceName, "error", dataErr)
+
+		return nil, errs.ErrInternalServer
+	}
+
+	if data.Session != session {
+		s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+	return data, nil
+}
+
+func (s *GatewayAuthenticationService) deleteGatewaySecuritySession(
+	ctx context.Context,
+	prefix string,
+	key string,
+	serviceName string,
+) {
+	if hDeleteErr := redis.HDelete[utils.GatewaySecuritySession](
+		ctx,
+		prefix,
+		key,
+		s.cfg.Client,
+	); hDeleteErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Delete", "service", serviceName, "error", hDeleteErr)
+	}
+}
+
+func (s *GatewayAuthenticationService) gatewayUserSessionLimiter(
+	ctx context.Context,
+	serviceName string,
+	securityMethod enum.SecurityMethod,
+) (*utils.UserSession, string, string, error) {
+	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
+	if userSessionErr != nil {
+		return nil, "", "", userSessionErr
+	}
+
+	var result valkeylimiter.Result
+	var resultErr error
+
+	var prefix string
+	var emailType string
+
+	switch securityMethod {
+	case enum.ChangePassword:
+		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.ChangePasswordSessionPrefix
+		emailType = task.TypeChangePassword
+	case enum.TwoFactor:
+		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.TwoFactorSessionPrefix
+		emailType = task.TypeTwoFactor
+	case enum.DisableTwoFactor:
+		result, resultErr = s.cfg.RateLimiter.DeleteTwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
+		prefix = utils.DeleteTwoFactorSessionPrefix
+		emailType = task.TypeDeleteTwoFactor
+	default:
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Unmapped security method encountered",
+			"service",
+			serviceName,
+			"method",
+			securityMethod,
+		)
+		return nil, "", "", errs.ErrInternalServer
+	}
+
+	if limiterErr := LimiterCheck(
+		ctx,
+		&result,
+		resultErr,
+		serviceName,
+		userSession.UserID.String(),
+		s.cfg.Logger,
+	); limiterErr != nil {
+		return nil, "", "", limiterErr
+	}
+	return userSession, prefix, emailType, nil
 }
