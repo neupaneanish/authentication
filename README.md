@@ -166,22 +166,24 @@ go run cmd/server/main.go
 
 > Note: For IP will use envoy in future
 
-| Endpoint                  | Layer 1 Key | Layer 1 Limit | Layer 2 Key | Layer 2 Limit |
-|---------------------------|-------------|---------------|-------------|---------------|
-| Register                  | None        | None          | None        | None          |
-| Login                     | Email       | 5 / 5 Min     | None        | None          |
-| Login Two Factor          | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Forget Password           | Email       | 5 / 5 Min     | None        | None          |
-| Verification              | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Reset Password            | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| AccountVerification       | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| ResendAccountVerification | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Refresh                   | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
-| Change Password           | UserID      | 6 / 60 Min    | None        | None          |
+| Endpoint                         | Layer 1 Key | Layer 1 Limit | Layer 2 Key | Layer 2 Limit |
+|----------------------------------|-------------|---------------|-------------|---------------|
+| Register                         | None        | None          | None        | None          |
+| Login                            | Email       | 5 / 5 Min     | None        | None          |
+| Login Two Factor                 | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Forget Password                  | Email       | 5 / 5 Min     | None        | None          |
+| Verification                     | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Reset Password                   | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| AccountVerification              | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| ResendAccountVerification        | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Refresh                          | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
+| Change/Verify/Confirm Password   | UserID      | 6 / 60 Min    | None        | None          |
+| Enable/Verify/Confirm Two Factor | UserID      | 6 / 60 Min    | None        | None          |
+| Delete Two Factor                | UserID      | 6 / 60 Min    | None        | None          |
 
 ---
 
-## Coverage ~85.40%
+## Coverage ~85.30%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.
@@ -191,16 +193,16 @@ go run cmd/server/main.go
 
 ```bash
 # Generate coverage
-go test -v -tags=unit,integration,benchmark,e2e -coverprofile=coverage.out ./... 
+go test -race -tags=unit,integration,benchmark,e2e -coverprofile=coverage.out -coverpkg=./... ./..
 
 # Filter out external boundaries, generated code, and tooling 
-grep -v -E "cmd/|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" coverage.out > coverage_clean.out
+grep -v -E "cmd/|/internal/protobuf/|/internal/repository/|/tests/|/protobuf/|/database/" coverage.out > coverage.clean.out
 
 # Export to interactive HTML for local branch analysis
-go tool cover -html=coverage_clean.out -o coverage_clean.html 
+go tool cover -html=coverage.clean.out -o coverage.clean.html 
 
 # Output statement breakdown to CLI
-go tool cover -func=coverage_clean.out 
+go tool cover -func=coverage.clean.out 
 ```
 
 ---
@@ -239,6 +241,13 @@ ran a benchmark. Seeded users before the benchmark and utilized **ResetTimer** t
 | Account Verification        | N/A  | N/A             | N/A           | N/A              | 0                            |
 | Resend Account Verification | N/A  | N/A             | N/A           | N/A              | 0                            |
 | Refresh                     | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Change Password             | N/A  | N/A             | N/A           | N/A              | 1                            |
+| Enable Two Factor           | N/A  | N/A             | N/A           | N/A              | 1                            |
+| Delete Two Factor           | N/A  | N/A             | N/A           | N/A              | 1                            |
+| Verify Change Password      | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Confirm Change Password     | N/A  | N/A             | N/A           | N/A              | Min 1 - Max 5                |
+| Confirm Two Factor          | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Confirm Delete Two Factor   | N/A  | N/A             | N/A           | N/A              | 0                            |
 
 #### Security Architecture Notes:
 
@@ -258,27 +267,57 @@ ran a benchmark. Seeded users before the benchmark and utilized **ResetTimer** t
 
 This execution chart was exported using `go tool pprof` during a standard benchmark run:
 
-##### Register CPU
+#### Register
+
+```bash
+go test -bench=Register -cpuprofile=register_cpu.pprof -memprofile=register_mem.pprof -tags=benchmark ./internal/service
+
+go tool pprof -png register_mem.pprof > docs/images/bench_register_mem.png
+
+go tool pprof -png register_cpu.pprof > docs/images/bench_register_cpu.png
+```
+
+##### CPU
 
 ![Register CPU Benchmark Image](docs/images/bench_register_cpu.png)
 
-##### Register Memory
+##### Memory
 
 ![Register Memory Benchmark Image](docs/images/bench_register_mem.png)
 
-##### Login CPU
+#### Login
+
+```bash
+go test -bench=Login -cpuprofile=login_cpu.pprof -memprofile=login_mem.pprof -tags=benchmark ./internal/service
+
+go tool pprof -png -ignore="seedUser" login_mem.pprof > docs/images/bench_login_mem.png
+
+go tool pprof -png -ignore="seedUser" login_cpu.pprof > docs/images/bench_login_cpu.png
+```
+
+##### CPU
 
 ![Login CPU Benchmark Image](docs/images/bench_login_cpu.png)
 
-##### Login memory
+##### Memory
 
 ![Login Memory Benchmark Image](docs/images/bench_login_mem.png)
 
-##### ResetPassword CPU
+#### Reset Password
+
+```bash
+go test -bench=ResetPassword -cpuprofile=reset_password_cpu.pprof -memprofile=reset_password_mem.pprof -tags=benchmark ./internal/service
+
+go tool pprof -png -ignore="seedUser" reset_password_mem.pprof > docs/images/bench_reset_password_mem.png
+
+go tool pprof -png -ignore="seedUser" reset_password_cpu.pprof > docs/images/bench_reset_password_cpu.png
+```
+
+##### CPU
 
 ![Reset Password CPU Benchmark Image](docs/images/bench_reset_password_cpu.png)
 
-##### ResetPassword Memory
+##### Memory
 
 ![Reset Password Memory Benchmark Image](docs/images/bench_reset_password_mem.png)
 
