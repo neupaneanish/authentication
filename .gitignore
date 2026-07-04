@@ -36,3 +36,11 @@ internal/repository
 
 # Protobuf
 internal/protobuf
+
+# pprof
+login_cpu.pprof
+login_mem.pprof
+register_cpu.pprof
+register_mem.pprof
+reset_password_cpu.pprof
+reset_password_mem.pprof
