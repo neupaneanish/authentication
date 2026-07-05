@@ -8,14 +8,15 @@ import (
 )
 
 const (
-	TypeAccountVerification = "account-verification"
-	TypeForgetPassword      = "forget-password"
-	TypeEmailVerification   = "email-verification"
-	TypePasswordReset       = "password-reset"
-	TypeChangePassword      = "change-password"
-	TypePasswordChanged     = "password-changed"
-	TypeTwoFactor           = "two-factor"
-	TypeDeleteTwoFactor     = "delete-two-factor"
+	TypeAccountVerification   = "account-verification"
+	TypeForgetPassword        = "forget-password"
+	TypeEmailVerification     = "email-verification"
+	TypePasswordReset         = "password-reset"
+	TypeChangePassword        = "change-password"
+	TypePasswordChanged       = "password-changed"
+	TypeTwoFactor             = "two-factor"
+	TypeDeleteTwoFactor       = "delete-two-factor"
+	TypeConfirmChangePassword = "confirm-change-password"
 
 	maxRetry     = 5
 	asyncTimeout = 20 * time.Second

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"neupaneanish.com.np/authentication/internal/config"
@@ -431,4 +432,85 @@ func (s *GatewayAuthenticationService) gatewayUserSessionLimiter(
 		return nil, "", "", limiterErr
 	}
 	return userSession, prefix, emailType, nil
+}
+
+func ChangeResetPassword(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	repo repository.Querier,
+	userID uuid.UUID,
+	serviceName string,
+	logger *slog.Logger,
+	rawPassword string,
+	email string,
+	reset bool,
+	worker *asynq.Client,
+) error {
+	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: utils.CredentialsHistoryLimit}
+
+	passwords, passwordsErr := repo.Credentials(ctx, params)
+	if passwordsErr != nil {
+		logger.ErrorContext(ctx, "database", "service", serviceName, "error", passwordsErr)
+		return errs.ErrInternalServer
+	}
+
+	if len(passwords) == 0 {
+		logger.WarnContext(ctx, "notfound", "service", serviceName)
+		return errs.ErrSessionExpired
+	}
+
+	for _, hash := range passwords {
+		if utils.ComparePassword(hash, rawPassword) {
+			logger.WarnContext(ctx, "Previous password", "service", serviceName, "userID", userID)
+			return errs.ErrPreviousPassword
+		}
+	}
+
+	var emailType string
+
+	if reset {
+		emailType = task.TypePasswordReset
+	} else {
+		emailType = task.TypeConfirmChangePassword
+	}
+
+	newHash, newHashErr := utils.CreatePassword(rawPassword)
+	if newHashErr != nil {
+		logger.ErrorContext(ctx, "password hash", "service", serviceName, "error", newHashErr)
+		return errs.ErrInternalServer
+	}
+
+	credentialParams := &repository.CreateCredentialParams{UserID: userID, Password: newHash, CreatedBy: userID}
+
+	tx, txErr := pool.Begin(ctx)
+	if txErr != nil {
+		logger.ErrorContext(ctx, "transactions", "service", serviceName, "error", txErr)
+		return errs.ErrInternalServer
+	}
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+
+	qtx := repository.New(tx)
+
+	credentials, credentialsErr := qtx.CreateCredential(ctx, credentialParams)
+	if credentialsErr != nil {
+		logger.ErrorContext(ctx, "create credentials", "service", serviceName, "error", credentialsErr)
+		return errs.ErrInternalServer
+	}
+
+	if credentials.RowsAffected() == 0 {
+		logger.WarnContext(ctx, "credential not created", "service", serviceName, "userID", userID)
+		return errs.ErrInternalServer
+	}
+
+	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
+		logger.ErrorContext(ctx, "commit", "service", serviceName, "error", txCommitErr)
+		return errs.ErrInternalServer
+	}
+
+	t, tErr := task.SecurityNotification(emailType, email)
+	_ = EmailEnqueue(ctx, t, tErr, serviceName, logger, worker) // Error already handled by EmailEnqueue
+
+	return nil
 }
