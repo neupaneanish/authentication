@@ -17,6 +17,7 @@ const (
 	TypeTwoFactor             = "two-factor"
 	TypeDeleteTwoFactor       = "delete-two-factor"
 	TypeConfirmChangePassword = "confirm-change-password"
+	TypeConfirmTwoFactor      = "confirm-two-factor"
 
 	maxRetry     = 5
 	asyncTimeout = 20 * time.Second

@@ -105,20 +105,19 @@ func TestNewTwoFactor(t *testing.T) {
 			codes := make([]*repository.RecoveryCodesRow, len(recovery.Hash))
 			for i, hash := range recovery.Hash {
 				codes[i] = &repository.RecoveryCodesRow{
-					ID:        uuid.New(),
-					Code:      hash,
-					UpdatedAt: time.Now(),
+					ID:   uuid.New(),
+					Code: hash,
 				}
 			}
 
 			t.Run("Success", func(t *testing.T) {
-				ok, idx, _ := tf.ValidateRecoveryCode(strings.ReplaceAll(recovery.Plain[0], "-", ""), codes)
+				ok, idx := tf.ValidateRecoveryCode(strings.ReplaceAll(recovery.Plain[0], "-", ""), codes)
 				assert.True(t, ok)
 				assert.Equal(t, codes[0].ID, idx)
 			})
 
 			t.Run("Invalid", func(t *testing.T) {
-				ok, idx, _ := tf.ValidateRecoveryCode("1234567890", codes)
+				ok, idx := tf.ValidateRecoveryCode("1234567890", codes)
 				assert.False(t, ok)
 				assert.Equal(t, uuid.Nil, idx)
 			})

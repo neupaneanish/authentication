@@ -88,7 +88,7 @@ type GatewaySecurityVerificationTwoFactorSession struct {
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
 	Session string    `json:"session"`
 	Email   string    `json:"email"`
-	Secret  string    `json:"secret"`
+	Secret  []byte    `json:"secret"`
 }
 
 type ResetPasswordSession struct {
