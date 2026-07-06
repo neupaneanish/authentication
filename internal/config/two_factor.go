@@ -16,8 +16,9 @@ import (
 )
 
 type GenerateTwoFactor struct {
-	Secret string
-	URL    string
+	Secret  string
+	URL     string
+	Encrypt []byte
 }
 
 const (
@@ -67,9 +68,15 @@ func (f *TwoFactor) Generate(name string) (
 		return nil, err
 	}
 
+	encryptSecret, encryptSecretErr := f.Encrypt(key.Secret())
+	if encryptSecretErr != nil {
+		return nil, encryptSecretErr
+	}
+
 	return &GenerateTwoFactor{
-		Secret: key.Secret(),
-		URL:    key.URL(),
+		Secret:  key.Secret(),
+		URL:     key.URL(),
+		Encrypt: encryptSecret,
 	}, nil
 }
 
@@ -169,11 +176,11 @@ func (f *TwoFactor) GenerateRecoveryCodes() (*RecoveryCodes, error) {
 func (f *TwoFactor) ValidateRecoveryCode(
 	code string,
 	codes []*repository.RecoveryCodesRow,
-) (bool, uuid.UUID, time.Time) {
+) (bool, uuid.UUID) {
 	for _, rc := range codes {
 		if bcrypt.CompareHashAndPassword(rc.Code, []byte(code)) == nil {
-			return true, rc.ID, rc.UpdatedAt
+			return true, rc.ID
 		}
 	}
-	return false, uuid.Nil, time.Time{}
+	return false, uuid.Nil
 }

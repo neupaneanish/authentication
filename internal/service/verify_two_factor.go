@@ -45,7 +45,7 @@ func (s *GatewayAuthenticationService) VerifyTwoFactor(
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Session: session,
 		Email:   securitySession.Email,
-		Secret:  tf.Secret,
+		Secret:  tf.Encrypt,
 	}
 	if hSetErr := redis.HSet[utils.GatewaySecurityVerificationTwoFactorSession](
 		ctx,

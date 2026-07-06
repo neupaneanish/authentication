@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -30,7 +29,6 @@ type loginTF struct {
 	session     string
 	role        string
 	id          uuid.UUID
-	updatedAt   time.Time
 	serviceName string
 	totp        bool
 }
@@ -109,7 +107,7 @@ func (s *ExternalAuthenticationService) validTotpCode(
 		return nil, errs.ErrInternalServer
 	}
 
-	ok, validateErr := s.cfg.TwoFactor.Validate(validate.code, row.Secret)
+	ok, validateErr := s.cfg.TwoFactor.Validate(validate.code, row)
 	if validateErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, validate.serviceName+" validation", "error", validateErr)
 		return nil, errs.ErrInternalServer
@@ -123,8 +121,6 @@ func (s *ExternalAuthenticationService) validTotpCode(
 		userID:      validate.userID,
 		session:     validate.session,
 		role:        validate.role,
-		id:          row.ID,
-		updatedAt:   row.UpdatedAt,
 		serviceName: validate.serviceName,
 		totp:        true,
 	}
@@ -148,7 +144,7 @@ func (s *ExternalAuthenticationService) validateRecoveryCode(
 		return nil, errs.ErrNotFound
 	}
 
-	ok, id, updatedAt := s.cfg.TwoFactor.ValidateRecoveryCode(validate.code, row)
+	ok, id := s.cfg.TwoFactor.ValidateRecoveryCode(validate.code, row)
 	if !ok {
 		s.cfg.Logger.WarnContext(
 			ctx,
@@ -166,7 +162,6 @@ func (s *ExternalAuthenticationService) validateRecoveryCode(
 		session:     validate.session,
 		role:        validate.role,
 		id:          id,
-		updatedAt:   updatedAt,
 		serviceName: validate.serviceName,
 		totp:        false,
 	}
@@ -232,9 +227,7 @@ func (s *ExternalAuthenticationService) handleTwoFactorUpdate(
 ) error {
 	params := &repository.UpdateTwoFactorParams{
 		UpdatedBy: tf.userID,
-		ID:        tf.id,
 		UserID:    tf.userID,
-		UpdatedAt: tf.updatedAt,
 	}
 
 	update, updateErr := qtx.UpdateTwoFactor(ctx, params)
@@ -257,9 +250,8 @@ func (s *ExternalAuthenticationService) handleRecoveryCodeUpdate(
 	qtx *repository.Queries,
 ) error {
 	params := &repository.UpdateRecoveryCodeParams{
-		ID:        tf.id,
-		UserID:    tf.userID,
-		UpdatedAt: tf.updatedAt,
+		ID:     tf.id,
+		UserID: tf.userID,
 	}
 
 	update, updateErr := qtx.UpdateRecoveryCode(ctx, params)
