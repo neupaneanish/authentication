@@ -22,204 +22,134 @@ import (
 )
 
 func TestLoginTwoFactor(t *testing.T) {
-	ctx := t.Context()
+	t.Parallel()
 
-	t.Run("TOTP", func(t *testing.T) {
-		email := cfg.Domain.GenerateEmail(rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive, true)
-		require.NoError(t, seedErr)
+	t.Run("TOTP Success", func(t *testing.T) {
+		t.Parallel()
+		session, secret, _, _ := seedTwoFactorLogin(t)
 
-		userID := uuid.MustParse(seed)
-		secret, secretErr := cfg.TwoFactor.Generate(email)
-		require.NoError(t, secretErr)
+		code, codeErr := totp.GenerateCode(secret, time.Now())
+		require.NoError(t, codeErr)
 
-		secretEncrypt, secretEncryptErr := cfg.TwoFactor.Encrypt(secret.Secret)
-		require.NoError(t, secretEncryptErr)
-
-		params := &repository.CreateTwoFactorParams{
-			UserID:    userID,
-			Secret:    secretEncrypt,
-			CreatedBy: userID,
-			UpdatedBy: userID,
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: session,
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: code},
 		}
 
-		row, rowErr := cfg.Repository.CreateTwoFactor(ctx, params)
-		require.NoError(t, rowErr)
-		assert.GreaterOrEqual(t, row.RowsAffected(), int64(1))
-
-		session := rand.Text()
-		value := &utils.LoginTwoFactorSession{
-			Key:    session,
-			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: seed,
-			Role:   string(enum.UserRoleUser),
-		}
-
-		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
-			utils.LoginTwoFactorSessionPrefix,
-			value,
-			cfg.Client,
-		)
-		require.NoError(t, hSetErr)
-
-		t.Run("Invalid Session", func(t *testing.T) {
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: rand.Text(),
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
-
-			assert.Equal(t, errs.ErrSessionExpired, responseErr)
-		})
-
-		t.Run("Invalid Code", func(t *testing.T) {
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: session,
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
-
-			assert.Equal(t, errs.ErrInvalidCode, responseErr)
-		})
-
-		t.Run("Valid Session and Code", func(t *testing.T) {
-			code, codeErr := totp.GenerateCode(secret.Secret, time.Now())
-			require.NoError(t, codeErr)
-
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: session,
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: code},
-			}
-
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.NoError(t, responseErr)
-			assert.NotNil(t, response)
-		})
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.NoError(t, responseErr)
+		assert.NotNil(t, response)
 	})
 
-	t.Run("Recovery", func(t *testing.T) {
-		email := cfg.Domain.GenerateEmail(rand.Text())
-		seed, seedErr := seedUser(ctx, email, "Password@123456", enum.UserStatusActive, true)
-		require.NoError(t, seedErr)
+	t.Run("Invalid Session", func(t *testing.T) {
+		t.Parallel()
 
-		userID := uuid.MustParse(seed)
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: rand.Text(),
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+		}
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
 
-		recoveryCodes, rcErr := cfg.TwoFactor.GenerateRecoveryCodes()
-		require.NoError(t, rcErr)
-		assert.Equal(t, len(recoveryCodes.Plain), 10)
-		assert.Equal(t, len(recoveryCodes.Hash), 10)
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
+	})
 
-		session := rand.Text()
-		value := &utils.LoginTwoFactorSession{
-			Key:    session,
+	t.Run("Invalid TOTP Code", func(t *testing.T) {
+		t.Parallel()
+
+		session, _, _, _ := seedTwoFactorLogin(t)
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: session,
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
+		}
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrInvalidCode, responseErr)
+	})
+
+	t.Run("Recovery Invalid Session", func(t *testing.T) {
+		t.Parallel()
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: rand.Text(),
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
+		}
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
+	})
+
+	t.Run("Invalid Recovery Code", func(t *testing.T) {
+		t.Parallel()
+
+		session, _, _, _ := seedTwoFactorLogin(t)
+
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: session,
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
+		}
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrInvalidCode, responseErr)
+	})
+
+	t.Run("Recovery Success", func(t *testing.T) {
+		t.Parallel()
+
+		session, _, recoveryCodes, userID := seedTwoFactorLogin(t)
+		recovery := strings.ReplaceAll(recoveryCodes[0], "-", "")
+
+		req := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: session,
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
+		}
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
+		require.NoError(t, responseErr)
+		assert.NotNil(t, response)
+
+		newSession := rand.Text()
+		data := &utils.LoginTwoFactorSession{
+			Key:    newSession,
 			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: seed,
+			UserID: userID,
 			Role:   string(enum.UserRoleUser),
 		}
 
-		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
+		setErr := redis.HSet[utils.LoginTwoFactorSession](
+			t.Context(),
 			utils.LoginTwoFactorSessionPrefix,
-			value,
+			data,
 			cfg.Client,
 		)
-		require.NoError(t, hSetErr)
+		require.NoError(t, setErr)
 
-		recoveryCodesRows := make([]*repository.CreateRecoveryCodesParams, 0, len(recoveryCodes.Hash))
-		for _, hash := range recoveryCodes.Hash {
-			recoveryCodesRows = append(recoveryCodesRows, &repository.CreateRecoveryCodesParams{
-				UserID:    userID,
-				Code:      hash,
-				CreatedBy: userID,
-				UpdatedBy: userID,
-			})
+		newReq := &externalAuthenticationv1.LoginTwoFactorRequest{
+			Session: newSession,
+			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
 		}
+		newResponse, newResponseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), newReq)
+		require.Error(t, newResponseErr)
+		assert.Nil(t, newResponse)
 
-		row, rowErr := cfg.Repository.CreateRecoveryCodes(ctx, recoveryCodesRows)
-		require.NoError(t, rowErr)
-		assert.Equal(t, row, int64(10))
-
-		t.Run("Invalid Session", func(t *testing.T) {
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: rand.Text(),
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
-
-			assert.Equal(t, errs.ErrSessionExpired, responseErr)
-		})
-
-		t.Run("Invalid Code", func(t *testing.T) {
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: session,
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
-
-			assert.Equal(t, errs.ErrInvalidCode, responseErr)
-		})
-
-		t.Run("Valid session and Code", func(t *testing.T) {
-			recovery := strings.ReplaceAll(recoveryCodes.Plain[0], "-", "")
-
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: session,
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.NoError(t, responseErr)
-			assert.NotNil(t, response)
-		})
-
-		t.Run("Valid session and Reuse Code", func(t *testing.T) {
-			s := rand.Text()
-			data := &utils.LoginTwoFactorSession{
-				Key:    s,
-				ExAt:   time.Now().Add(utils.SessionExpiry),
-				UserID: seed,
-				Role:   string(enum.UserRoleUser),
-			}
-
-			setErr := redis.HSet[utils.LoginTwoFactorSession](
-				ctx,
-				utils.LoginTwoFactorSessionPrefix,
-				data,
-				cfg.Client,
-			)
-			require.NoError(t, setErr)
-
-			recovery := strings.ReplaceAll(recoveryCodes.Plain[0], "-", "")
-
-			req := &externalAuthenticationv1.LoginTwoFactorRequest{
-				Session: s,
-				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: recovery},
-			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
-
-			assert.Equal(t, errs.ErrInvalidCode, responseErr)
-		})
+		assert.Equal(t, errs.ErrInvalidCode, newResponseErr)
 	})
 
 	t.Run("Rate Limiter Session", func(t *testing.T) {
 		t.Parallel()
+
 		session := rand.Text()
 		for i := range 6 {
 			req := &externalAuthenticationv1.LoginTwoFactorRequest{
 				Session: session,
 				Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 			}
-			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
+			response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 
@@ -233,6 +163,7 @@ func TestLoginTwoFactor(t *testing.T) {
 
 	t.Run("Rate Limiter UserID", func(t *testing.T) {
 		t.Parallel()
+
 		userID := uuid.NewString()
 		session := rand.Text()
 
@@ -244,7 +175,7 @@ func TestLoginTwoFactor(t *testing.T) {
 		}
 
 		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
+			t.Context(),
 			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
@@ -258,7 +189,7 @@ func TestLoginTwoFactor(t *testing.T) {
 					Session: session,
 					Code:    nil,
 				}
-				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
+				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrInvalidCode, responseErr)
@@ -273,7 +204,7 @@ func TestLoginTwoFactor(t *testing.T) {
 				}
 
 				newHSetErr := redis.HSet[utils.LoginTwoFactorSession](
-					ctx,
+					t.Context(),
 					utils.LoginTwoFactorSessionPrefix,
 					newValue,
 					cfg.Client,
@@ -285,7 +216,7 @@ func TestLoginTwoFactor(t *testing.T) {
 					Session: newSession,
 					Code:    nil,
 				}
-				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
+				response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
 				require.Error(t, responseErr)
 				assert.Nil(t, response)
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
@@ -294,6 +225,7 @@ func TestLoginTwoFactor(t *testing.T) {
 	})
 
 	t.Run("No User in TOTP DB", func(t *testing.T) {
+		t.Parallel()
 		session := rand.Text()
 		userID := uuid.NewString()
 
@@ -305,7 +237,7 @@ func TestLoginTwoFactor(t *testing.T) {
 		}
 
 		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
+			t.Context(),
 			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
@@ -317,7 +249,7 @@ func TestLoginTwoFactor(t *testing.T) {
 			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Totp{Totp: "123456"},
 		}
 
-		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
 
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
@@ -326,6 +258,8 @@ func TestLoginTwoFactor(t *testing.T) {
 	})
 
 	t.Run("No User in Recovery DB", func(t *testing.T) {
+		t.Parallel()
+
 		session := rand.Text()
 		userID := uuid.NewString()
 
@@ -337,7 +271,7 @@ func TestLoginTwoFactor(t *testing.T) {
 		}
 
 		hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-			ctx,
+			t.Context(),
 			utils.LoginTwoFactorSessionPrefix,
 			value,
 			cfg.Client,
@@ -349,11 +283,71 @@ func TestLoginTwoFactor(t *testing.T) {
 			Code:    &externalAuthenticationv1.LoginTwoFactorRequest_Recovery{Recovery: "0123456789"},
 		}
 
-		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(ctx, req)
+		response, responseErr := externalAuthenticationServiceClient.LoginTwoFactor(t.Context(), req)
 
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
 		assert.Equal(t, errs.ErrSessionExpired, responseErr)
 	})
+}
+
+func seedTwoFactorLogin(t *testing.T) (string, string, []string, string) {
+	t.Helper()
+
+	email := cfg.Domain.GenerateEmail(rand.Text())
+	userIDStr, seedErr := seedUser(t.Context(), email, "Password@123456", enum.UserStatusActive, true)
+	require.NoError(t, seedErr)
+
+	userID := uuid.MustParse(userIDStr)
+	secret, secretErr := cfg.TwoFactor.Generate(email)
+	require.NoError(t, secretErr)
+
+	params := &repository.CreateTwoFactorParams{
+		UserID:    userID,
+		Secret:    secret.Encrypt,
+		CreatedBy: userID,
+		UpdatedBy: userID,
+	}
+
+	row, rowErr := cfg.Repository.CreateTwoFactor(t.Context(), params)
+	require.NoError(t, rowErr)
+	assert.GreaterOrEqual(t, row.RowsAffected(), int64(1))
+
+	recoveryCodes, rcErr := cfg.TwoFactor.GenerateRecoveryCodes()
+	require.NoError(t, rcErr)
+	assert.Equal(t, len(recoveryCodes.Plain), 10)
+	assert.Equal(t, len(recoveryCodes.Hash), 10)
+
+	recoveryCodesRows := make([]*repository.CreateRecoveryCodesParams, 0, len(recoveryCodes.Hash))
+	for _, hash := range recoveryCodes.Hash {
+		recoveryCodesRows = append(recoveryCodesRows, &repository.CreateRecoveryCodesParams{
+			UserID:    userID,
+			Code:      hash,
+			CreatedBy: userID,
+			UpdatedBy: userID,
+		})
+	}
+
+	recoveryRow, recoveryRowErr := cfg.Repository.CreateRecoveryCodes(t.Context(), recoveryCodesRows)
+	require.NoError(t, recoveryRowErr)
+	assert.Equal(t, recoveryRow, int64(10))
+
+	session := rand.Text()
+	value := &utils.LoginTwoFactorSession{
+		Key:    session,
+		ExAt:   time.Now().Add(utils.SessionExpiry),
+		UserID: userIDStr,
+		Role:   string(enum.UserRoleUser),
+	}
+
+	hSetErr := redis.HSet[utils.LoginTwoFactorSession](
+		t.Context(),
+		utils.LoginTwoFactorSessionPrefix,
+		value,
+		cfg.Client,
+	)
+	require.NoError(t, hSetErr)
+
+	return session, secret.Secret, recoveryCodes.Plain, userIDStr
 }
