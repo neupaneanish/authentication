@@ -2,13 +2,11 @@ package service
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/valkey-io/valkey-go/om"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -96,25 +94,16 @@ func (s *ExternalAuthenticationService) validTotpCode(
 	ctx context.Context,
 	validate *validateTwoFactor,
 ) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
-	params := &repository.TwoFactorSecretParams{UserID: validate.userID}
-	row, rowErr := s.cfg.Repository.TwoFactorSecret(ctx, params)
-	if rowErr != nil {
-		if errors.Is(rowErr, pgx.ErrNoRows) {
-			s.cfg.Logger.WarnContext(ctx, validate.serviceName+" data not found", "userID", validate.userID.String())
-			return nil, errs.ErrNotFound
-		}
-		s.cfg.Logger.ErrorContext(ctx, validate.serviceName+" secret database", "error", rowErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	ok, validateErr := s.cfg.TwoFactor.Validate(validate.code, row)
-	if validateErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, validate.serviceName+" validation", "error", validateErr)
-		return nil, errs.ErrInternalServer
-	}
-	if !ok {
-		s.cfg.Logger.WarnContext(ctx, validate.serviceName+" code error", "userID", validate.userID.String())
-		return nil, errs.ErrInvalidCode
+	if validErr := ValidateTotpCode(
+		ctx,
+		validate.userID,
+		s.cfg.Repository,
+		validate.code,
+		validate.serviceName,
+		s.cfg.TwoFactor,
+		s.cfg.Logger,
+	); validErr != nil {
+		return nil, validErr
 	}
 
 	tf := &loginTF{
@@ -132,29 +121,17 @@ func (s *ExternalAuthenticationService) validateRecoveryCode(
 	ctx context.Context,
 	validate *validateTwoFactor,
 ) (*externalAuthenticationv1.LoginTwoFactorResponse, error) {
-	params := &repository.RecoveryCodesParams{UserID: validate.userID}
-	row, rowErr := s.cfg.Repository.RecoveryCodes(ctx, params)
-	if rowErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, validate.serviceName+" recovery code database", "error", rowErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	if len(row) == 0 {
-		s.cfg.Logger.WarnContext(ctx, "Recovery attempt with no codes in DB", "userID", validate.userID)
-		return nil, errs.ErrNotFound
-	}
-
-	ok, id := s.cfg.TwoFactor.ValidateRecoveryCode(validate.code, row)
-	if !ok {
-		s.cfg.Logger.WarnContext(
-			ctx,
-			"Invalid recovery code",
-			"userID",
-			validate.userID.String(),
-			"session",
-			validate.session,
-		)
-		return nil, errs.ErrInvalidCode
+	id, err := ValidateRecoveryCode(
+		ctx,
+		validate.userID,
+		s.cfg.Repository,
+		validate.code,
+		validate.serviceName,
+		s.cfg.TwoFactor,
+		s.cfg.Logger,
+	)
+	if err != nil {
+		return nil, err
 	}
 
 	tf := &loginTF{
@@ -230,16 +207,17 @@ func (s *ExternalAuthenticationService) handleTwoFactorUpdate(
 		UserID:    tf.userID,
 	}
 
-	update, updateErr := qtx.UpdateTwoFactor(ctx, params)
-	if checkErr := s.updateCheckTwoFactor(
+	tag, tagErr := qtx.UpdateTwoFactor(ctx, params)
+	if err := AffectedRowCheck(
 		ctx,
-		tf.userID.String(),
+		tag,
+		tagErr,
+		"Failed to update Two Factor",
 		tf.serviceName,
-		tf.session,
-		update,
-		updateErr,
-	); checkErr != nil {
-		return checkErr
+		1,
+		s.cfg.Logger,
+	); err != nil {
+		return err
 	}
 	return nil
 }
@@ -254,38 +232,17 @@ func (s *ExternalAuthenticationService) handleRecoveryCodeUpdate(
 		UserID: tf.userID,
 	}
 
-	update, updateErr := qtx.UpdateRecoveryCode(ctx, params)
-	if checkErr := s.updateCheckTwoFactor(
+	tag, tagErr := qtx.UpdateRecoveryCode(ctx, params)
+	if err := AffectedRowCheck(
 		ctx,
-		tf.userID.String(),
+		tag,
+		tagErr,
+		"Failed to update Recovery Code",
 		tf.serviceName,
-		tf.session,
-		update,
-		updateErr,
-	); checkErr != nil {
-		return checkErr
-	}
-
-	return nil
-}
-
-func (s *ExternalAuthenticationService) updateCheckTwoFactor(
-	ctx context.Context,
-	userID string,
-	serviceName string,
-	session string,
-	update pgconn.CommandTag,
-	updateErr error,
-) error {
-	if updateErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Failed to update recovery code", "service", serviceName, "error", updateErr)
-		return errs.ErrInternalServer
-	}
-
-	if update.RowsAffected() == 0 {
-		s.cfg.Logger.WarnContext(ctx, "Cannot update recovery code", "service", serviceName, "userID", userID)
-		s.twoFactorSessionDelete(ctx, session, serviceName)
-		return errs.ErrSessionExpired
+		1,
+		s.cfg.Logger,
+	); err != nil {
+		return err
 	}
 
 	return nil
