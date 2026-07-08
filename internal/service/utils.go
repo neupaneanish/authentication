@@ -11,9 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -328,10 +330,16 @@ func (s *GatewayAuthenticationService) gatewayCheckPassword(
 		return "", errs.ErrInternalServer
 	}
 
-	t, tErr := task.AuthEmailTask(emailType, row.Email, plain)
-	if emailEnqueueErr := EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker); emailEnqueueErr != nil {
-		return "", emailEnqueueErr
+	var tErr error
+	var t *asynq.Task
+
+	if securityMethod == enum.DisableTwoFactor {
+		t, tErr = task.SecurityNotification(emailType, row.Email)
+	} else {
+		t, tErr = task.AuthEmailTask(emailType, row.Email, plain)
 	}
+
+	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
 
 	return session, nil
 }
@@ -493,15 +501,9 @@ func ChangeResetPassword(
 
 	qtx := repository.New(tx)
 
-	credentials, credentialsErr := qtx.CreateCredential(ctx, credentialParams)
-	if credentialsErr != nil {
-		logger.ErrorContext(ctx, "create credentials", "service", serviceName, "error", credentialsErr)
-		return errs.ErrInternalServer
-	}
-
-	if credentials.RowsAffected() == 0 {
-		logger.WarnContext(ctx, "credential not created", "service", serviceName, "userID", userID)
-		return errs.ErrInternalServer
+	tag, tagErr := qtx.CreateCredential(ctx, credentialParams)
+	if err := AffectedRowCheck(ctx, tag, tagErr, "create credentials", serviceName, 1, logger); err != nil {
+		return err
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
@@ -512,5 +514,96 @@ func ChangeResetPassword(
 	t, tErr := task.SecurityNotification(emailType, email)
 	_ = EmailEnqueue(ctx, t, tErr, serviceName, logger, worker) // Error already handled by EmailEnqueue
 
+	return nil
+}
+
+func ValidateTotpCode(
+	ctx context.Context,
+	userID uuid.UUID,
+	repo repository.Querier,
+	code string,
+	serviceName string,
+	twoFactor *config.TwoFactor,
+	logger *slog.Logger,
+) error {
+	params := &repository.TwoFactorSecretParams{UserID: userID}
+	row, rowErr := repo.TwoFactorSecret(ctx, params)
+	if rowErr != nil {
+		if errors.Is(rowErr, pgx.ErrNoRows) {
+			logger.WarnContext(ctx, "data not found", "service", serviceName, "userID", userID.String())
+			return errs.ErrSessionExpired
+		}
+		logger.ErrorContext(ctx, "secret database", "service", serviceName, "error", rowErr)
+		return errs.ErrInternalServer
+	}
+
+	ok, validateErr := twoFactor.Validate(code, row)
+	if validateErr != nil {
+		logger.ErrorContext(ctx, "validation", "service", serviceName, "error", validateErr)
+		return errs.ErrInternalServer
+	}
+	if !ok {
+		logger.WarnContext(ctx, "code error", "service", serviceName, "userID", userID.String())
+		return errs.ErrInvalidCode
+	}
+	return nil
+}
+
+func ValidateRecoveryCode(
+	ctx context.Context,
+	userID uuid.UUID,
+	repo repository.Querier,
+	code string,
+	serviceName string,
+	twoFactor *config.TwoFactor,
+	logger *slog.Logger,
+) (uuid.UUID, error) {
+	params := &repository.RecoveryCodesParams{UserID: userID}
+	row, rowErr := repo.RecoveryCodes(ctx, params)
+	if rowErr != nil {
+		logger.ErrorContext(ctx, serviceName+" recovery code database", "error", rowErr)
+		return uuid.Nil, errs.ErrInternalServer
+	}
+
+	if len(row) == 0 {
+		logger.WarnContext(ctx, "Recovery attempt with no codes in DB", "userID", userID)
+		return uuid.Nil, errs.ErrSessionExpired
+	}
+
+	ok, id := twoFactor.ValidateRecoveryCode(code, row)
+	if !ok {
+		logger.WarnContext(
+			ctx,
+			"Invalid recovery code",
+			"userID",
+			userID.String(),
+		)
+		return uuid.Nil, errs.ErrInvalidCode
+	}
+	return id, nil
+}
+
+func AffectedRowCheck(
+	ctx context.Context,
+	tag pgconn.CommandTag,
+	tagErr error,
+	msg string,
+	serviceName string,
+	count int64,
+	logger *slog.Logger,
+) error {
+	if tagErr != nil {
+		logger.ErrorContext(ctx, msg+" execution failure", "service", serviceName, "error", tagErr)
+		return errs.ErrInternalServer
+	}
+
+	if tag.RowsAffected() != count {
+		logger.WarnContext(ctx, msg+" rows mismatch",
+			"service", serviceName,
+			"expected", count,
+			"actual", tag.RowsAffected(),
+		)
+		return errs.ErrInternalServer
+	}
 	return nil
 }

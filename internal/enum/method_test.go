@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"neupaneanish.com.np/authentication/internal/enum"
 )
 

@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
+
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -99,15 +100,14 @@ func (s *ExternalAuthenticationService) Register(
 		return nil, errs.ErrInternalServer
 	}
 
-	credentials, credentialsErr := qtx.CreateCredential(ctx, &repository.CreateCredentialParams{
+	tag, tagErr := qtx.CreateCredential(ctx, &repository.CreateCredentialParams{
 		UserID:    user.ID,
 		Password:  hashPassword,
 		CreatedBy: uuid.Nil,
 	})
 
-	if credentialsErr != nil || credentials.RowsAffected() == 0 {
-		s.cfg.Logger.ErrorContext(ctx, "Create credentials failed", "service", serviceName, "error", credentialsErr)
-		return nil, errs.ErrInternalServer
+	if err := AffectedRowCheck(ctx, tag, tagErr, "create credentials", serviceName, 1, s.cfg.Logger); err != nil {
+		return nil, err
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {

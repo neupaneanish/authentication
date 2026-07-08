@@ -20,7 +20,9 @@ import (
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
+
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -312,4 +314,17 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 	}
 
 	return userRow.ID.String(), nil
+}
+
+func contextWithValue(t *testing.T, userID string) context.Context {
+	t.Helper()
+
+	md := metadata.Pairs(
+		"x-user-id", userID,
+		"x-role", "test",
+		"x-jti", uuid.NewString(),
+	)
+
+	ctx := metadata.NewOutgoingContext(t.Context(), md)
+	return ctx
 }

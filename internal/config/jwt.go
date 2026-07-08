@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
 	"neupaneanish.com.np/authentication/internal/errs"
 )
 

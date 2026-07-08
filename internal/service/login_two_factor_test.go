@@ -12,6 +12,7 @@ import (
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -321,7 +322,7 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		assert.Equal(t, errs.ErrNotFound, responseErr)
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
 	})
 
 	t.Run("No User in Recovery DB", func(t *testing.T) {
@@ -353,6 +354,6 @@ func TestLoginTwoFactor(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 
-		assert.Equal(t, errs.ErrNotFound, responseErr)
+		assert.Equal(t, errs.ErrSessionExpired, responseErr)
 	})
 }
