@@ -43,14 +43,14 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 	})
 
 	externalEndpoints := map[string]struct{}{
-		externalAuthenticationv1.AuthenticationService_Register_FullMethodName:                  {},
-		externalAuthenticationv1.AuthenticationService_Login_FullMethodName:                     {},
-		externalAuthenticationv1.AuthenticationService_LoginTwoFactor_FullMethodName:            {},
-		externalAuthenticationv1.AuthenticationService_ForgetPassword_FullMethodName:            {},
-		externalAuthenticationv1.AuthenticationService_Verification_FullMethodName:              {},
-		externalAuthenticationv1.AuthenticationService_ResetPassword_FullMethodName:             {},
-		externalAuthenticationv1.AuthenticationService_AccountVerification_FullMethodName:       {},
-		externalAuthenticationv1.AuthenticationService_ResendAccountVerification_FullMethodName: {},
+		externalAuthenticationv1.AuthenticationService_Register_FullMethodName:            {},
+		externalAuthenticationv1.AuthenticationService_Login_FullMethodName:               {},
+		externalAuthenticationv1.AuthenticationService_LoginTwoFactor_FullMethodName:      {},
+		externalAuthenticationv1.AuthenticationService_ForgetPassword_FullMethodName:      {},
+		externalAuthenticationv1.AuthenticationService_Verification_FullMethodName:        {},
+		externalAuthenticationv1.AuthenticationService_ResetPassword_FullMethodName:       {},
+		externalAuthenticationv1.AuthenticationService_AccountVerification_FullMethodName: {},
+		externalAuthenticationv1.AuthenticationService_Resend_FullMethodName:              {},
 	}
 
 	gatewayEndpoints := map[string]struct{}{

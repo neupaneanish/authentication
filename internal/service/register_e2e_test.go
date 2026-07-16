@@ -5,7 +5,6 @@ package service_test
 import (
 	"crypto/rand"
 	"fmt"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,8 +19,7 @@ import (
 func TestRegisterToLoginE2E(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
-
-	id := atomic.AddUint64(&phoneCounter, 1)
+	id := phoneCounter.Add(1)
 
 	rawPassword := "Password@1234"
 	email := cfg.Domain.GenerateEmail(rand.Text())

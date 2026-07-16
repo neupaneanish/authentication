@@ -55,12 +55,14 @@ func TestNewTwoFactor(t *testing.T) {
 				})
 
 				t.Run("Invalid Secret", func(t *testing.T) {
+					t.Parallel()
 					ok, validateErr := tf.Validate("123456", []byte("invalid"))
 					require.Error(t, validateErr)
 					assert.False(t, ok)
 				})
 
 				t.Run("Corrupted Ciphertext", func(t *testing.T) {
+					t.Parallel()
 					ok, validateErr := tf.Validate("123456", make([]byte, 20))
 					require.Error(t, validateErr)
 					assert.False(t, ok)
@@ -112,12 +114,14 @@ func TestNewTwoFactor(t *testing.T) {
 			}
 
 			t.Run("Success", func(t *testing.T) {
+				t.Parallel()
 				ok, idx := tf.ValidateRecoveryCode(strings.ReplaceAll(recovery.Plain[0], "-", ""), codes)
 				assert.True(t, ok)
 				assert.Equal(t, codes[0].ID, idx)
 			})
 
 			t.Run("Invalid", func(t *testing.T) {
+				t.Parallel()
 				ok, idx := tf.ValidateRecoveryCode("1234567890", codes)
 				assert.False(t, ok)
 				assert.Equal(t, uuid.Nil, idx)

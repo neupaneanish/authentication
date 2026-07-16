@@ -5,7 +5,6 @@ package service_test
 import (
 	"crypto/rand"
 	"fmt"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,7 +52,7 @@ func TestRegister(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
-		id := atomic.AddUint64(&phoneCounter, 1)
+		id := phoneCounter.Add(1)
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		phone := fmt.Sprintf("+1212%07d", 5000000+id)

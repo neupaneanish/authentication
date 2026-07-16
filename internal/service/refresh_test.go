@@ -31,7 +31,7 @@ func TestRefresh(t *testing.T) {
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 			if i < 2 {
-				assert.Equal(t, errs.ErrSessionExpired, responseErr)
+				assert.Equal(t, errs.ErrInvalidTokenOrExpired, responseErr)
 			} else {
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
 			}
@@ -58,7 +58,7 @@ func TestRefresh(t *testing.T) {
 			if i < 4 {
 				require.NoError(t, responseErr)
 				assert.NotNil(t, response)
-				assert.NotEmpty(t, response.Token.GetRefresh())
+				assert.NotEmpty(t, response.GetToken().GetRefresh())
 			} else {
 				require.Error(t, responseErr)
 				assert.Nil(t, response)

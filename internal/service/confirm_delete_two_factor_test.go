@@ -174,8 +174,8 @@ func seedTwoFactorUser(t *testing.T) (string, string, string, []string) {
 
 	recoveryCodes, rcErr := cfg.TwoFactor.GenerateRecoveryCodes()
 	require.NoError(t, rcErr)
-	assert.Equal(t, len(recoveryCodes.Plain), 10)
-	assert.Equal(t, len(recoveryCodes.Hash), 10)
+	assert.Len(t, recoveryCodes.Plain, 10)
+	assert.Len(t, recoveryCodes.Hash, 10)
 
 	params := &repository.CreateTwoFactorParams{
 		UserID:    userID,
@@ -200,7 +200,7 @@ func seedTwoFactorUser(t *testing.T) (string, string, string, []string) {
 
 	rowRecovery, rowRecoveryErr := cfg.Repository.CreateRecoveryCodes(t.Context(), recoveryCodesRows)
 	require.NoError(t, rowRecoveryErr)
-	assert.Equal(t, rowRecovery, int64(10))
+	assert.Equal(t, int64(10), rowRecovery)
 
 	return userIDStr, session, secret.Secret, recoveryCodes.Plain
 }
