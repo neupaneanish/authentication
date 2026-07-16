@@ -45,7 +45,7 @@ func TestUnaryTimeoutInterceptor(t *testing.T) {
 	t.Run("Timeout", func(t *testing.T) {
 		t.Parallel()
 		interceptor := transport.UnaryTimeoutInterceptor(time.Microsecond)
-		res, err := interceptor(t.Context(), "test", nil, func(ctx context.Context, req any) (any, error) {
+		res, err := interceptor(t.Context(), "test", nil, func(_ context.Context, _ any) (any, error) {
 			return nil, errors.New("error")
 		})
 
@@ -59,7 +59,7 @@ func TestUnaryTimeoutInterceptor(t *testing.T) {
 		cancel()
 
 		interceptor := transport.UnaryTimeoutInterceptor(time.Microsecond)
-		res, err := interceptor(ctx, "test", nil, func(ctx context.Context, req any) (any, error) {
+		res, err := interceptor(ctx, "test", nil, func(_ context.Context, _ any) (any, error) {
 			return nil, errors.New("error")
 		})
 
@@ -74,7 +74,7 @@ func TestUnaryTimeoutInterceptor(t *testing.T) {
 		defer cancel()
 
 		interceptor := transport.UnaryTimeoutInterceptor(time.Microsecond)
-		res, err := interceptor(ctx, "test", nil, func(ctx context.Context, req any) (any, error) {
+		res, err := interceptor(ctx, "test", nil, func(_ context.Context, _ any) (any, error) {
 			return nil, errors.New("error")
 		})
 
@@ -86,7 +86,7 @@ func TestUnaryTimeoutInterceptor(t *testing.T) {
 		t.Parallel()
 
 		interceptor := transport.UnaryTimeoutInterceptor(time.Microsecond)
-		res, err := interceptor(t.Context(), "test", nil, func(ctx context.Context, req any) (any, error) {
+		res, err := interceptor(t.Context(), "test", nil, func(_ context.Context, req any) (any, error) {
 			return req, nil
 		})
 
@@ -96,6 +96,7 @@ func TestUnaryTimeoutInterceptor(t *testing.T) {
 }
 
 func TestWrappedTimeoutStream_Context(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 
 	stream := &transport.WrappedTimeoutStream{StreamContext: ctx}
@@ -112,7 +113,7 @@ func TestStreamTimeoutInterceptor(t *testing.T) {
 
 		interceptor := transport.StreamTimeoutInterceptor(time.Second)
 
-		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(srv any, stream grpc.ServerStream) error {
+		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(_ any, _ grpc.ServerStream) error {
 			return nil
 		})
 
@@ -129,7 +130,7 @@ func TestStreamTimeoutInterceptor(t *testing.T) {
 
 		interceptor := transport.StreamTimeoutInterceptor(time.Second)
 
-		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(srv any, stream grpc.ServerStream) error {
+		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(_ any, stream grpc.ServerStream) error {
 			return stream.Context().Err()
 		})
 
@@ -144,7 +145,7 @@ func TestStreamTimeoutInterceptor(t *testing.T) {
 		stream := &transport.WrappedTimeoutStream{StreamContext: ctxCancel}
 		interceptor := transport.StreamTimeoutInterceptor(time.Minute)
 
-		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(srv any, stream grpc.ServerStream) error {
+		err := interceptor(nil, stream, &grpc.StreamServerInfo{}, func(_ any, stream grpc.ServerStream) error {
 			return stream.Context().Err()
 		})
 

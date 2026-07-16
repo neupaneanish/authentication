@@ -55,6 +55,7 @@ func TestLimiter(t *testing.T) {
 	identifier := rand.Text()
 
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		limiter, limiterErr := config.Limiter(prefix, 1, time.Minute, client)
 		require.NoError(t, limiterErr)
 		for i := range 2 {
@@ -73,12 +74,14 @@ func TestLimiter(t *testing.T) {
 		t.Parallel()
 
 		t.Run("Invalid limit", func(t *testing.T) {
+			t.Parallel()
 			limiter, limiterErr := config.Limiter(prefix, 0, time.Minute, client)
 			require.Error(t, limiterErr)
 			assert.Nil(t, limiter)
 		})
 
 		t.Run("Invalid window", func(t *testing.T) {
+			t.Parallel()
 			limiter, limiterErr := config.Limiter(prefix, 1, 0, client)
 			require.Error(t, limiterErr)
 			assert.Nil(t, limiter)

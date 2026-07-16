@@ -316,8 +316,8 @@ func seedTwoFactorLogin(t *testing.T) (string, string, []string, string) {
 
 	recoveryCodes, rcErr := cfg.TwoFactor.GenerateRecoveryCodes()
 	require.NoError(t, rcErr)
-	assert.Equal(t, len(recoveryCodes.Plain), 10)
-	assert.Equal(t, len(recoveryCodes.Hash), 10)
+	assert.Len(t, recoveryCodes.Plain, 10)
+	assert.Len(t, recoveryCodes.Hash, 10)
 
 	recoveryCodesRows := make([]*repository.CreateRecoveryCodesParams, 0, len(recoveryCodes.Hash))
 	for _, hash := range recoveryCodes.Hash {
@@ -331,7 +331,7 @@ func seedTwoFactorLogin(t *testing.T) (string, string, []string, string) {
 
 	recoveryRow, recoveryRowErr := cfg.Repository.CreateRecoveryCodes(t.Context(), recoveryCodesRows)
 	require.NoError(t, recoveryRowErr)
-	assert.Equal(t, recoveryRow, int64(10))
+	assert.Equal(t, int64(10), recoveryRow)
 
 	session := rand.Text()
 	value := &utils.LoginTwoFactorSession{

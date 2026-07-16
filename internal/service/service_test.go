@@ -45,7 +45,7 @@ var (
 	cfg                                 *config.Config
 	externalAuthenticationServiceClient externalAuthenticationv1.AuthenticationServiceClient
 	gatewayAuthenticationServiceClient  gatewayAuthenticationv1.AuthenticationServiceClient
-	phoneCounter                        uint64
+	phoneCounter                        atomic.Uint64
 )
 
 type container struct {
@@ -59,9 +59,10 @@ type container struct {
 
 func TestMain(m *testing.M) {
 	ctx := context.Background()
-	testContainer := setupContainer()
+	baseLogger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	testContainer := setupContainer(baseLogger)
 
-	testEnv := setupEnv(testContainer.dbURL, testContainer.vkURL)
+	testEnv := setupEnv(testContainer.dbURL, testContainer.vkURL, baseLogger)
 
 	logger, loggerCleanup, loggerErr := telemetry.NewTelemetry(
 		ctx,
@@ -71,21 +72,21 @@ func TestMain(m *testing.M) {
 	)
 
 	if loggerErr != nil {
-		slog.Error("Failed to start telemetry", "error", loggerErr)
+		baseLogger.Error("Failed to start telemetry", "error", loggerErr)
 		os.Exit(1)
 	}
 
 	testCfg, testCfgErr := config.NewConfig(ctx, testEnv, logger)
 	if testCfgErr != nil {
-		slog.Error("Failed to setup config", "error", testCfgErr)
+		baseLogger.Error("Failed to setup config", "error", testCfgErr)
 		os.Exit(1)
 	}
 
 	cfg = testCfg
 
-	client, server, testClientServerErr := testClientServer(testCfg)
+	client, server, testClientServerErr := testClientServer(testCfg, baseLogger)
 	if testClientServerErr != nil {
-		slog.Error("Failed to start client / server", "error", testCfgErr)
+		baseLogger.Error("Failed to start client / server")
 		os.Exit(1)
 	}
 
@@ -95,13 +96,13 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 	loggerCleanupErr := loggerCleanup(ctx)
 	if loggerCleanupErr != nil {
-		slog.Error("Failed to cleanup logger", "error", loggerCleanupErr)
+		baseLogger.Error("Failed to cleanup logger", "error", loggerCleanupErr)
 		os.Exit(1)
 	}
 
 	err := client.Close()
 	if err != nil {
-		slog.Error("Failed to close client", "error", err)
+		baseLogger.Error("Failed to close client", "error", err)
 		os.Exit(1)
 	}
 	server.GracefulStop()
@@ -112,28 +113,28 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func setupContainer() *container {
+func setupContainer(logger *slog.Logger) *container {
 	dbURL, dbCleanup, dbErr := tests.Postgres()
 	if dbErr != nil {
-		slog.Error("Failed to start postgres container", "error", dbErr)
+		logger.Error("Failed to start postgres container", "error", dbErr)
 		os.Exit(1)
 	}
 
 	migrationErr := runMigrations(dbURL)
 	if migrationErr != nil {
-		slog.Error("Failed to migrations", "error", migrationErr)
+		logger.Error("Failed to migrations", "error", migrationErr)
 		os.Exit(1)
 	}
 
 	vkURL, vkCleanup, vkErr := tests.Valkey()
 	if vkErr != nil {
-		slog.Error("Failed to start valkey container", "error", vkErr)
+		logger.Error("Failed to start valkey container", "error", vkErr)
 		os.Exit(1)
 	}
 
 	telemetryURL, telemetryCleanup, telemetryErr := tests.OpenTelemetry()
 	if telemetryErr != nil {
-		slog.Error("Failed to start telemetry container", "error", telemetryErr)
+		logger.Error("Failed to start telemetry container", "error", telemetryErr)
 		os.Exit(1)
 	}
 
@@ -147,16 +148,16 @@ func setupContainer() *container {
 	}
 }
 
-func setupEnv(db string, vk string) *config.Env {
+func setupEnv(db string, vk string, logger *slog.Logger) *config.Env {
 	_, jwtPrivate, jwtKeyErr := ed25519.GenerateKey(nil)
 	if jwtKeyErr != nil {
-		slog.Error("Failed to validate jwtKey", "error", jwtKeyErr)
+		logger.Error("Failed to validate jwtKey", "error", jwtKeyErr)
 		os.Exit(1)
 	}
 
 	_, tfPrivate, tfKeyErr := ed25519.GenerateKey(nil)
 	if tfKeyErr != nil {
-		slog.Error("Failed to validate tfKey", "error", tfKeyErr)
+		logger.Error("Failed to validate tfKey", "error", tfKeyErr)
 		os.Exit(1)
 	}
 
@@ -172,7 +173,7 @@ func setupEnv(db string, vk string) *config.Env {
 	}
 }
 
-func testClientServer(cfg *config.Config) (*grpc.ClientConn, *grpc.Server, error) {
+func testClientServer(cfg *config.Config, logger *slog.Logger) (*grpc.ClientConn, *grpc.Server, error) {
 	listen := bufconn.Listen(1024 * 1024)
 
 	opts, optsErr := transport.NewOptions(cfg)
@@ -188,7 +189,7 @@ func testClientServer(cfg *config.Config) (*grpc.ClientConn, *grpc.Server, error
 
 	go func() {
 		if err := server.Serve(listen); err != nil {
-			slog.Error("Failed to serve server", "error", err)
+			logger.Error("Failed to serve server", "error", err)
 			os.Exit(1)
 		}
 	}()
@@ -257,7 +258,7 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 		_ = tx.Rollback(ctx)
 	}()
 
-	id := atomic.AddUint64(&phoneCounter, 1)
+	id := phoneCounter.Add(1)
 	phone := fmt.Sprintf("+1571%07d", 5000000+id)
 
 	qtx := repository.New(tx)

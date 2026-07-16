@@ -66,7 +66,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 				response, responseErr := gatewayAuthenticationServiceClient.ConfirmTwoFactor(ctx, req)
 				require.NoError(t, responseErr)
 				assert.NotNil(t, response)
-				assert.Equal(t, 10, len(response.Codes))
+				assert.Len(t, response.GetCodes(), 10)
 			} else {
 				newSession := rand.Text()
 				newSecret := seedConfirmTwoFactorSession(t, userID, newSession, cfg.Domain.GenerateEmail(rand.Text()))

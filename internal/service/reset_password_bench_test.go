@@ -21,7 +21,7 @@ func BenchmarkResetPassword(b *testing.B) {
 	newPassword := "Bench@Password12"
 
 	requests := make([]*externalAuthenticationv1.ResetPasswordRequest, b.N)
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
 		if err != nil {
@@ -47,13 +47,13 @@ func BenchmarkResetPassword(b *testing.B) {
 		}
 	}
 
-	var counter uint64
+	var counter atomic.Uint64
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			idx := atomic.AddUint64(&counter, 1) - 1
+			idx := counter.Add(1) - 1
 			req := requests[idx%uint64(len(requests))]
 
 			_, err := externalAuthenticationServiceClient.ResetPassword(ctx, req)

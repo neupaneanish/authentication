@@ -15,16 +15,16 @@ import (
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
-func TestResendAccountVerification(t *testing.T) {
+func TestResendVerification(t *testing.T) {
 	t.Parallel()
 
 	t.Run("Rate Limiter Session", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		req := &externalAuthenticationv1.ResendAccountVerificationRequest{Session: session}
+		req := &externalAuthenticationv1.ResendRequest{Session: session}
 
 		for i := range 6 {
-			response, responseErr := externalAuthenticationServiceClient.ResendAccountVerification(t.Context(), req)
+			response, responseErr := externalAuthenticationServiceClient.Resend(t.Context(), req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
 			if i < 5 {
@@ -52,11 +52,11 @@ func TestResendAccountVerification(t *testing.T) {
 				cfg.Domain.GenerateEmail(session),
 				cfg.Client,
 			)
-			req := &externalAuthenticationv1.ResendAccountVerificationRequest{Session: session}
-			response, responseErr := externalAuthenticationServiceClient.ResendAccountVerification(t.Context(), req)
+			req := &externalAuthenticationv1.ResendRequest{Session: session}
+			response, responseErr := externalAuthenticationServiceClient.Resend(t.Context(), req)
 
 			if i < 5 {
-				assert.NoError(t, responseErr)
+				require.NoError(t, responseErr)
 				assert.NotNil(t, response)
 			} else {
 				require.Error(t, responseErr)

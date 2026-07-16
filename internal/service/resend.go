@@ -8,11 +8,11 @@ import (
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
-func (s *ExternalAuthenticationService) ResendAccountVerification(
+func (s *ExternalAuthenticationService) Resend(
 	ctx context.Context,
-	req *externalAuthenticationv1.ResendAccountVerificationRequest,
-) (*externalAuthenticationv1.ResendAccountVerificationResponse, error) {
-	serviceName := "ResendAccountVerification"
+	req *externalAuthenticationv1.ResendRequest,
+) (*externalAuthenticationv1.ResendResponse, error) {
+	serviceName := "ResendVerification"
 	session := req.GetSession()
 
 	accountSession, accountSessionErr := s.accountVerificationSessionCheck(ctx, session, serviceName)
@@ -38,7 +38,7 @@ func (s *ExternalAuthenticationService) ResendAccountVerification(
 
 	s.deleteAccountVerificationSession(ctx, session, serviceName)
 
-	return &externalAuthenticationv1.ResendAccountVerificationResponse{
+	return &externalAuthenticationv1.ResendResponse{
 		Session: newSession,
 	}, nil
 }

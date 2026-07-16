@@ -34,7 +34,7 @@ func (s *ExternalAuthenticationService) Refresh(
 	if userDataErr != nil {
 		if om.IsRecordNotFound(userDataErr) {
 			s.cfg.Logger.WarnContext(ctx, "Refresh Token Expired", "service", serviceName)
-			return nil, errs.ErrSessionExpired
+			return nil, errs.ErrInvalidTokenOrExpired
 		}
 		s.cfg.Logger.ErrorContext(ctx, "Valkey", "service", serviceName, "error", userDataErr)
 		return nil, errs.ErrInternalServer

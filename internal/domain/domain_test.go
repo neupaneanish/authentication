@@ -36,7 +36,7 @@ func TestDomain(t *testing.T) {
 			txt := "DR2JTINSHENMG45HCADCSKYJZS"
 			url, urlErr := domain.ValidateDomainWithTXT(t.Context(), "neupaneanish.com.np", txt)
 			require.NoError(t, urlErr)
-			assert.Equal(t, url, "neupaneanish.com.np")
+			assert.Equal(t, "neupaneanish.com.np", url)
 		})
 
 		t.Run("Invalid Txt", func(t *testing.T) {
