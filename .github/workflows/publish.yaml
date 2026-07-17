@@ -1,0 +1,127 @@
+name: publish.yaml
+on:
+  push:
+    tags:
+      - v*.*.*
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure Git to use HTTPS
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: true
+
+      - name: Setup Buf CLI
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: Run Buf Generate
+        run: buf generate
+
+      - name: Setup SQLc CLI
+        uses: sqlc-dev/setup-sqlc@v5
+        with:
+          sqlc-version: '1.31.1'
+
+      - name: Run SQLc Generate
+        run: sqlc generate
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Upload prepared source
+        uses: actions/upload-artifact@v7
+        with:
+          name: prepared-source
+          path: .
+          include-hidden-files: true
+
+  test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download source
+        uses: actions/download-artifact@v8
+        with:
+          name: prepared-source
+          path: .
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          cache: true
+      - name: Run tests
+        run: go test -race -v -tags=unit,integration,benchmark,e2e ./...
+
+  build-and-push:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - target: server
+            suffix: ""
+          - target: worker
+            suffix: "-worker"
+    steps:
+      - name: Download source
+        uses: actions/download-artifact@v8
+        with:
+          name: prepared-source
+          path: .
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}${{ matrix.suffix }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          target: ${{ matrix.target }}
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
