@@ -1,5 +1,3 @@
-//go:build unit
-
 package transport_test
 
 import (
@@ -22,13 +20,11 @@ func TestNewTransport(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 		cfg := &config.Config{
-			Logger:      logger,
-			Port:        "0",
-			ServiceName: serviceName,
+			Logger: logger,
 		}
 		serverErr := make(chan error, 1)
 
-		transportErr := transport.NewTransport(t.Context(), cfg, serverErr)
+		transportErr := transport.NewTransport(t.Context(), cfg, "0", serviceName, serverErr)
 		require.NoError(t, transportErr)
 
 		time.Sleep(10 * time.Millisecond)
@@ -53,14 +49,12 @@ func TestNewTransport(t *testing.T) {
 		}()
 
 		cfg := &config.Config{
-			Logger:      logger,
-			Port:        "54321",
-			ServiceName: serviceName,
+			Logger: logger,
 		}
 
 		serverErr := make(chan error, 1)
 
-		transportErr := transport.NewTransport(t.Context(), cfg, serverErr)
+		transportErr := transport.NewTransport(t.Context(), cfg, "54321", serviceName, serverErr)
 		require.Error(t, transportErr)
 	})
 }

@@ -20,6 +20,7 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("JWT_KEY")
 		_ = os.Unsetenv("TWO_FACTOR_KEY")
 		_ = os.Unsetenv("PORT")
+		_ = os.Unsetenv("HTTP_PORT")
 		_ = os.Unsetenv("ENVIRONMENT")
 		_ = os.Unsetenv("TELEMETRY_URL")
 		_ = os.Unsetenv("ISSUER")
@@ -37,7 +38,8 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("VALKEY_URL", "localhost:6379")
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
-		t.Setenv("PORT", "8080")
+		t.Setenv("PORT", "50051")
+		t.Setenv("HTTP_PORT", "8000")
 		t.Setenv("SERVICE_NAME", "Test Service")
 		t.Setenv("ENVIRONMENT", "production")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
@@ -49,7 +51,7 @@ func TestLoadEnv(t *testing.T) {
 		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
-		assert.Equal(t, "8080", env.Port)
+		assert.Equal(t, "50051", env.Port)
 	})
 
 	t.Run("Default Environment", func(t *testing.T) {
@@ -70,6 +72,21 @@ func TestLoadEnv(t *testing.T) {
 
 		t.Run("Invalid port", func(t *testing.T) {
 			t.Setenv("PORT", "79")
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
+
+		t.Run("Invalid http port", func(t *testing.T) {
+			t.Setenv("HTTP_PORT", "79")
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
+
+		t.Run("Both port same", func(t *testing.T) {
+			t.Setenv("HTTP_PORT", "8080")
+			t.Setenv("PORT", "8080")
 			pEnv, pEnvErr := config.LoadEnv(t.Context())
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)

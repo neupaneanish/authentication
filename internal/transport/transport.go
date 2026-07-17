@@ -25,9 +25,11 @@ const (
 func NewTransport(
 	ctx context.Context,
 	cfg *config.Config,
+	port string,
+	serviceName string,
 	serverErr chan error,
 ) error {
-	address := ":" + cfg.Port
+	address := ":" + port
 	lc := net.ListenConfig{KeepAlive: keepAlive}
 
 	lis, lisErr := lc.Listen(ctx, "tcp", address)
@@ -62,8 +64,8 @@ func NewTransport(
 	register(cfg, server)
 
 	go func() {
-		cfg.Logger.InfoContext(ctx, "gRPC server listening", "port", cfg.Port)
-		healthServer.SetServingStatus(cfg.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
+		cfg.Logger.InfoContext(ctx, "gRPC server listening", "port", port)
+		healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_SERVING)
 
 		if err := server.Serve(lis); err != nil && !errors.Is(err, grpc.ErrServerStopped) {
 			cfg.Logger.ErrorContext(ctx, "gRPC server failed", "error", err)
@@ -75,7 +77,7 @@ func NewTransport(
 		<-ctx.Done()
 		cfg.Logger.InfoContext(ctx, "Shutting down gRPC server")
 
-		healthServer.SetServingStatus(cfg.ServiceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
+		healthServer.SetServingStatus(serviceName, grpc_health_v1.HealthCheckResponse_NOT_SERVING)
 
 		stopCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), keepAlive)
 		defer cancel()
