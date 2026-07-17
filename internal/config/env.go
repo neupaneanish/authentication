@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"neupaneanish.com.np/authentication/internal/domain"
@@ -18,6 +17,7 @@ type Env struct {
 	TwoFactorKey string
 	Issuer       string
 	Port         string
+	HTTPPort     string
 	ServiceName  string
 	Environment  string
 	TelemetryURL string
@@ -46,10 +46,18 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		return nil, twoFactorKeyErr
 	}
 
-	port := env.ValidateDefaultEnv("PORT", "50051")
-	value, valueErr := strconv.Atoi(port)
-	if valueErr != nil || value < 80 || value > 65535 {
-		return nil, errors.New("PORT must be between 80  and 65535")
+	port, portErr := validatePort("PORT", "50051")
+	if portErr != nil {
+		return nil, portErr
+	}
+
+	httpPort, httpPortErr := validatePort("HTTP_PORT", "8000")
+	if httpPortErr != nil {
+		return nil, httpPortErr
+	}
+
+	if port == httpPort {
+		return nil, errors.New("GRPC and HTTP port cannot be same")
 	}
 
 	environment := env.ValidateDefaultEnv("ENVIRONMENT", env.Development)
@@ -93,7 +101,8 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		TwoFactorKey: twoFactorKey,
 		Issuer:       env.ValidateDefaultEnv("ISSUER", "Anish Neupane"),
 		Port:         port,
-		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", api),
+		HTTPPort:     httpPort,
+		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", "neupaneanish.com.np/authentication"),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
 		Domain:       validDomain,

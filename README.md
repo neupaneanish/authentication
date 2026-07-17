@@ -64,6 +64,7 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 |   TWO_FACTOR_KEY    |                                      |                      `ed25519` Private Key Seed Size 32                      |
 |       ISSUER        |           `Anish Neupane`            |                                                                              |
 |        PORT         |               `50051`                |                               `80` to `65535`                                |
+|      HTTP_PORT      |                `8000`                |                               `80` to `65535`                                |
 |    SERVICE_NAME     | `neupaneanish.com.np/authentication` |                                                                              |
 |     ENVIRONMENT     |            `development`             |                        `development` or `production`                         |
 |    TELEMETRY_URL    |                                      |                                gRPC port only                                |

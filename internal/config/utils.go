@@ -4,7 +4,11 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"errors"
+	"fmt"
+	"strconv"
 	"time"
+
+	"neupaneanish.com.np/authentication/internal/env"
 )
 
 const (
@@ -35,22 +39,30 @@ const (
 	limiterWindowUserID         = time.Hour
 )
 
-func validateKey(key string) ([]byte, ed25519.PrivateKey, ed25519.PublicKey, error) {
+func validateKey(key string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	decode, decodeErr := hex.DecodeString(key)
 	if decodeErr != nil {
-		return nil, nil, nil, decodeErr
+		return nil, nil, decodeErr
 	}
 
 	if len(decode) != ed25519.SeedSize {
-		return nil, nil, nil, errors.New("invalid key")
+		return nil, nil, errors.New("invalid key")
 	}
 
 	privateKey := ed25519.NewKeyFromSeed(decode)
 	publicKey, ok := privateKey.Public().(ed25519.PublicKey)
 	if !ok {
-		return nil, nil, nil, errors.New("invalid Key")
+		return nil, nil, errors.New("invalid Key")
 	}
-	seed := privateKey.Seed()
 
-	return seed, privateKey, publicKey, nil
+	return privateKey, publicKey, nil
+}
+
+func validatePort(key, def string) (string, error) {
+	port := env.ValidateDefaultEnv(key, def)
+	value, valueErr := strconv.Atoi(port)
+	if valueErr != nil || value < 80 || value > 65535 {
+		return "", fmt.Errorf("%s must be between 80  and 65535", key)
+	}
+	return port, nil
 }

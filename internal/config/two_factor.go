@@ -42,13 +42,13 @@ func NewTwoFactor(
 	key string,
 	issuer string,
 ) (*TwoFactor, error) {
-	masterKey, _, _, err := validateKey(key)
+	private, _, err := validateKey(key)
 	if err != nil {
 		return nil, err
 	}
 
 	return &TwoFactor{
-		key:    masterKey,
+		key:    private.Seed(),
 		issuer: issuer,
 	}, nil
 }

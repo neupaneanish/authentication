@@ -15,9 +15,6 @@ type Config struct {
 	Pool        *pgxpool.Pool
 	Client      valkey.Client
 	Logger      *slog.Logger
-	Port        string
-	Environment string
-	ServiceName string
 	Jwt         *JWT
 	TwoFactor   *TwoFactor
 	RateLimiter *RateLimiter
@@ -41,7 +38,7 @@ func NewConfig(
 		return nil, clientErr
 	}
 
-	jwt, jwtErr := NewJWT(env.JWTKey, env.Issuer, logger)
+	jwt, jwtErr := NewJWT(ctx, env.JWTKey, env.Issuer, logger)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}
@@ -65,9 +62,6 @@ func NewConfig(
 		Pool:        pool,
 		Client:      client,
 		Logger:      logger,
-		Port:        env.Port,
-		Environment: env.Environment,
-		ServiceName: env.ServiceName,
 		Jwt:         jwt,
 		TwoFactor:   twoFactor,
 		RateLimiter: rateLimiter,
