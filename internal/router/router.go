@@ -51,8 +51,9 @@ func NewRouter(
 			},
 		},
 	}
+	lc := net.ListenConfig{}
 
-	lis, lisErr := net.Listen("tcp", address)
+	lis, lisErr := lc.Listen(ctx, "tcp", address)
 	if lisErr != nil {
 		serverErr <- lisErr
 		return
