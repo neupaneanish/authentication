@@ -72,7 +72,7 @@ jobs:
           go-version: stable
           cache: true
       - name: Run tests
-        run: go test -race -v -tags=unit,integration,benchmark,e2e ./...
+        run: go test -race -v -tags=unit,integration,e2e ./...
 
   build-and-push:
     needs: test

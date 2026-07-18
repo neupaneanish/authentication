@@ -15,7 +15,12 @@ import (
 
 func TestLoadEnv(t *testing.T) {
 	cleanup := func() {
-		_ = os.Unsetenv("DATABASE_URL")
+		_ = os.Unsetenv("DATABASE_HOST")
+		_ = os.Unsetenv("DATABASE_NAME")
+		_ = os.Unsetenv("DATABASE_USER")
+		_ = os.Unsetenv("DATABASE_PASSWORD")
+		_ = os.Unsetenv("DATABASE_PORT")
+		_ = os.Unsetenv("DATABASE_SSL")
 		_ = os.Unsetenv("VALKEY_URL")
 		_ = os.Unsetenv("JWT_KEY")
 		_ = os.Unsetenv("TWO_FACTOR_KEY")
@@ -34,7 +39,10 @@ func TestLoadEnv(t *testing.T) {
 	t.Run("Success with all variables", func(t *testing.T) {
 		cleanup()
 
-		t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/test")
+		t.Setenv("DATABASE_HOST", "127.0.0.1")
+		t.Setenv("DATABASE_NAME", "postgres")
+		t.Setenv("DATABASE_USER", "postgres")
+		t.Setenv("DATABASE_PASSWORD", "postgres")
 		t.Setenv("VALKEY_URL", "localhost:6379")
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
@@ -56,7 +64,10 @@ func TestLoadEnv(t *testing.T) {
 
 	t.Run("Default Environment", func(t *testing.T) {
 		cleanup()
-		t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/test")
+		t.Setenv("DATABASE_HOST", "127.0.0.1")
+		t.Setenv("DATABASE_NAME", "postgres")
+		t.Setenv("DATABASE_USER", "postgres")
+		t.Setenv("DATABASE_PASSWORD", "postgres")
 		t.Setenv("VALKEY_URL", "localhost:6379")
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
@@ -99,9 +110,26 @@ func TestLoadEnv(t *testing.T) {
 			assert.Nil(t, pEnv)
 		})
 
+		t.Run("Invalid Database PORT", func(t *testing.T) {
+			t.Setenv("DATABASE_PORT", "79")
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			require.Error(t, pEnvErr)
+			assert.Nil(t, pEnv)
+		})
+
+		t.Run("Database SSL False", func(t *testing.T) {
+			t.Setenv("DATABASE_SSL", "False")
+			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			require.NoError(t, pEnvErr)
+			assert.NotNil(t, pEnv)
+		})
+
 		t.Run("Invalid domain", func(t *testing.T) {
 			cleanup()
-			t.Setenv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/test")
+			t.Setenv("DATABASE_HOST", "127.0.0.1")
+			t.Setenv("DATABASE_NAME", "postgres")
+			t.Setenv("DATABASE_USER", "postgres")
+			t.Setenv("DATABASE_PASSWORD", "postgres")
 			t.Setenv("VALKEY_URL", "localhost:6379")
 			t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 			t.Setenv("JWT_KEY", "jwt-key")
@@ -118,7 +146,10 @@ func TestLoadEnv(t *testing.T) {
 
 	t.Run("Missing Required Environment", func(t *testing.T) {
 		requiredVariables := []string{
-			"DATABASE_URL",
+			"DATABASE_HOST",
+			"DATABASE_NAME",
+			"DATABASE_USER",
+			"DATABASE_PASSWORD",
 			"VALKEY_URL",
 			"JWT_KEY",
 			"TWO_FACTOR_KEY",

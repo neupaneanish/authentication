@@ -39,4 +39,24 @@ func TestEnv(t *testing.T) {
 			assert.Equal(t, "default", value)
 		})
 	})
+
+	t.Run("ValidateBool", func(t *testing.T) {
+		t.Run("Success", func(t *testing.T) {
+			t.Setenv("TEST_BOOL_KEY", "F")
+
+			ok := env.ValidateBoolEnv("TEST_BOOL_KEY", true)
+			assert.False(t, ok)
+		})
+
+		t.Run("Invalid", func(t *testing.T) {
+			t.Setenv("TEST_BOOL_KEY", "1234")
+			ok := env.ValidateBoolEnv("TEST_BOOL_KEY", true)
+			assert.True(t, ok)
+		})
+
+		t.Run("Empty", func(t *testing.T) {
+			ok := env.ValidateBoolEnv("TEST_BOOL_KEY", true)
+			assert.True(t, ok)
+		})
+	})
 }

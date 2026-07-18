@@ -58,7 +58,12 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 |        Name         |               Default                |                                   Options                                    |
 |:-------------------:|:------------------------------------:|:----------------------------------------------------------------------------:|
-|    DATABASE_URL     |                                      |                                                                              |
+|    DATABASE_HOST    |                                      |                                                                              |
+|    DATABASE_NAME    |                                      |                                                                              |
+|    DATABASE_USER    |                                      |                                                                              |
+|  DATABASE_PASSWORD  |                                      |                                                                              |
+|    DATABASE_PORT    |                `5432`                |                                                                              |
+|    DATABASE_SSL     |                `True`                |                                                                              |
 |     VALKEY_URL      |                                      |                                                                              |
 |       JWT_KEY       |                                      |                      `ed25519` Private Key Seed Size 32                      |
 |   TWO_FACTOR_KEY    |                                      |                      `ed25519` Private Key Seed Size 32                      |
@@ -73,7 +78,12 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 |     DOMAIN_NAME     |                                      | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
 
 ```dotenv
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/authentication?sslmode=disable
+DATABASE_HOST=
+DATABASE_NAME=
+DATABASE_USER=
+DATABASE_PASSWORD=
+DATABASE_PORT=
+DATABASE_SSL=
 VALKEY_URL=127.0.0.1:6379
 JWT_KEY=
 TWO_FACTOR_KEY=
@@ -184,7 +194,7 @@ go run cmd/server/main.go
 
 ---
 
-## Coverage ~85.30%
+## Coverage ~85.50%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.

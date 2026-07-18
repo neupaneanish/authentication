@@ -4,11 +4,7 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"errors"
-	"fmt"
-	"strconv"
 	"time"
-
-	"neupaneanish.com.np/authentication/internal/env"
 )
 
 const (
@@ -56,13 +52,4 @@ func validateKey(key string) (ed25519.PrivateKey, ed25519.PublicKey, error) {
 	}
 
 	return privateKey, publicKey, nil
-}
-
-func validatePort(key, def string) (string, error) {
-	port := env.ValidateDefaultEnv(key, def)
-	value, valueErr := strconv.Atoi(port)
-	if valueErr != nil || value < 80 || value > 65535 {
-		return "", fmt.Errorf("%s must be between 80  and 65535", key)
-	}
-	return port, nil
 }
