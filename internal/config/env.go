@@ -26,7 +26,7 @@ type Env struct {
 }
 
 func LoadEnv(ctx context.Context) (*Env, error) {
-	databaseURL, databaseURLErr := env.ValidateEnv("DATABASE_URL")
+	databaseURL, databaseURLErr := env.DatabaseURL()
 	if databaseURLErr != nil {
 		return nil, databaseURLErr
 	}
@@ -46,12 +46,12 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		return nil, twoFactorKeyErr
 	}
 
-	port, portErr := validatePort("PORT", "50051")
+	port, portErr := env.ValidatePort("PORT", "50051")
 	if portErr != nil {
 		return nil, portErr
 	}
 
-	httpPort, httpPortErr := validatePort("HTTP_PORT", "8000")
+	httpPort, httpPortErr := env.ValidatePort("HTTP_PORT", "8000")
 	if httpPortErr != nil {
 		return nil, httpPortErr
 	}
