@@ -16,7 +16,6 @@ func newResource(
 		ctx,
 		resource.WithProcess(),
 		resource.WithHost(),
-		resource.WithHostID(),
 		resource.WithOS(),
 		resource.WithContainer(),
 		resource.WithContainerID(),
