@@ -53,7 +53,7 @@ func (s *ExternalAuthenticationService) login(
 ) (*config.GenerateJwt, error) {
 	id := uuid.NewString()
 
-	token, tokenErr := s.cfg.Jwt.GenerateToken(userID, role, id)
+	token, tokenErr := s.cfg.Jwt.GenerateToken(userID, id)
 	if tokenErr != nil {
 		return nil, tokenErr
 	}
@@ -62,6 +62,7 @@ func (s *ExternalAuthenticationService) login(
 		Key:    id,
 		ExAt:   time.Now().Add(utils.AccessSessionExpiry),
 		UserID: userID,
+		Role:   role,
 	}
 
 	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, s.cfg.Client)
