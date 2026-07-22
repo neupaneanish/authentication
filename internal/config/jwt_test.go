@@ -29,12 +29,11 @@ func TestNewJWT(t *testing.T) {
 		assert.NotNil(t, newJWT)
 
 		userID := uuid.NewString()
-		role := "Test"
 		id := uuid.NewString()
 
 		t.Run("Generate Token", func(t *testing.T) {
 			t.Parallel()
-			token, tokenErr := newJWT.GenerateToken(userID, role, id)
+			token, tokenErr := newJWT.GenerateToken(userID, id)
 			require.NoError(t, tokenErr)
 			assert.NotNil(t, token)
 		})

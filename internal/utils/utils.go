@@ -46,6 +46,7 @@ type LoginAccessSession struct {
 	Ver    int64     `json:"ver"     valkey:",ver"`
 	ExAt   time.Time `json:"exat"    valkey:",exat"`
 	UserID string    `json:"user_id"`
+	Role   string    `json:"role"`
 }
 
 type LoginRefreshSession struct {

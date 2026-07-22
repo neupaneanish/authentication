@@ -31,12 +31,6 @@ type GenerateJwt struct {
 	ExpiryAt time.Time
 }
 
-type JwtClaims struct {
-	jwt.RegisteredClaims
-
-	Role string
-}
-
 func NewJWT(ctx context.Context, key string, issuer string, logger *slog.Logger) (*JWT, error) {
 	private, public, err := validateKey(key)
 	if err != nil {
@@ -77,22 +71,18 @@ func NewJWT(ctx context.Context, key string, issuer string, logger *slog.Logger)
 
 func (j *JWT) GenerateToken(
 	userID string,
-	role string,
 	id string,
 ) (*GenerateJwt, error) {
 	now := time.Now().UTC()
 	expiryAt := now.Add(utils.AccessSessionExpiry)
 
-	claims := &JwtClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			Issuer:    j.issuer,
-			Subject:   userID,
-			ExpiresAt: jwt.NewNumericDate(expiryAt),
-			NotBefore: jwt.NewNumericDate(now),
-			IssuedAt:  jwt.NewNumericDate(now),
-			ID:        id,
-		},
-		Role: role,
+	claims := jwt.RegisteredClaims{
+		Issuer:    j.issuer,
+		Subject:   userID,
+		ExpiresAt: jwt.NewNumericDate(expiryAt),
+		NotBefore: jwt.NewNumericDate(now),
+		IssuedAt:  jwt.NewNumericDate(now),
+		ID:        id,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, claims)
