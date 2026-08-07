@@ -7,7 +7,7 @@ import (
 )
 
 type ExternalAuthenticationService struct {
-	externalAuthenticationv1.UnimplementedAuthenticationServiceServer
+	externalAuthenticationv1.UnimplementedExternalAuthenticationServiceServer
 
 	cfg *config.Config
 }
@@ -19,7 +19,7 @@ func NewExternalAuthenticationService(cfg *config.Config) *ExternalAuthenticatio
 }
 
 type GatewayAuthenticationService struct {
-	gatewayAuthenticationv1.UnimplementedAuthenticationServiceServer
+	gatewayAuthenticationv1.UnimplementedGatewayAuthenticationServiceServer
 
 	cfg *config.Config
 }

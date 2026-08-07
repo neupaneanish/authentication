@@ -131,7 +131,7 @@ func userDetail(ctx context.Context, header string) string {
 }
 
 func isRefreshEndpoint(fullMethod string) bool {
-	return fullMethod == externalAuthenticationv1.AuthenticationService_Refresh_FullMethodName
+	return fullMethod == externalAuthenticationv1.ExternalAuthenticationService_Refresh_FullMethodName
 }
 
 func setContextValue(ctx context.Context, userID string, role string, jti string) context.Context {
