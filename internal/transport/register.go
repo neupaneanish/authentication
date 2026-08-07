@@ -14,8 +14,8 @@ func register(
 	server *grpc.Server,
 ) {
 	externalAuthenticationService := service.NewExternalAuthenticationService(cfg)
-	externalAuthenticationv1.RegisterAuthenticationServiceServer(server, externalAuthenticationService)
+	externalAuthenticationv1.RegisterExternalAuthenticationServiceServer(server, externalAuthenticationService)
 
 	gatewayAuthenticationService := service.NewGatewayAuthenticationService(cfg)
-	gatewayAuthenticationv1.RegisterAuthenticationServiceServer(server, gatewayAuthenticationService)
+	gatewayAuthenticationv1.RegisterGatewayAuthenticationServiceServer(server, gatewayAuthenticationService)
 }

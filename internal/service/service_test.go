@@ -43,8 +43,8 @@ import (
 
 var (
 	cfg                                 *config.Config
-	externalAuthenticationServiceClient externalAuthenticationv1.AuthenticationServiceClient
-	gatewayAuthenticationServiceClient  gatewayAuthenticationv1.AuthenticationServiceClient
+	externalAuthenticationServiceClient externalAuthenticationv1.ExternalAuthenticationServiceClient
+	gatewayAuthenticationServiceClient  gatewayAuthenticationv1.GatewayAuthenticationServiceClient
 	phoneCounter                        atomic.Uint64
 )
 
@@ -90,8 +90,8 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	externalAuthenticationServiceClient = externalAuthenticationv1.NewAuthenticationServiceClient(client)
-	gatewayAuthenticationServiceClient = gatewayAuthenticationv1.NewAuthenticationServiceClient(client)
+	externalAuthenticationServiceClient = externalAuthenticationv1.NewExternalAuthenticationServiceClient(client)
+	gatewayAuthenticationServiceClient = gatewayAuthenticationv1.NewGatewayAuthenticationServiceClient(client)
 
 	code := m.Run()
 	loggerCleanupErr := loggerCleanup(ctx)
@@ -184,8 +184,14 @@ func testClientServer(cfg *config.Config, logger *slog.Logger) (*grpc.ClientConn
 
 	server := grpc.NewServer(opts...)
 
-	externalAuthenticationv1.RegisterAuthenticationServiceServer(server, service.NewExternalAuthenticationService(cfg))
-	gatewayAuthenticationv1.RegisterAuthenticationServiceServer(server, service.NewGatewayAuthenticationService(cfg))
+	externalAuthenticationv1.RegisterExternalAuthenticationServiceServer(
+		server,
+		service.NewExternalAuthenticationService(cfg),
+	)
+	gatewayAuthenticationv1.RegisterGatewayAuthenticationServiceServer(
+		server,
+		service.NewGatewayAuthenticationService(cfg),
+	)
 
 	go func() {
 		if err := server.Serve(listen); err != nil {
