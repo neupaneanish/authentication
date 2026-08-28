@@ -12,12 +12,10 @@ func OpenTelemetry() (string, func(), error) {
 
 	container, err := testcontainers.GenericContainer(ctx,
 		testcontainers.GenericContainerRequest{
-			ContainerRequest: testcontainers.ContainerRequest{
-				Image:        "otel/opentelemetry-collector:latest",
-				ExposedPorts: []string{"4317/tcp"},
-				WaitingFor:   wait.ForLog("Everything is ready. Begin running and processing data."),
-			},
-			Started: true,
+			Image:        "otel/opentelemetry-collector:latest",
+			ExposedPorts: []string{"4317/tcp"},
+			WaitingFor:   wait.ForLog("Everything is ready. Begin running and processing data."),
+			Started:      true,
 		})
 
 	return checkAndReturn(ctx, err, cancel, container)

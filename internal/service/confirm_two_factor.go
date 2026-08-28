@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/valkey-io/valkey-go/om"
 
-	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -22,15 +22,28 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 	ctx context.Context,
 	req *gatewayAuthenticationv1.ConfirmTwoFactorRequest,
 ) (*gatewayAuthenticationv1.ConfirmTwoFactorResponse, error) {
-	serviceName := "ConfirmTwoFactor"
-	userSession, _, _, err := s.gatewayUserSessionLimiter(ctx, serviceName, enum.TwoFactor)
-	if err != nil {
+	serviceName := "Confirm Two Factor"
+
+	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
+	if userSessionErr != nil {
+		return nil, userSessionErr
+	}
+
+	result, resultErr := s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
+	if err := LimiterCheck(
+		ctx,
+		&result,
+		resultErr,
+		serviceName,
+		userSession.UserID.String(),
+		s.cfg.Logger,
+	); err != nil {
 		return nil, err
 	}
 
-	data, dataErr := redis.HGet[utils.GatewaySecurityVerificationTwoFactorSession](
+	data, dataErr := redis.HGet[utils.EnableTwoFactorSession](
 		ctx,
-		utils.VerifyTwoFactorSessionPrefix,
+		utils.TwoFactorSessionPrefix,
 		userSession.UserID.String(),
 		s.cfg.Client,
 	)
@@ -162,9 +175,9 @@ func (s *GatewayAuthenticationService) confirmTwoFactorDatabase(
 		s.cfg.Logger.ErrorContext(ctx, "commit", "service", serviceName, "error", txCommitErr)
 		return errs.ErrInternalServer
 	}
-	if hDeleteErr := redis.HDelete[utils.GatewaySecurityVerificationTwoFactorSession](
+	if hDeleteErr := redis.HDelete[utils.EnableTwoFactorSession](
 		ctx,
-		utils.VerifyTwoFactorSessionPrefix,
+		utils.TwoFactorSessionPrefix,
 		userID.String(),
 		s.cfg.Client,
 	); hDeleteErr != nil {

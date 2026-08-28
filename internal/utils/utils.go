@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
 
 	"neupaneanish.com.np/authentication/internal/errs"
 )
@@ -20,33 +20,23 @@ const (
 )
 
 const (
-	LoginTwoFactorSessionPrefix       = "login:two:factor:session"
 	LoginAccessSessionPrefix          = "login:access:session"
 	LoginRefreshSessionPrefix         = "login:refresh:session"
-	ForgetPasswordSessionPrefix       = "forget:password:session"
 	ResetPasswordSessionPrefix        = "reset:password:session"
-	AccountVerificationSessionPrefix  = "account:verification:session"
 	ChangePasswordSessionPrefix       = "change:password:session"
 	TwoFactorSessionPrefix            = "two:factor:session"
-	VerifyChangePasswordSessionPrefix = "verify:change:password:session"
-	VerifyTwoFactorSessionPrefix      = "verify:two:factor:session"
-	DeleteTwoFactorSessionPrefix      = "delete:two:factor:session"
+	PasswordVerificationSessionPrefix = "password:verification:session"
+	UserSessionPrefix                 = "user:session:"
+	VerificationSessionPrefix         = "verification:session"
 )
 
-type LoginTwoFactorSession struct {
-	Key    string    `json:"key"     valkey:",key"`
-	Ver    int64     `json:"ver"     valkey:",ver"`
-	ExAt   time.Time `json:"exat"    valkey:",exat"`
-	UserID string    `json:"user_id"`
-	Role   string    `json:"role"`
-}
-
 type LoginAccessSession struct {
-	Key    string    `json:"key"     valkey:",key"`
-	Ver    int64     `json:"ver"     valkey:",ver"`
-	ExAt   time.Time `json:"exat"    valkey:",exat"`
-	UserID string    `json:"user_id"`
-	Role   string    `json:"role"`
+	Key     string    `json:"key"     valkey:",key"`
+	Ver     int64     `json:"ver"     valkey:",ver"`
+	ExAt    time.Time `json:"exat"    valkey:",exat"`
+	UserID  string    `json:"user_id"`
+	Role    string    `json:"role"`
+	Refresh string    `json:"refresh"`
 }
 
 type LoginRefreshSession struct {
@@ -58,25 +48,17 @@ type LoginRefreshSession struct {
 	ID     string    `json:"id"`
 }
 
-type ForgetPasswordSession struct {
-	Key    string    `json:"key"     valkey:",key"`
-	Ver    int64     `json:"ver"     valkey:",ver"`
-	ExAt   time.Time `json:"exat"    valkey:",exat"`
-	UserID string    `json:"user_id"`
-	Code   string    `json:"code"`
-	Email  string    `json:"email"`
-}
-
-type GatewaySecuritySession struct {
+type PasswordVerificationSession struct {
 	Key     string    `json:"key"     valkey:",key"`
 	Ver     int64     `json:"ver"     valkey:",ver"`
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
 	Session string    `json:"session"`
 	Code    string    `json:"code"`
 	Email   string    `json:"email"`
+	Method  string    `json:"method"`
 }
 
-type GatewaySecurityVerificationChangePasswordSession struct {
+type ChangePasswordSession struct {
 	Key     string    `json:"key"     valkey:",key"`
 	Ver     int64     `json:"ver"     valkey:",ver"`
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
@@ -84,7 +66,7 @@ type GatewaySecurityVerificationChangePasswordSession struct {
 	Email   string    `json:"email"`
 }
 
-type GatewaySecurityVerificationTwoFactorSession struct {
+type EnableTwoFactorSession struct {
 	Key     string    `json:"key"     valkey:",key"`
 	Ver     int64     `json:"ver"     valkey:",ver"`
 	ExAt    time.Time `json:"exat"    valkey:",exat"`
@@ -101,17 +83,17 @@ type ResetPasswordSession struct {
 	Email  string    `json:"email"`
 }
 
-type AccountVerificationSession struct {
-	Key       string    `json:"key"        valkey:",key"`
-	Ver       int64     `json:"ver"        valkey:",ver"`
-	ExAt      time.Time `json:"exat"       valkey:",exat"`
-	UserID    string    `json:"user_id"`
-	Role      string    `json:"role"`
-	Method    string    `json:"method"`
-	Code      string    `json:"code"`
-	TwoFactor bool      `json:"two_factor"`
-	Account   bool      `json:"account"`
-	Email     string    `json:"email"`
+type VerificationSession struct {
+	Key                string    `json:"key"                valkey:",key"`
+	Ver                int64     `json:"ver"                valkey:",ver"`
+	ExAt               time.Time `json:"exat"               valkey:",exat"`
+	UserID             string    `json:"user_id"`
+	Role               string    `json:"role"`
+	Method             string    `json:"method"`
+	VerificationMethod string    `json:"VerificationMethod"`
+	Code               string    `json:"code"`
+	Email              string    `json:"email"`
+	EnabledTwoFactor   bool      `json:"enabledTwoFactor"`
 }
 
 type ContextKey string

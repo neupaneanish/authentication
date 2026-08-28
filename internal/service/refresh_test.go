@@ -7,7 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -40,12 +41,12 @@ func TestRefresh(t *testing.T) {
 
 	t.Run("Limiter UserID", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 
 		md := metadata.Pairs(
 			"x-user-id", userID,
 			"x-role", "test",
-			"x-jti", uuid.NewString(),
+			"x-jti", uuid.NewV7().String(),
 		)
 
 		ctx := metadata.NewOutgoingContext(t.Context(), md)

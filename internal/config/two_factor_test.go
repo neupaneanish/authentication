@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -124,7 +125,7 @@ func TestNewTwoFactor(t *testing.T) {
 				t.Parallel()
 				ok, idx := tf.ValidateRecoveryCode("1234567890", codes)
 				assert.False(t, ok)
-				assert.Equal(t, uuid.Nil, idx)
+				assert.Equal(t, uuid.Nil(), idx)
 			})
 		})
 	})

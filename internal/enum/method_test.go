@@ -58,17 +58,17 @@ func TestSecurityMethod(t *testing.T) {
 	}{
 		{
 			name:   "Valid Change Password",
-			method: enum.ChangePassword,
+			method: enum.SecurityMethodChangePassword,
 			want:   true,
 		},
 		{
 			name:   "Valid disable two factor",
-			method: enum.DisableTwoFactor,
+			method: enum.SecurityMethodDisableTwoFactor,
 			want:   true,
 		},
 		{
 			name:   "Valid two factor",
-			method: enum.TwoFactor,
+			method: enum.SecurityMethodEnableTwoFactor,
 			want:   true,
 		}, {
 			name:   "invalid method",

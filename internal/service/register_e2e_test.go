@@ -36,21 +36,21 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, response)
 
-	accountSession, accountSessionErr := redis.HGet[utils.AccountVerificationSession](
+	verificationSession, verificationErr := redis.HGet[utils.VerificationSession](
 		ctx,
-		utils.AccountVerificationSessionPrefix,
-		response.GetSession(),
+		utils.VerificationSessionPrefix,
+		response.GetVerification().GetSession(),
 		cfg.Client,
 	)
-	require.NoError(t, accountSessionErr)
-	assert.NotNil(t, accountSession)
+	require.NoError(t, verificationErr)
+	assert.NotNil(t, verificationSession)
 
-	verificationReq := &externalAuthenticationv1.AccountVerificationRequest{
-		Session: response.GetSession(),
-		Code:    accountSession.Code,
+	verificationReq := &externalAuthenticationv1.VerificationRequest{
+		Session: response.GetVerification().GetSession(),
+		Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: verificationSession.Code},
 	}
 
-	verificationResponse, verificationResponseErr := externalAuthenticationServiceClient.AccountVerification(
+	verificationResponse, verificationResponseErr := externalAuthenticationServiceClient.Verification(
 		ctx,
 		verificationReq,
 	)

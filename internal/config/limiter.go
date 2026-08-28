@@ -8,23 +8,29 @@ import (
 )
 
 type RateLimiter struct {
-	Login                     valkeylimiter.RateLimiterClient
-	LoginTwoFactor            valkeylimiter.RateLimiterClient
-	LoginTwoFactorUserID      valkeylimiter.RateLimiterClient
-	ForgetPassword            valkeylimiter.RateLimiterClient
-	Verification              valkeylimiter.RateLimiterClient
-	VerificationUserID        valkeylimiter.RateLimiterClient
-	ResetPassword             valkeylimiter.RateLimiterClient
-	ResetPasswordUserID       valkeylimiter.RateLimiterClient
-	AccountVerification       valkeylimiter.RateLimiterClient
-	AccountVerificationUserID valkeylimiter.RateLimiterClient
-	ResendVerification        valkeylimiter.RateLimiterClient
-	ResendVerificationUserID  valkeylimiter.RateLimiterClient
-	Refresh                   valkeylimiter.RateLimiterClient
-	RefreshUserID             valkeylimiter.RateLimiterClient
-	PasswordWorkflow          valkeylimiter.RateLimiterClient
-	TwoFactorWorkflow         valkeylimiter.RateLimiterClient
-	DeleteTwoFactorWorkflow   valkeylimiter.RateLimiterClient
+	Login          valkeylimiter.RateLimiterClient
+	ForgetPassword valkeylimiter.RateLimiterClient
+
+	Verification          valkeylimiter.RateLimiterClient
+	VerificationAccount   valkeylimiter.RateLimiterClient
+	VerificationEmail     valkeylimiter.RateLimiterClient
+	VerificationReset     valkeylimiter.RateLimiterClient
+	VerificationTwoFactor valkeylimiter.RateLimiterClient
+
+	ResetPassword       valkeylimiter.RateLimiterClient
+	ResetPasswordUserID valkeylimiter.RateLimiterClient
+
+	ResendVerification       valkeylimiter.RateLimiterClient
+	ResendVerificationUserID valkeylimiter.RateLimiterClient
+
+	ResendPasswordVerification       valkeylimiter.RateLimiterClient
+	ResendPasswordVerificationUserID valkeylimiter.RateLimiterClient
+
+	Refresh       valkeylimiter.RateLimiterClient
+	RefreshUserID valkeylimiter.RateLimiterClient
+
+	PasswordWorkflow  valkeylimiter.RateLimiterClient
+	TwoFactorWorkflow valkeylimiter.RateLimiterClient
 }
 
 type limiterTask struct {
@@ -39,23 +45,38 @@ func NewRateLimiter(client valkey.Client) (*RateLimiter, error) {
 
 	tasks := []limiterTask{
 		{&limiter.Login, loginLimiterSessionPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.LoginTwoFactor, loginTwoFactorSessionLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.ForgetPassword, fpLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.Verification, verificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.ResetPassword, rpSessionLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.ResendVerification, resendVerificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.AccountVerification, accountVerificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.Refresh, refreshSessionLimiterPrefix, refreshSessionLimiterLimit, limiterRefreshWindowSession},
+		{&limiter.ForgetPassword, fpLimiterSessionPrefix, limiterLimit, limiterWindowSession},
 
-		{&limiter.LoginTwoFactorUserID, loginTwoFactorLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.VerificationUserID, verificationLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.ResetPasswordUserID, rpLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.ResendVerificationUserID, resendVerificationLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.AccountVerificationUserID, accountVerificationLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.RefreshUserID, refreshLimiterPrefix, refreshUserIDLimiterLimit, limiterRefreshWindowUserID},
-		{&limiter.PasswordWorkflow, passwordWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.TwoFactorWorkflow, twoFactorWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
-		{&limiter.DeleteTwoFactorWorkflow, twoFactorWorkflowLimiterPrefix, limiterLimit, limiterWindowUserID},
+		{&limiter.Verification, verificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
+		{&limiter.VerificationAccount, verificationAccountUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+		{&limiter.VerificationEmail, verificationEmailUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+		{&limiter.VerificationReset, verificationResetUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+		{&limiter.VerificationTwoFactor, verificationTwoFactorUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+
+		{&limiter.ResetPassword, rpSessionLimiterPrefix, limiterLimit, limiterWindowSession},
+		{&limiter.ResetPasswordUserID, rpUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+
+		{&limiter.ResendVerification, resendVerificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
+		{&limiter.ResendVerificationUserID, resendVerificationUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},
+
+		{
+			&limiter.ResendPasswordVerification,
+			resendAccountVerificationSessionLimiterPrefix,
+			limiterLimit,
+			limiterWindowSession,
+		},
+		{
+			&limiter.ResendPasswordVerificationUserID,
+			resendAccountVerificationUserIDLimiterPrefix,
+			limiterLimit,
+			limiterWindowUserID,
+		},
+
+		{&limiter.Refresh, refreshSessionLimiterPrefix, refreshSessionLimiterLimit, limiterRefreshWindowSession},
+		{&limiter.RefreshUserID, refreshLimiterUserIDPrefix, refreshUserIDLimiterLimit, limiterRefreshWindowUserID},
+
+		{&limiter.PasswordWorkflow, passwordWorkflowLimiterPrefix, authenticationLimiterLimit, limiterWindowUserID},
+		{&limiter.TwoFactorWorkflow, twoFactorWorkflowLimiterPrefix, authenticationLimiterLimit, limiterWindowUserID},
 	}
 
 	for _, task := range tasks {

@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
@@ -301,9 +302,9 @@ func TestLogin(t *testing.T) {
 	t.Run("Permission Denied", func(t *testing.T) {
 		t.Parallel()
 		md := metadata.Pairs(
-			"x-user-id", uuid.NewString(),
+			"x-user-id", uuid.NewV7().String(),
 			"x-role", "test",
-			"x-jti", uuid.NewString(),
+			"x-jti", uuid.NewV7().String(),
 		)
 
 		ctx := metadata.NewOutgoingContext(t.Context(), md)

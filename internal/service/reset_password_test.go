@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -78,7 +79,7 @@ func TestResetPassword(t *testing.T) {
 	t.Run("No Passwords", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 
 		data := &utils.ResetPasswordSession{
 			Key:    session,
@@ -131,7 +132,7 @@ func TestResetPassword(t *testing.T) {
 	t.Run("Rate limiter UserID", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 
 		data := &utils.ResetPasswordSession{
 			Key:    session,

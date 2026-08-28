@@ -5,7 +5,15 @@ import (
 	"crypto/rand"
 	"time"
 
+	"uuid"
+
 	"github.com/valkey-io/valkey-go/om"
+	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	"neupaneanish.com.np/authentication/internal/repository"
+
+	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -18,77 +26,426 @@ func (s *ExternalAuthenticationService) Verification(
 	req *externalAuthenticationv1.VerificationRequest,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
 	serviceName := "Verification"
-	code := req.GetCode()
 	session := req.GetSession()
 
-	result, resultErr := s.cfg.RateLimiter.Verification.Allow(ctx, session)
-	if limiterErr := LimiterCheck(
+	verificationSession, verificationSessionErr := s.verificationLimiterCheck(ctx, session, serviceName)
+	if verificationSessionErr != nil {
+		return nil, verificationSessionErr
+	}
+
+	switch enum.Method(verificationSession.Method) {
+	case enum.MethodLogin:
+		switch enum.VerificationMethod(verificationSession.VerificationMethod) {
+		case enum.VerificationMethodAccount, enum.VerificationMethodEmail:
+			if verificationSession.EnabledTwoFactor {
+				if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
+					return nil, err
+				}
+				newSession := rand.Text()
+				if err := s.verification(
+					ctx,
+					uuid.MustParse(verificationSession.UserID),
+					enum.UserRole(verificationSession.Role),
+					verificationSession.Email,
+					newSession,
+					serviceName,
+					enum.MethodLogin,
+					enum.VerificationMethodTwoFactor,
+					false,
+				); err != nil {
+					return nil, err
+				}
+				s.deleteVerificationSession(ctx, session, serviceName)
+				return &externalAuthenticationv1.VerificationResponse{
+					Response: &externalAuthenticationv1.VerificationResponse_Verification{
+						Verification: externalVerification(
+							newSession,
+							externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_TWO_FACTOR,
+						),
+					},
+				}, nil
+			}
+			return s.verificationEmailLogin(ctx, req, verificationSession, serviceName)
+		case enum.VerificationMethodTwoFactor:
+			return s.verificationTwoFactor(ctx, req, verificationSession, serviceName)
+		default:
+			s.cfg.Logger.WarnContext(
+				ctx,
+				"Invalid Verification Method",
+				"service", serviceName,
+				"method", verificationSession.Method,
+				"verificationMethod", verificationSession.VerificationMethod,
+			)
+			s.deleteVerificationSession(ctx, session, serviceName)
+			return nil, errs.ErrSessionExpired
+		}
+	case enum.MethodForgetPassword:
+		return s.verificationForgetPassword(ctx, req, verificationSession, serviceName)
+	case enum.MethodRegister:
+		return s.verificationRegister(ctx, req, verificationSession, serviceName)
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Method",
+			"service", serviceName,
+			"method", verificationSession.Method,
+		)
+		s.deleteVerificationSession(ctx, session, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+}
+
+func (s *ExternalAuthenticationService) verificationLimiterCheck(
+	ctx context.Context,
+	session,
+	serviceName string,
+) (*utils.VerificationSession, error) {
+	var result valkeylimiter.Result
+	var resultErr error
+
+	result, resultErr = s.cfg.RateLimiter.Verification.Allow(ctx, session)
+	if err := LimiterCheck(
 		ctx,
 		&result,
 		resultErr,
 		serviceName,
 		session,
 		s.cfg.Logger,
-	); limiterErr != nil {
-		return nil, limiterErr
+	); err != nil {
+		return nil, err
 	}
 
-	fpSession, fpSessionErr := redis.HGet[utils.ForgetPasswordSession](
+	verificationSession, verificationSessionErr := redis.HGet[utils.VerificationSession](
 		ctx,
-		utils.ForgetPasswordSessionPrefix,
+		utils.VerificationSessionPrefix,
 		session,
 		s.cfg.Client,
 	)
-	if fpSessionErr != nil {
-		if om.IsRecordNotFound(fpSessionErr) {
+	if verificationSessionErr != nil {
+		if om.IsRecordNotFound(verificationSessionErr) {
 			s.cfg.Logger.WarnContext(ctx, serviceName+" not found", "session", session)
 			return nil, errs.ErrSessionExpired
 		}
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey get", "error", fpSessionErr)
+		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey get", "error", verificationSessionErr)
 		return nil, errs.ErrInternalServer
 	}
 
-	resultUserID, resultUserIDErr := s.cfg.RateLimiter.VerificationUserID.Allow(ctx, fpSession.UserID)
-	if userIDLimiterErr := LimiterCheck(
+	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
+	case enum.VerificationMethodAccount:
+		result, resultErr = s.cfg.RateLimiter.VerificationAccount.Allow(ctx, verificationSession.UserID)
+	case enum.VerificationMethodEmail:
+		result, resultErr = s.cfg.RateLimiter.VerificationEmail.Allow(ctx, verificationSession.UserID)
+	case enum.VerificationMethodReset:
+		result, resultErr = s.cfg.RateLimiter.VerificationReset.Allow(ctx, verificationSession.UserID)
+	case enum.VerificationMethodTwoFactor:
+		result, resultErr = s.cfg.RateLimiter.VerificationTwoFactor.Allow(ctx, verificationSession.UserID)
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Verification Method",
+			"service", serviceName,
+			"method", verificationSession.Method,
+			"verificationMethod", verificationSession.VerificationMethod,
+		)
+		s.deleteVerificationSession(ctx, session, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+	if err := LimiterCheck(
 		ctx,
-		&resultUserID,
-		resultUserIDErr,
+		&result,
+		resultErr,
 		serviceName,
-		fpSession.UserID,
+		verificationSession.UserID,
 		s.cfg.Logger,
-	); userIDLimiterErr != nil {
-		return nil, userIDLimiterErr
+	); err != nil {
+		return nil, err
 	}
+	return verificationSession, nil
+}
 
-	if fpSession.Code != code {
-		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid code", "userID", fpSession.UserID)
-		return nil, errs.ErrInvalidCode
+func (s *ExternalAuthenticationService) verificationEmailLogin(
+	ctx context.Context,
+	req *externalAuthenticationv1.VerificationRequest,
+	verificationSession *utils.VerificationSession,
+	serviceName string,
+) (*externalAuthenticationv1.VerificationResponse, error) {
+	if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
+		return nil, err
 	}
-
-	newSession := rand.Text()
-	resetSession := &utils.ResetPasswordSession{
-		Key:    newSession,
-		ExAt:   time.Now().Add(utils.SessionExpiry),
-		UserID: fpSession.UserID,
-		Email:  fpSession.Email,
-	}
-
-	hSetErr := redis.HSet[utils.ResetPasswordSession](ctx, utils.ResetPasswordSessionPrefix, resetSession, s.cfg.Client)
-	if hSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" new session set", "error", hSetErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	hDeleteErr := redis.HDelete[utils.ForgetPasswordSession](
+	if err := s.verificationVerifyAccountEmail(
 		ctx,
-		utils.ForgetPasswordSessionPrefix,
+		uuid.MustParse(verificationSession.UserID),
+		serviceName,
+	); err != nil {
+		return nil, err
+	}
+	s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+	return s.verificationLogin(ctx, verificationSession, serviceName)
+}
+
+func (s *ExternalAuthenticationService) deleteVerificationSession(
+	ctx context.Context,
+	session, serviceName string,
+) {
+	if err := redis.HDelete[utils.VerificationSession](
+		ctx,
+		utils.VerificationSessionPrefix,
 		session,
 		s.cfg.Client,
-	)
-	if hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" session delete", "error", hDeleteErr)
-		return nil, errs.ErrInternalServer
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Verification Session Delete", "service", serviceName, "error", err)
+	}
+}
+
+func (s *ExternalAuthenticationService) verificationLogin(
+	ctx context.Context, verificationSession *utils.VerificationSession, serviceName string,
+) (*externalAuthenticationv1.VerificationResponse, error) {
+	jwt, jwtErr := s.login(ctx, verificationSession.UserID, verificationSession.Role, serviceName)
+	if jwtErr != nil {
+		return nil, jwtErr
+	}
+	s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+	return &externalAuthenticationv1.VerificationResponse{
+		Response: &externalAuthenticationv1.VerificationResponse_Token{
+			Token: &externalAuthenticationv1.Token{
+				Access:   jwt.Access,
+				Refresh:  jwt.Refresh,
+				ExpireAt: timestamppb.New(jwt.ExpiryAt),
+			},
+		},
+	}, nil
+}
+
+func (s *ExternalAuthenticationService) validateVerificationCodeEmail(
+	ctx context.Context,
+	req *externalAuthenticationv1.VerificationRequest,
+	verificationSession *utils.VerificationSession,
+	serviceName string,
+) error {
+	switch code := req.GetCode().(type) {
+	case *externalAuthenticationv1.VerificationRequest_Email:
+		if code.Email != verificationSession.Code {
+			s.cfg.Logger.WarnContext(
+				ctx,
+				"Invalid Code",
+				"service", serviceName,
+				"userID", verificationSession.UserID,
+			)
+			return errs.ErrInvalidCode
+		}
+		return nil
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Code type",
+			"service", serviceName,
+			"Verification Method", verificationSession.VerificationMethod,
+			"userID", verificationSession.UserID,
+		)
+		s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+		return errs.ErrSessionExpired
+	}
+}
+
+func (s *ExternalAuthenticationService) verificationTwoFactor(
+	ctx context.Context,
+	req *externalAuthenticationv1.VerificationRequest,
+	verificationSession *utils.VerificationSession,
+	serviceName string,
+) (*externalAuthenticationv1.VerificationResponse, error) {
+	uID := uuid.MustParse(verificationSession.UserID)
+
+	switch code := req.GetCode().(type) {
+	case *externalAuthenticationv1.VerificationRequest_Totp:
+		if err := ValidateTotpCode(
+			ctx,
+			uID,
+			s.cfg.Repository,
+			code.Totp,
+			serviceName,
+			s.cfg.TwoFactor,
+			s.cfg.Logger,
+		); err != nil {
+			return nil, err
+		}
+		params := &repository.UpdateTwoFactorParams{UpdatedBy: uID, UserID: uID}
+		cmdTag, cmdTagErr := s.cfg.Repository.UpdateTwoFactor(ctx, params)
+		if err := AffectedRowCheck(
+			ctx,
+			cmdTag,
+			cmdTagErr,
+			"TwoFactor Last Used",
+			serviceName,
+			1,
+			s.cfg.Logger,
+		); err != nil {
+			return nil, err
+		}
+		return s.verificationLogin(ctx, verificationSession, serviceName)
+	case *externalAuthenticationv1.VerificationRequest_Recovery:
+		recoveryID, recoveryErr := ValidateRecoveryCode(
+			ctx,
+			uID,
+			s.cfg.Repository,
+			code.Recovery,
+			serviceName,
+			s.cfg.TwoFactor,
+			s.cfg.Logger,
+		)
+		if recoveryErr != nil {
+			return nil, recoveryErr
+		}
+		params := &repository.UpdateRecoveryCodeParams{ID: recoveryID, UserID: uID}
+		cmdTag, cmdTagErr := s.cfg.Repository.UpdateRecoveryCode(ctx, params)
+		if err := AffectedRowCheck(
+			ctx,
+			cmdTag,
+			cmdTagErr,
+			"Recovery Code Update",
+			serviceName,
+			1,
+			s.cfg.Logger,
+		); err != nil {
+			return nil, err
+		}
+		s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+		return s.verificationLogin(ctx, verificationSession, serviceName)
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Code type",
+			"service", serviceName,
+			"Verification Method", verificationSession.VerificationMethod,
+			"userID", verificationSession.UserID,
+		)
+		s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+}
+
+func (s *ExternalAuthenticationService) verificationForgetPassword(
+	ctx context.Context,
+	req *externalAuthenticationv1.VerificationRequest,
+	verificationSession *utils.VerificationSession,
+	serviceName string,
+) (*externalAuthenticationv1.VerificationResponse, error) {
+	session := rand.Text()
+	userID := uuid.MustParse(verificationSession.UserID)
+	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
+	case enum.VerificationMethodAccount,
+		enum.VerificationMethodEmail:
+		if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
+			return nil, err
+		}
+		if err := s.verificationVerifyAccountEmail(ctx, userID, serviceName); err != nil {
+			return nil, err
+		}
+		if err := s.verification(
+			ctx,
+			userID,
+			enum.UserRole(verificationSession.Role),
+			verificationSession.Email,
+			session,
+			serviceName,
+			enum.MethodForgetPassword,
+			enum.VerificationMethodReset,
+			verificationSession.EnabledTwoFactor,
+		); err != nil {
+			return nil, err
+		}
+		return &externalAuthenticationv1.VerificationResponse{
+			Response: &externalAuthenticationv1.VerificationResponse_Verification{
+				Verification: externalVerification(
+					session,
+					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_RESET,
+				),
+			},
+		}, nil
+	case enum.VerificationMethodReset:
+		if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
+			return nil, err
+		}
+		data := &utils.ResetPasswordSession{
+			Key:    session,
+			ExAt:   time.Now().Add(utils.SessionExpiry),
+			UserID: verificationSession.UserID,
+			Email:  verificationSession.Email,
+		}
+
+		if err := redis.HSet[utils.ResetPasswordSession](
+			ctx,
+			utils.ResetPasswordSessionPrefix,
+			data,
+			s.cfg.Client,
+		); err != nil {
+			s.cfg.Logger.ErrorContext(ctx, "Verification Reset Set", "service", serviceName, "error", err)
+			return nil, errs.ErrInternalServer
+		}
+		return &externalAuthenticationv1.VerificationResponse{
+			Response: &externalAuthenticationv1.VerificationResponse_ResetSession{
+				ResetSession: &externalAuthenticationv1.ResetSession{Session: session},
+			},
+		}, nil
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Verification Method",
+			"service", serviceName,
+			"method", verificationSession.Method,
+			"verificationMethod", verificationSession.VerificationMethod,
+		)
+		return nil, errs.ErrSessionExpired
+	}
+}
+
+func (s *ExternalAuthenticationService) verificationVerifyAccountEmail(
+	ctx context.Context,
+	userID uuid.UUID,
+	serviceName string,
+) error {
+	params := &repository.VerifyEmailParams{
+		Status:    enum.UserStatusActive,
+		UpdatedBy: uuid.Nil(),
+		ID:        userID,
 	}
 
-	return &externalAuthenticationv1.VerificationResponse{Session: newSession}, nil
+	tag, tagErr := s.cfg.Repository.VerifyEmail(ctx, params)
+	if tagErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Verify Account / Email", "service", serviceName, "error", tagErr)
+		return errs.ErrInternalServer
+	}
+
+	if tag.RowsAffected() == 0 {
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Account already verified / account not found",
+			"service",
+			serviceName,
+			"userID", userID.String(),
+		)
+		return errs.ErrSessionExpired
+	}
+	return nil
+}
+
+func (s *ExternalAuthenticationService) verificationRegister(
+	ctx context.Context,
+	req *externalAuthenticationv1.VerificationRequest,
+	verificationSession *utils.VerificationSession,
+	serviceName string,
+) (*externalAuthenticationv1.VerificationResponse, error) {
+	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
+	case enum.VerificationMethodAccount:
+		return s.verificationEmailLogin(ctx, req, verificationSession, serviceName)
+	default:
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Verification Method",
+			"service", serviceName,
+			"method", verificationSession.Method,
+			"verificationMethod", verificationSession.VerificationMethod,
+		)
+		s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
 }

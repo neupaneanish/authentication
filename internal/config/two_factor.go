@@ -8,7 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
@@ -183,5 +184,5 @@ func (f *TwoFactor) ValidateRecoveryCode(
 			return true, rc.ID
 		}
 	}
-	return false, uuid.Nil
+	return false, uuid.Nil()
 }

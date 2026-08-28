@@ -8,13 +8,15 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+
+	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
@@ -51,7 +53,7 @@ func (s *ExternalAuthenticationService) login(
 	role string,
 	serviceName string,
 ) (*config.GenerateJwt, error) {
-	id := uuid.NewString()
+	id := uuid.NewV7().String()
 
 	token, tokenErr := s.cfg.Jwt.GenerateToken(userID, id)
 	if tokenErr != nil {
@@ -59,10 +61,11 @@ func (s *ExternalAuthenticationService) login(
 	}
 
 	accessSession := &utils.LoginAccessSession{
-		Key:    id,
-		ExAt:   time.Now().Add(utils.AccessSessionExpiry),
-		UserID: userID,
-		Role:   role,
+		Key:     id,
+		ExAt:    time.Now().Add(utils.AccessSessionExpiry),
+		UserID:  userID,
+		Role:    role,
+		Refresh: token.Refresh,
 	}
 
 	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, s.cfg.Client)
@@ -90,7 +93,21 @@ func (s *ExternalAuthenticationService) login(
 		return nil, errs.ErrInternalServer
 	}
 
-	// TODO: Store in valkey for reverse loogup (Access / Refresh)
+	if err := redis.SAdd(ctx, utils.UserSessionPrefix+userID, id, utils.AccessSessionExpiry, s.cfg.Client); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey SAdd access", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
+	}
+
+	if err := redis.SAdd(
+		ctx,
+		utils.UserSessionPrefix+userID,
+		token.Refresh,
+		utils.RefreshSessionExpiry,
+		s.cfg.Client,
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey SAdd refresh", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
+	}
 
 	return token, nil
 }
@@ -106,96 +123,6 @@ func GenerateEmailCode(ctx context.Context, logger *slog.Logger) (string, string
 	format := fmt.Sprintf("%s-%s", code[0:4], code[4:8])
 
 	return code, format, nil
-}
-
-func (s *ExternalAuthenticationService) emailVerification(
-	ctx context.Context,
-	serviceName string,
-	method enum.Method,
-	session string,
-	userID string,
-	role string,
-	twoFactor bool,
-	account bool,
-	email string,
-) error {
-	code, plain, err := GenerateEmailCode(ctx, s.cfg.Logger)
-	if err != nil {
-		return err
-	}
-
-	data := &utils.AccountVerificationSession{
-		Key:       session,
-		ExAt:      time.Now().Add(utils.SessionExpiry),
-		UserID:    userID,
-		Role:      role,
-		Method:    string(method),
-		Code:      code,
-		TwoFactor: twoFactor,
-		Account:   account,
-		Email:     email,
-	}
-
-	hSetErr := redis.HSet[utils.AccountVerificationSession](
-		ctx,
-		utils.AccountVerificationSessionPrefix,
-		data,
-		s.cfg.Client,
-	)
-	if hSetErr != nil {
-		s.cfg.Logger.ErrorContext(
-			ctx,
-			"Account verification ",
-			"service",
-			serviceName,
-			"error",
-			hSetErr,
-			"method",
-			method,
-		)
-		return errs.ErrInternalServer
-	}
-
-	var taskType string
-
-	if account {
-		taskType = task.TypeAccountVerification
-	} else {
-		taskType = task.TypeEmailVerification
-	}
-
-	t, tErr := task.AuthEmailTask(taskType, email, plain)
-	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
-}
-
-func (s *ExternalAuthenticationService) emailForgetPassword(
-	ctx context.Context,
-	session string,
-	userID string,
-	email string,
-	serviceName string,
-) error {
-	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
-	if codeErr != nil {
-		return codeErr
-	}
-
-	data := &utils.ForgetPasswordSession{
-		Key:    session,
-		ExAt:   time.Now().Add(utils.SessionExpiry),
-		UserID: userID,
-		Code:   code,
-		Email:  email,
-	}
-
-	hSetErr := redis.HSet[utils.ForgetPasswordSession](ctx, utils.ForgetPasswordSessionPrefix, data, s.cfg.Client)
-	if hSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey Access HSet", "service", serviceName, "error", hSetErr)
-		return errs.ErrInternalServer
-	}
-
-	t, tErr := task.AuthEmailTask(task.TypeForgetPassword, email, plain)
-	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
 }
 
 func EmailEnqueue(
@@ -233,215 +160,10 @@ func EmailEnqueue(
 	return nil
 }
 
-func (s *ExternalAuthenticationService) twoFactorSession(
-	ctx context.Context,
-	session string,
-	userID string,
-	role string,
-	serviceName string,
-) error {
-	tfSession := &utils.LoginTwoFactorSession{
-		Key:    session,
-		ExAt:   time.Now().Add(utils.SessionExpiry),
-		UserID: userID,
-		Role:   role,
-	}
-	hSetErr := redis.HSet[utils.LoginTwoFactorSession](
-		ctx,
-		utils.LoginTwoFactorSessionPrefix,
-		tfSession,
-		s.cfg.Client,
-	)
-	if hSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey Two Factor HSet", "service", serviceName, "error", hSetErr)
-		return errs.ErrInternalServer
-	}
-	return nil
-}
-
 const (
 	UsersEmailKey = "users_email_key"
 	UsersPhoneKey = "users_phone_key"
 )
-
-func (s *GatewayAuthenticationService) gatewayCheckPassword(
-	ctx context.Context,
-	serviceName string,
-	rawPassword string,
-	securityMethod enum.SecurityMethod,
-) (string, error) {
-	userSession, prefix, emailType, err := s.gatewayUserSessionLimiter(ctx, serviceName, securityMethod)
-	if err != nil {
-		return "", err
-	}
-
-	params := &repository.CredentialParams{UserID: userSession.UserID}
-	row, rowErr := s.cfg.Repository.Credential(ctx, params)
-	if rowErr != nil {
-		if errors.Is(rowErr, pgx.ErrNoRows) {
-			s.cfg.Logger.WarnContext(
-				ctx,
-				"No credentials found",
-				"service",
-				serviceName,
-				"userID",
-				userSession.UserID.String(),
-			)
-			// TODO: Delete Access and Refresh
-			return "", errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Postgres get", "service", serviceName, "error", rowErr)
-		return "", errs.ErrInternalServer
-	}
-
-	if !utils.ComparePassword(row.Password, rawPassword) {
-		s.cfg.Logger.WarnContext(
-			ctx,
-			"Invalid Password",
-			"service",
-			serviceName,
-			"userID",
-			userSession.UserID.String(),
-		)
-		return "", errs.ErrInvalidPassword
-	}
-
-	session := rand.Text()
-
-	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
-	if codeErr != nil {
-		return "", codeErr
-	}
-
-	data := &utils.GatewaySecuritySession{
-		Key:     userSession.UserID.String(),
-		ExAt:    time.Now().Add(utils.SessionExpiry),
-		Code:    code,
-		Email:   row.Email,
-		Session: session,
-	}
-
-	if hSetErr := redis.HSet[utils.GatewaySecuritySession](
-		ctx,
-		prefix,
-		data,
-		s.cfg.Client,
-	); hSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey HSet", "service", serviceName, "error", hSetErr)
-		return "", errs.ErrInternalServer
-	}
-
-	var tErr error
-	var t *asynq.Task
-
-	if securityMethod == enum.DisableTwoFactor {
-		t, tErr = task.SecurityNotification(emailType, row.Email)
-	} else {
-		t, tErr = task.AuthEmailTask(emailType, row.Email, plain)
-	}
-
-	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
-
-	return session, nil
-}
-
-func (s *GatewayAuthenticationService) gatewaySecuritySessionVerify(
-	ctx context.Context,
-	serviceName string,
-	securityMethod enum.SecurityMethod,
-	session string,
-) (*utils.GatewaySecuritySession, error) {
-	userSession, prefix, _, err := s.gatewayUserSessionLimiter(ctx, serviceName, securityMethod)
-	if err != nil {
-		return nil, err
-	}
-	data, dataErr := redis.HGet[utils.GatewaySecuritySession](ctx, prefix, userSession.UserID.String(), s.cfg.Client)
-	if dataErr != nil {
-		if om.IsRecordNotFound(dataErr) {
-			s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
-			return nil, errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "valkey", "service", serviceName, "error", dataErr)
-
-		return nil, errs.ErrInternalServer
-	}
-
-	if data.Session != session {
-		s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
-		return nil, errs.ErrSessionExpired
-	}
-	return data, nil
-}
-
-func (s *GatewayAuthenticationService) deleteGatewaySecuritySession(
-	ctx context.Context,
-	prefix string,
-	key string,
-	serviceName string,
-) {
-	if hDeleteErr := redis.HDelete[utils.GatewaySecuritySession](
-		ctx,
-		prefix,
-		key,
-		s.cfg.Client,
-	); hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Delete", "service", serviceName, "error", hDeleteErr)
-	}
-}
-
-func (s *GatewayAuthenticationService) gatewayUserSessionLimiter(
-	ctx context.Context,
-	serviceName string,
-	securityMethod enum.SecurityMethod,
-) (*utils.UserSession, string, string, error) {
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, "", "", userSessionErr
-	}
-
-	var result valkeylimiter.Result
-	var resultErr error
-
-	var prefix string
-	var emailType string
-
-	switch securityMethod {
-	case enum.ChangePassword:
-		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.ChangePasswordSessionPrefix
-		emailType = task.TypeChangePassword
-	case enum.TwoFactor:
-		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.TwoFactorSessionPrefix
-		emailType = task.TypeTwoFactor
-	case enum.DisableTwoFactor:
-		result, resultErr = s.cfg.RateLimiter.DeleteTwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
-		prefix = utils.DeleteTwoFactorSessionPrefix
-		emailType = task.TypeDeleteTwoFactor
-	default:
-		s.cfg.Logger.ErrorContext(
-			ctx,
-			"Unmapped security method encountered",
-			"service",
-			serviceName,
-			"method",
-			securityMethod,
-		)
-		return nil, "", "", errs.ErrInternalServer
-	}
-
-	if limiterErr := LimiterCheck(
-		ctx,
-		&result,
-		resultErr,
-		serviceName,
-		userSession.UserID.String(),
-		s.cfg.Logger,
-	); limiterErr != nil {
-		return nil, "", "", limiterErr
-	}
-	return userSession, prefix, emailType, nil
-}
 
 func ChangeResetPassword(
 	ctx context.Context,
@@ -563,12 +285,12 @@ func ValidateRecoveryCode(
 	row, rowErr := repo.RecoveryCodes(ctx, params)
 	if rowErr != nil {
 		logger.ErrorContext(ctx, serviceName+" recovery code database", "error", rowErr)
-		return uuid.Nil, errs.ErrInternalServer
+		return uuid.Nil(), errs.ErrInternalServer
 	}
 
 	if len(row) == 0 {
 		logger.WarnContext(ctx, "Recovery attempt with no codes in DB", "userID", userID)
-		return uuid.Nil, errs.ErrSessionExpired
+		return uuid.Nil(), errs.ErrSessionExpired
 	}
 
 	ok, id := twoFactor.ValidateRecoveryCode(code, row)
@@ -579,7 +301,7 @@ func ValidateRecoveryCode(
 			"userID",
 			userID.String(),
 		)
-		return uuid.Nil, errs.ErrInvalidCode
+		return uuid.Nil(), errs.ErrInvalidCode
 	}
 	return id, nil
 }
@@ -607,4 +329,102 @@ func AffectedRowCheck(
 		return errs.ErrInternalServer
 	}
 	return nil
+}
+
+func (s *GatewayAuthenticationService) logoutAll(ctx context.Context, userID, serviceName string) error {
+	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, s.cfg.Client)
+	if keysErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
+		return errs.ErrInternalServer
+	}
+
+	for _, key := range keys {
+		_ = redis.HDelete[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, key, s.cfg.Client)
+		_ = redis.HDelete[utils.LoginRefreshSession](ctx, utils.LoginRefreshSessionPrefix, key, s.cfg.Client)
+	}
+
+	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, s.cfg.Client); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
+		return errs.ErrInternalServer
+	}
+
+	return nil
+}
+
+func (s *ExternalAuthenticationService) verification(
+	ctx context.Context,
+	userID uuid.UUID,
+	role enum.UserRole,
+	email,
+	session,
+	serviceName string,
+	method enum.Method,
+	verificationMethod enum.VerificationMethod,
+	enabledTwoFactor bool,
+) error {
+	code, format, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
+	if codeErr != nil {
+		return codeErr
+	}
+	var taskType string
+
+	switch verificationMethod {
+	case enum.VerificationMethodAccount:
+		taskType = task.TypeAccountVerification
+	case enum.VerificationMethodEmail:
+		taskType = task.TypeEmailVerification
+	case enum.VerificationMethodReset:
+		taskType = task.TypePasswordReset
+	case enum.VerificationMethodTwoFactor:
+		taskType = task.TypeEnableTwoFactor // Two Factor doesn't send email, its only placeholder
+	default:
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Invalid verification method",
+			"service",
+			serviceName,
+			"method",
+			verificationMethod,
+		)
+		return errs.ErrSessionExpired
+	}
+
+	data := &utils.VerificationSession{
+		Key:                session,
+		ExAt:               time.Now().Add(utils.SessionExpiry),
+		UserID:             userID.String(),
+		Role:               string(role),
+		Method:             string(method),
+		VerificationMethod: string(verificationMethod),
+		Code:               code,
+		Email:              email,
+		EnabledTwoFactor:   enabledTwoFactor,
+	}
+
+	if err := redis.HSet[utils.VerificationSession](
+		ctx,
+		utils.VerificationSessionPrefix,
+		data,
+		s.cfg.Client,
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey Verification HSet", "service", serviceName, "error", err)
+		return errs.ErrInternalServer
+	}
+
+	if verificationMethod == enum.VerificationMethodTwoFactor {
+		return nil
+	}
+
+	t, tErr := task.AuthEmailTask(taskType, email, format)
+	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
+}
+
+func externalVerification(
+	session string,
+	method externalAuthenticationv1.VerificationMethod,
+) *externalAuthenticationv1.VerificationSession {
+	return &externalAuthenticationv1.VerificationSession{
+		Session: session,
+		Method:  method,
+	}
 }

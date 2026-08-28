@@ -53,27 +53,37 @@ func (s *ExternalAuthenticationService) Refresh(
 		return nil, limiterUserIDErr
 	}
 
-	if hDeleteErr := redis.HDelete[utils.LoginAccessSession](
+	if err := redis.HDelete[utils.LoginAccessSession](
 		ctx,
 		utils.LoginAccessSessionPrefix,
 		userData.ID,
 		s.cfg.Client,
-	); hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Access Session delete", "service", serviceName, "error", hDeleteErr)
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Access Session delete", "service", serviceName, "error", err)
 		return nil, errs.ErrInternalServer
 	}
 
-	if hDeleteErr := redis.HDelete[utils.LoginRefreshSession](
+	if err := redis.HDelete[utils.LoginRefreshSession](
 		ctx,
 		utils.LoginRefreshSessionPrefix,
 		refresh,
 		s.cfg.Client,
-	); hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Refresh Session delete", "service", serviceName, "error", hDeleteErr)
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Refresh Session delete", "service", serviceName, "error", err)
 		return nil, errs.ErrInternalServer
 	}
 
-	jwt, jwtErr := s.login(ctx, userData.UserID, userData.Role, serviceName)
+	if err := redis.SRem(ctx, utils.UserSessionPrefix+userData.UserID, userData.ID, s.cfg.Client); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "SRem Access", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
+	}
+
+	if err := redis.SRem(ctx, utils.UserSessionPrefix+userData.UserID, refresh, s.cfg.Client); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "SRem Refresh", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
+	}
+
+	jwt, jwtErr := s.login(ctx, utils.UserSessionPrefix+userData.UserID, userData.Role, serviceName)
 	if jwtErr != nil {
 		return nil, jwtErr
 	}

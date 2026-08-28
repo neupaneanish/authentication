@@ -29,26 +29,44 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Technologies Stack
 
-![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
-![gRPC](https://img.shields.io/badge/gRPC-2596BE?style=for-the-badge&logo=trpc&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-336791?style=for-the-badge&logo=postgresql&logoColor=white)
-![Jsonwebtokens](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
-![Valkey](https://img.shields.io/badge/Valkey-FF4438?style=for-the-badge&logo=redis&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![GitHubActions](https://img.shields.io/badge/Actions-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)
-![Opentelemetry](https://img.shields.io/badge/Opentelemetry-000000?style=for-the-badge&logo=opentelemetry&logoColor=white)
+| Technology                                                |                                                                                                       | Description                                                                      |
+|:----------------------------------------------------------|:-----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
+| [**Go**](https://go.dev)                                  |               <img src="https://thesvg.org/icons/go/default.svg" height="12" alt="Go">                | Core application logic                                                           |
+| [**gRPC**](https://grpc.io)                               |             <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
+| [**PostgreSQL**](https://postgresql.org)                  |       <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
+| [**JWT**](https://jwt.io)                                 |              <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
+| [**Valkey**](https://valkey.io)                           |           <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
+| [**Docker**](https://docker.com)                          |           <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
+| [**Test Containers**](https://testcontainers.com)         |   <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
+| [**GitHub Actions**](https://github.com/features/actions) |   <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
+| [**OpenTelemetry**](https://opentelemetry.io)             |    <img src="https://thesvg.org/icons/opentelemetry/default.svg" height="24" alt="OpenTelemetry">     | Observability and telemetry framework                                            |
+| [**Google Authenticator**]()                              | <img src="https://thesvg.org/icons/google-authenticator/default.svg" height="24" alt="OpenTelemetry"> | Two-Factor Authentication (2FA) via TOTP                                         |
+
 ---
 
 ## Endpoints
 
+### External
+
 - [X] Register
-- [X] Account Verification
-- [X] Resend Account Verification
 - [X] Login
-- [X] Login Two Factor
 - [X] Forget Password
 - [X] Verification
 - [X] Reset Password
+- [X] Resend
+- [X] Refresh
+
+### Gateway
+
+- [X] PasswordVerification
+- [X] PasswordSessionVerification
+- [X] Resend
+- [X] ChangePassword
+- [X] ConfirmTwoFactor
+- [ ] Role
+- [ ] Profile
+- [X] Logout
+- [X] LogoutAll
 
 ---
 
@@ -177,29 +195,25 @@ go run cmd/server/main.go
 
 > Note: For IP will use envoy in future
 
-| Endpoint                         | Layer 1 Key | Layer 1 Limit | Layer 2 Key | Layer 2 Limit |
-|----------------------------------|-------------|---------------|-------------|---------------|
-| Register                         | None        | None          | None        | None          |
-| Login                            | Email       | 5 / 5 Min     | None        | None          |
-| Login Two Factor                 | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Forget Password                  | Email       | 5 / 5 Min     | None        | None          |
-| Verification                     | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Reset Password                   | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| AccountVerification              | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| ResendAccountVerification        | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Refresh                          | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
-| Change/Verify/Confirm Password   | UserID      | 6 / 60 Min    | None        | None          |
-| Enable/Verify/Confirm Two Factor | UserID      | 6 / 60 Min    | None        | None          |
-| Delete Two Factor                | UserID      | 6 / 60 Min    | None        | None          |
+| Endpoint                                 | Layer 1 Key | Layer 1 Limit | Layer 2 Key | Layer 2 Limit |
+|------------------------------------------|-------------|---------------|-------------|---------------|
+| Register                                 | None        | None          | None        | None          |
+| Login                                    | Email       | 5 / 5 Min     | None        | None          |
+| Verification                             | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Forget Password                          | Email       | 5 / 5 Min     | None        | None          |
+| Reset Password                           | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Refresh                                  | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
+| Change Password                          | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
+| Password Verification / Session Workflow | Session     | 5 / 5 Min     | UserID      | 6 / 60 Min    |
 
 ---
 
-## Coverage ~85.50%
+## Coverage ~88.10%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.
 
-> Coverage is done through real infrastructure PostgreSQl, Valkey, OpenTelemetry i.e. testcontainers. It doesn't have
+> Coverage is done through real infrastructure PostgreSQL, Valkey, OpenTelemetry i.e. testcontainers. It doesn't have
 > any mocks.
 
 ```bash
@@ -222,8 +236,7 @@ go tool cover -func=coverage.clean.out
 
 This repository uses a modern, completely containerized testing environment:
 
-- **Integration and E2E Tests:** Used real database, valkey and telemetry instances for integration
-  tests.
+- **Integration and E2E Tests:** Used real database, valkey and telemetry instances for integration tests.
 - **Benchmark Tests:** Used memory server i.e. `bufconn` instead of real server for tests.
 
 ---
@@ -241,24 +254,11 @@ Benchmarks were executed on:
 Used Bcrypt **(Default Cost)** to secure sensitive fields. To see how well this gRPC server scales under heavy traffic,
 ran a benchmark. Seeded users before the benchmark and utilized **ResetTimer** to capture pure execution data.
 
-| Endpoints                   | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes         |
-|-----------------------------|------|-----------------|---------------|------------------|------------------------------|
-| Register                    | 166  | 7447487         | 64068         | 908              | 1                            |
-| Login                       | 132  | 7665446         | 73483         | 618              | 1                            |
-| Login Two Factor            | N/A  | N/A             | N/A           | N/A              | 0 (TOTP) / Max 10 (Recovery) |
-| Forget Password             | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Verification                | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Reset Password              | 81   | 14111253        | 62284         | 597              | 2 (Max 6)                    |
-| Account Verification        | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Resend Account Verification | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Refresh                     | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Change Password             | N/A  | N/A             | N/A           | N/A              | 1                            |
-| Enable Two Factor           | N/A  | N/A             | N/A           | N/A              | 1                            |
-| Delete Two Factor           | N/A  | N/A             | N/A           | N/A              | 1                            |
-| Verify Change Password      | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Confirm Change Password     | N/A  | N/A             | N/A           | N/A              | Min 1 - Max 5                |
-| Confirm Two Factor          | N/A  | N/A             | N/A           | N/A              | 0                            |
-| Confirm Delete Two Factor   | N/A  | N/A             | N/A           | N/A              | 0                            |
+| Endpoints      | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes |
+|----------------|------|-----------------|---------------|------------------|----------------------|
+| Register       | 136  | 9161800         | 61382         | 637              | 1                    |
+| Login          | 120  | 10219451        | 92462         | 682              | 1                    |
+| Reset Password | 55   | 19387333        | 99606         | 602              | 2 (Max 6)            |
 
 #### Security Architecture Notes:
 
@@ -281,7 +281,7 @@ This execution chart was exported using `go tool pprof` during a standard benchm
 #### Register
 
 ```bash
-go test -bench=Register -cpuprofile=register_cpu.pprof -memprofile=register_mem.pprof -tags=benchmark ./internal/service
+go test -bench=Register -benchmem -cpuprofile=register_cpu.pprof -memprofile=register_mem.pprof -tags=benchmark ./internal/service
 
 go tool pprof -png register_mem.pprof > docs/images/bench_register_mem.png
 
@@ -299,7 +299,7 @@ go tool pprof -png register_cpu.pprof > docs/images/bench_register_cpu.png
 #### Login
 
 ```bash
-go test -bench=Login -cpuprofile=login_cpu.pprof -memprofile=login_mem.pprof -tags=benchmark ./internal/service
+go test -bench=Login -benchmem -cpuprofile=login_cpu.pprof -memprofile=login_mem.pprof -tags=benchmark ./internal/service
 
 go tool pprof -png -ignore="seedUser" login_mem.pprof > docs/images/bench_login_mem.png
 
@@ -317,7 +317,7 @@ go tool pprof -png -ignore="seedUser" login_cpu.pprof > docs/images/bench_login_
 #### Reset Password
 
 ```bash
-go test -bench=ResetPassword -cpuprofile=reset_password_cpu.pprof -memprofile=reset_password_mem.pprof -tags=benchmark ./internal/service
+go test -bench=ResetPassword -benchmem -cpuprofile=reset_password_cpu.pprof -memprofile=reset_password_mem.pprof -tags=benchmark ./internal/service
 
 go tool pprof -png -ignore="seedUser" reset_password_mem.pprof > docs/images/bench_reset_password_mem.png
 

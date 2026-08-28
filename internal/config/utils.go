@@ -8,25 +8,32 @@ import (
 )
 
 const (
-	loginLimiterSessionPrefix               = "limiter:login:session"
-	loginTwoFactorLimiterPrefix             = "limiter:login:two:factor"
-	loginTwoFactorSessionLimiterPrefix      = "limiter:login:two:factor:session"
-	fpLimiterPrefix                         = "limiter:forget:password"
-	verificationLimiterPrefix               = "limiter:verification"
-	verificationSessionLimiterPrefix        = "limiter:verification:session"
-	rpLimiterPrefix                         = "limiter:reset:password"
-	rpSessionLimiterPrefix                  = "limiter:reset:password:session"
-	resendVerificationLimiterPrefix         = "limiter:resend:verification"
-	resendVerificationSessionLimiterPrefix  = "limiter:resend:verification:session"
-	accountVerificationLimiterPrefix        = "limiter:account:verification"
-	accountVerificationSessionLimiterPrefix = "limiter:account:verification:session"
-	refreshSessionLimiterPrefix             = "limiter:refresh:session"
-	refreshLimiterPrefix                    = "limiter:refresh"
-	passwordWorkflowLimiterPrefix           = "limiter:password:workflow"
-	twoFactorWorkflowLimiterPrefix          = "limiter:two:factor:workflow"
-	deleteTwoFactorWorkflowLimiterPrefix    = "limiter:delete:two:factor:workflow"
+	loginLimiterSessionPrefix = "limiter:login:session"
+	fpLimiterSessionPrefix    = "limiter:forget:password:session"
+
+	verificationSessionLimiterPrefix         = "limiter:verification:session"
+	verificationAccountUserIDLimiterPrefix   = "limiter:verification:account:userid"
+	verificationEmailUserIDLimiterPrefix     = "limiter:verification:email:userid"
+	verificationResetUserIDLimiterPrefix     = "limiter:verification:reset:userid"
+	verificationTwoFactorUserIDLimiterPrefix = "limiter:verification:two:factor:userid"
+
+	rpUserIDLimiterPrefix  = "limiter:reset:password:userid"
+	rpSessionLimiterPrefix = "limiter:reset:password:session"
+
+	resendVerificationUserIDLimiterPrefix  = "limiter:resend:verification:userid"
+	resendVerificationSessionLimiterPrefix = "limiter:resend:verification:session"
+
+	resendAccountVerificationUserIDLimiterPrefix  = "limiter:resend:password:verification:userid"
+	resendAccountVerificationSessionLimiterPrefix = "limiter:resend:password:verification:session"
+
+	refreshSessionLimiterPrefix = "limiter:refresh:session"
+	refreshLimiterUserIDPrefix  = "limiter:refresh:userid"
+
+	passwordWorkflowLimiterPrefix  = "limiter:password:workflow"
+	twoFactorWorkflowLimiterPrefix = "limiter:two:factor:workflow"
 
 	limiterLimit                = 5
+	authenticationLimiterLimit  = 6
 	refreshSessionLimiterLimit  = 2
 	refreshUserIDLimiterLimit   = 4
 	limiterRefreshWindowSession = 15 * time.Minute
