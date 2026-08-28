@@ -27,4 +27,6 @@ var (
 	ErrTooManyRequest         = status.Error(codes.ResourceExhausted, "Rate limit exceeded")
 	ErrPermissionDenied       = status.Error(codes.PermissionDenied, "Don't have access")
 	ErrAlreadyEnabled         = status.Error(codes.AlreadyExists, "Already Enabled")
+	ErrInvalidMethod          = status.Error(codes.InvalidArgument, "Invalid method")
+	ErrUnauthenticated        = status.Error(codes.Unauthenticated, "Session Expired")
 )

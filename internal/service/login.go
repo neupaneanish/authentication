@@ -52,23 +52,26 @@ func (s *ExternalAuthenticationService) Login(
 			return nil, errs.ErrInvalidCredentials
 		}
 
-		if emailErr := s.emailVerification(
+		if err := s.verification(
 			ctx,
+			row.ID,
+			row.Role,
+			row.Email,
+			session,
 			serviceName,
 			enum.MethodLogin,
-			session,
-			row.ID.String(),
-			string(row.Role),
+			enum.VerificationMethodAccount,
 			row.TwoFactor,
-			true,
-			email,
-		); emailErr != nil {
-			return nil, emailErr
+		); err != nil {
+			return nil, err
 		}
 
 		return &externalAuthenticationv1.LoginResponse{
 			Response: &externalAuthenticationv1.LoginResponse_Verification{
-				Verification: session,
+				Verification: externalVerification(
+					session,
+					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
+				),
 			},
 		}, nil
 	}
@@ -93,39 +96,50 @@ func (s *ExternalAuthenticationService) Login(
 	}
 
 	if row.EmailVerifiedAt == nil {
-		emailErr := s.emailVerification(
+		if err := s.verification(
 			ctx,
+			row.ID,
+			row.Role,
+			row.Email,
+			session,
 			serviceName,
 			enum.MethodLogin,
-			session,
-			row.ID.String(),
-			string(row.Role),
+			enum.VerificationMethodEmail,
 			row.TwoFactor,
-			false,
-			email,
-		)
-		if emailErr != nil {
-			return nil, emailErr
+		); err != nil {
+			return nil, err
 		}
 		return &externalAuthenticationv1.LoginResponse{
 			Response: &externalAuthenticationv1.LoginResponse_Verification{
-				Verification: session,
+				Verification: externalVerification(
+					session,
+					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_EMAIL,
+				),
 			},
 		}, nil
 	}
 
 	if row.TwoFactor {
-		if tfSessionErr := s.twoFactorSession(
+		if err := s.verification(
 			ctx,
+			row.ID,
+			row.Role,
+			row.Email,
 			session,
-			row.ID.String(),
-			string(row.Role),
 			serviceName,
-		); tfSessionErr != nil {
-			return nil, tfSessionErr
+			enum.MethodLogin,
+			enum.VerificationMethodTwoFactor,
+			row.TwoFactor,
+		); err != nil {
+			return nil, err
 		}
 		return &externalAuthenticationv1.LoginResponse{
-			Response: &externalAuthenticationv1.LoginResponse_Totp{Totp: session},
+			Response: &externalAuthenticationv1.LoginResponse_Verification{
+				Verification: externalVerification(
+					session,
+					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_TWO_FACTOR,
+				),
+			},
 		}, nil
 	}
 

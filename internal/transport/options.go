@@ -43,25 +43,24 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 	})
 
 	externalEndpoints := map[string]struct{}{
-		externalAuthenticationv1.ExternalAuthenticationService_Register_FullMethodName:            {},
-		externalAuthenticationv1.ExternalAuthenticationService_Login_FullMethodName:               {},
-		externalAuthenticationv1.ExternalAuthenticationService_LoginTwoFactor_FullMethodName:      {},
-		externalAuthenticationv1.ExternalAuthenticationService_ForgetPassword_FullMethodName:      {},
-		externalAuthenticationv1.ExternalAuthenticationService_Verification_FullMethodName:        {},
-		externalAuthenticationv1.ExternalAuthenticationService_ResetPassword_FullMethodName:       {},
-		externalAuthenticationv1.ExternalAuthenticationService_AccountVerification_FullMethodName: {},
-		externalAuthenticationv1.ExternalAuthenticationService_Resend_FullMethodName:              {},
+		externalAuthenticationv1.ExternalAuthenticationService_Register_FullMethodName:       {},
+		externalAuthenticationv1.ExternalAuthenticationService_Login_FullMethodName:          {},
+		externalAuthenticationv1.ExternalAuthenticationService_ForgetPassword_FullMethodName: {},
+		externalAuthenticationv1.ExternalAuthenticationService_Verification_FullMethodName:   {},
+		externalAuthenticationv1.ExternalAuthenticationService_ResetPassword_FullMethodName:  {},
+		externalAuthenticationv1.ExternalAuthenticationService_Resend_FullMethodName:         {},
 	}
 
 	gatewayEndpoints := map[string]struct{}{
-		gatewayAuthenticationv1.GatewayAuthenticationService_ChangePassword_FullMethodName:         {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_VerifyChangePassword_FullMethodName:   {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_ConfirmChangePassword_FullMethodName:  {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_EnableTwoFactor_FullMethodName:        {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_VerifyTwoFactor_FullMethodName:        {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_ConfirmTwoFactor_FullMethodName:       {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_DeleteTwoFactor_FullMethodName:        {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_ConfirmDeleteTwoFactor_FullMethodName: {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_ChangePassword_FullMethodName:              {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_PasswordVerification_FullMethodName:        {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_PasswordSessionVerification_FullMethodName: {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_ConfirmTwoFactor_FullMethodName:            {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_Profile_FullMethodName:                     {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_Role_FullMethodName:                        {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_Logout_FullMethodName:                      {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_LogoutAll_FullMethodName:                   {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_Resend_FullMethodName:                      {},
 	}
 
 	authFunc := func(ctx context.Context) (context.Context, error) {

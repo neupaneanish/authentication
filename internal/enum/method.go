@@ -20,14 +20,32 @@ func (m Method) Valid() bool {
 type SecurityMethod string
 
 const (
-	ChangePassword   SecurityMethod = "changePassword"
-	TwoFactor        SecurityMethod = "twoFactor"
-	DisableTwoFactor SecurityMethod = "disableTwoFactor"
+	SecurityMethodChangePassword   SecurityMethod = "changePassword"
+	SecurityMethodEnableTwoFactor  SecurityMethod = "enableTwoFactor"
+	SecurityMethodDisableTwoFactor SecurityMethod = "disableTwoFactor"
 )
 
 func (m SecurityMethod) Valid() bool {
 	switch m {
-	case ChangePassword, TwoFactor, DisableTwoFactor:
+	case SecurityMethodChangePassword, SecurityMethodEnableTwoFactor, SecurityMethodDisableTwoFactor:
+		return true
+	default:
+		return false
+	}
+}
+
+type VerificationMethod string
+
+const (
+	VerificationMethodAccount   = "account"
+	VerificationMethodEmail     = "email"
+	VerificationMethodTwoFactor = "twoFactor"
+	VerificationMethodReset     = "reset"
+)
+
+func (m VerificationMethod) Valid() bool {
+	switch m {
+	case VerificationMethodAccount, VerificationMethodEmail, VerificationMethodTwoFactor, VerificationMethodReset:
 		return true
 	default:
 		return false

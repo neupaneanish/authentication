@@ -5,7 +5,8 @@ import (
 	"crypto/rand"
 	"errors"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 
@@ -46,8 +47,8 @@ func (s *ExternalAuthenticationService) Register(
 		Phone:     phoneNumber,
 		Role:      enum.UserRoleUser,
 		Status:    enum.UserStatusPending,
-		CreatedBy: uuid.Nil,
-		UpdatedBy: uuid.Nil,
+		CreatedBy: uuid.Nil(),
+		UpdatedBy: uuid.Nil(),
 	}
 
 	tx, txErr := s.cfg.Pool.Begin(ctx)
@@ -103,7 +104,7 @@ func (s *ExternalAuthenticationService) Register(
 	tag, tagErr := qtx.CreateCredential(ctx, &repository.CreateCredentialParams{
 		UserID:    user.ID,
 		Password:  hashPassword,
-		CreatedBy: uuid.Nil,
+		CreatedBy: uuid.Nil(),
 	})
 
 	if err := AffectedRowCheck(ctx, tag, tagErr, "create credentials", serviceName, 1, s.cfg.Logger); err != nil {
@@ -117,20 +118,24 @@ func (s *ExternalAuthenticationService) Register(
 
 	session := rand.Text()
 
-	emailErr := s.emailVerification(
+	if err := s.verification(
 		ctx,
+		user.ID,
+		user.Role,
+		user.Email,
+		session,
 		serviceName,
 		enum.MethodRegister,
-		session,
-		user.ID.String(),
-		string(user.Role),
+		enum.VerificationMethodAccount,
 		false,
-		true,
-		user.Email,
-	)
-	if emailErr != nil {
-		return nil, emailErr
+	); err != nil {
+		return nil, err
 	}
 
-	return &externalAuthenticationv1.RegisterResponse{Session: session}, nil
+	return &externalAuthenticationv1.RegisterResponse{
+		Verification: externalVerification(
+			session,
+			externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
+		),
+	}, nil
 }

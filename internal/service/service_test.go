@@ -17,7 +17,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
@@ -275,8 +278,8 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 		Phone:     phone,
 		Role:      enum.UserRoleUser,
 		Status:    status,
-		CreatedBy: uuid.Nil,
-		UpdatedBy: uuid.Nil,
+		CreatedBy: uuid.Nil(),
+		UpdatedBy: uuid.Nil(),
 	}
 	userRow, userRowErr := qtx.CreateUser(ctx, userParams)
 	if userRowErr != nil {
@@ -323,13 +326,69 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 	return userRow.ID.String(), nil
 }
 
+func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
+	t.Helper()
+	email := cfg.Domain.GenerateEmail(uuid.NewV7().String())
+	userID, seedErr := seedUser(
+		t.Context(),
+		email,
+		"Password@12345",
+		enum.UserStatusActive,
+		true,
+	)
+	require.NoError(t, seedErr)
+
+	tf, tfErr := cfg.TwoFactor.Generate(email)
+	require.NoError(t, tfErr)
+	assert.NotNil(t, tf)
+
+	twoFactorParams := &repository.CreateTwoFactorParams{
+		UserID:    uuid.MustParse(userID),
+		Secret:    tf.Encrypt,
+		CreatedBy: uuid.MustParse(userID),
+		UpdatedBy: uuid.MustParse(userID),
+	}
+
+	recoveryCodes, recoveryCodesErr := cfg.TwoFactor.GenerateRecoveryCodes()
+	require.NoError(t, recoveryCodesErr)
+
+	recoveryCodesRows := make([]*repository.CreateRecoveryCodesParams, 0, len(recoveryCodes.Hash))
+	if recovery {
+		for _, hash := range recoveryCodes.Hash {
+			recoveryCodesRows = append(recoveryCodesRows, &repository.CreateRecoveryCodesParams{
+				UserID:    uuid.MustParse(userID),
+				Code:      hash,
+				CreatedBy: uuid.MustParse(userID),
+				UpdatedBy: uuid.MustParse(userID),
+			})
+		}
+	}
+
+	tx, txErr := cfg.Pool.Begin(t.Context())
+	require.NoError(t, txErr)
+
+	qtx := repository.New(tx)
+
+	_, createTwoFactorErr := qtx.CreateTwoFactor(t.Context(), twoFactorParams)
+	require.NoError(t, createTwoFactorErr)
+
+	if recovery {
+		_, createRecoveryErr := qtx.CreateRecoveryCodes(t.Context(), recoveryCodesRows)
+		require.NoError(t, createRecoveryErr)
+	}
+	txCommitErr := tx.Commit(t.Context())
+	require.NoError(t, txCommitErr)
+
+	return userID, tf.Secret, recoveryCodes.Plain
+}
+
 func contextWithValue(t *testing.T, userID string) context.Context {
 	t.Helper()
 
 	md := metadata.Pairs(
 		"x-user-id", userID,
 		"x-role", "test",
-		"x-jti", uuid.NewString(),
+		"x-jti", uuid.NewV7().String(),
 	)
 
 	ctx := metadata.NewOutgoingContext(t.Context(), md)

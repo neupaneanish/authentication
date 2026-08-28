@@ -35,24 +35,24 @@ func TestForgetPasswordE2E(t *testing.T) {
 	)
 	require.NoError(t, forgetPasswordResErr)
 
-	hGet, hGetErr := redis.HGet[utils.ForgetPasswordSession](
+	hGet, hGetErr := redis.HGet[utils.VerificationSession](
 		ctx,
-		utils.ForgetPasswordSessionPrefix,
-		forgetPasswordRes.GetSession(),
+		utils.VerificationSessionPrefix,
+		forgetPasswordRes.GetVerification().GetSession(),
 		cfg.Client,
 	)
 	require.NoError(t, hGetErr)
 
 	verificationParams := &externalAuthenticationv1.VerificationRequest{
-		Session: forgetPasswordRes.GetSession(),
-		Code:    hGet.Code,
+		Session: forgetPasswordRes.GetVerification().GetSession(),
+		Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: hGet.Code},
 	}
 
 	verificationRes, verificationResErr := externalAuthenticationServiceClient.Verification(ctx, verificationParams)
 	require.NoError(t, verificationResErr)
 
 	resetPasswordParams := &externalAuthenticationv1.ResetPasswordRequest{
-		Session:         verificationRes.GetSession(),
+		Session:         verificationRes.GetResetSession().GetSession(),
 		Password:        &passwordv1.Password{Value: newPassword},
 		ConfirmPassword: &passwordv1.Password{Value: newPassword},
 	}

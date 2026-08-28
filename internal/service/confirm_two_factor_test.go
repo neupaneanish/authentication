@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,15 +27,9 @@ func TestConfirmTwoFactor(t *testing.T) {
 
 	t.Run("Foreign Key Violation", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 		session := rand.Text()
-		md := metadata.Pairs(
-			"x-user-id", userID,
-			"x-role", "test",
-			"x-jti", uuid.NewString(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, userID)
 
 		secret := seedConfirmTwoFactorSession(t, userID, session, cfg.Domain.GenerateEmail(session))
 		code, codeErr := totp.GenerateCode(secret, time.Now())
@@ -86,15 +81,9 @@ func TestConfirmTwoFactor(t *testing.T) {
 
 	t.Run("Rate Limiter", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 		session := rand.Text()
-		md := metadata.Pairs(
-			"x-user-id", userID,
-			"x-role", "test",
-			"x-jti", uuid.NewString(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, userID)
 
 		req := &gatewayAuthenticationv1.ConfirmTwoFactorRequest{
 			Session: session,
@@ -104,7 +93,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 			response, responseErr := gatewayAuthenticationServiceClient.ConfirmTwoFactor(ctx, req)
 			require.Error(t, responseErr)
 			assert.Nil(t, response)
-			if i < 5 {
+			if i < 6 {
 				assert.Equal(t, errs.ErrSessionExpired, responseErr)
 			} else {
 				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
@@ -115,17 +104,11 @@ func TestConfirmTwoFactor(t *testing.T) {
 	t.Run("Invalid Session", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 
 		_ = seedConfirmTwoFactorSession(t, userID, rand.Text(), cfg.Domain.GenerateEmail(userID))
 
-		md := metadata.Pairs(
-			"x-user-id", userID,
-			"x-role", "test",
-			"x-jti", uuid.NewString(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, userID)
 
 		req := &gatewayAuthenticationv1.ConfirmTwoFactorRequest{
 			Session: rand.Text(),
@@ -141,18 +124,12 @@ func TestConfirmTwoFactor(t *testing.T) {
 	t.Run("Invalid Code", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.NewString()
+		userID := uuid.NewV7().String()
 		session := rand.Text()
 
 		_ = seedConfirmTwoFactorSession(t, userID, session, cfg.Domain.GenerateEmail(userID))
 
-		md := metadata.Pairs(
-			"x-user-id", userID,
-			"x-role", "test",
-			"x-jti", uuid.NewString(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, userID)
 
 		req := &gatewayAuthenticationv1.ConfirmTwoFactorRequest{
 			Session: session,
@@ -186,7 +163,7 @@ func seedConfirmTwoFactor(t *testing.T) (context.Context, string, string, string
 	md := metadata.Pairs(
 		"x-user-id", userID,
 		"x-role", "test",
-		"x-jti", uuid.NewString(),
+		"x-jti", uuid.NewV7().String(),
 	)
 	ctx := metadata.NewOutgoingContext(t.Context(), md)
 	return ctx, session, secret, userID
@@ -198,7 +175,7 @@ func seedConfirmTwoFactorSession(t *testing.T, userID string, session string, em
 	tf, tfErr := cfg.TwoFactor.Generate(email)
 	require.NoError(t, tfErr)
 
-	data := &utils.GatewaySecurityVerificationTwoFactorSession{
+	data := &utils.EnableTwoFactorSession{
 		Key:     userID,
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Session: session,
@@ -206,9 +183,9 @@ func seedConfirmTwoFactorSession(t *testing.T, userID string, session string, em
 		Secret:  tf.Encrypt,
 	}
 
-	hSetErr := redis.HSet[utils.GatewaySecurityVerificationTwoFactorSession](
+	hSetErr := redis.HSet[utils.EnableTwoFactorSession](
 		t.Context(),
-		utils.VerifyTwoFactorSessionPrefix,
+		utils.TwoFactorSessionPrefix,
 		data,
 		cfg.Client,
 	)

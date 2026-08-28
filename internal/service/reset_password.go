@@ -3,7 +3,8 @@ package service
 import (
 	"context"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/valkey-io/valkey-go/om"
 
 	"neupaneanish.com.np/authentication/internal/errs"

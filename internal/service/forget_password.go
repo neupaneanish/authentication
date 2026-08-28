@@ -13,6 +13,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/repository"
 )
 
+//nolint:funlen
 func (s *ExternalAuthenticationService) ForgetPassword(
 	ctx context.Context,
 	req *externalAuthenticationv1.ForgetPasswordRequest,
@@ -27,7 +28,10 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 
 	session := rand.Text()
 	response := &externalAuthenticationv1.ForgetPasswordResponse{
-		Response: &externalAuthenticationv1.ForgetPasswordResponse_Session{Session: session},
+		Verification: externalVerification(
+			session,
+			externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_RESET,
+		),
 	}
 
 	if !s.cfg.Domain.ValidateEmail(email) {
@@ -48,21 +52,24 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 	}
 
 	if row.Status == enum.UserStatusPending && row.EmailVerifiedAt == nil {
-		if emailErr := s.emailVerification(
+		if err := s.verification(
 			ctx,
+			row.ID,
+			row.Role,
+			email,
+			session,
 			serviceName,
 			enum.MethodForgetPassword,
-			session,
-			row.ID.String(),
-			string(row.Role),
+			enum.VerificationMethodAccount,
 			false,
-			true,
-			email,
-		); emailErr != nil {
-			return nil, emailErr
+		); err != nil {
+			return nil, err
 		}
 		return &externalAuthenticationv1.ForgetPasswordResponse{
-			Response: &externalAuthenticationv1.ForgetPasswordResponse_Verification{Verification: session},
+			Verification: externalVerification(
+				session,
+				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
+			),
 		}, nil
 	}
 
@@ -82,32 +89,40 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 	}
 
 	if row.EmailVerifiedAt == nil {
-		if emailErr := s.emailVerification(
+		if err := s.verification(
 			ctx,
+			row.ID,
+			row.Role,
+			email,
+			session,
 			serviceName,
 			enum.MethodForgetPassword,
-			session,
-			row.ID.String(),
-			string(row.Role),
+			enum.VerificationMethodEmail,
 			false,
-			false,
-			email,
-		); emailErr != nil {
-			return nil, emailErr
+		); err != nil {
+			return nil, err
 		}
+
 		return &externalAuthenticationv1.ForgetPasswordResponse{
-			Response: &externalAuthenticationv1.ForgetPasswordResponse_Verification{Verification: session},
+			Verification: externalVerification(
+				session,
+				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_EMAIL,
+			),
 		}, nil
 	}
 
-	if emailErr := s.emailForgetPassword(
+	if err := s.verification(
 		ctx,
-		session,
-		row.ID.String(),
+		row.ID,
+		row.Role,
 		email,
+		session,
 		serviceName,
-	); emailErr != nil {
-		return nil, emailErr
+		enum.MethodForgetPassword,
+		enum.VerificationMethodReset,
+		false,
+	); err != nil {
+		return nil, err
 	}
 
 	return response, nil

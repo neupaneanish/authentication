@@ -6,7 +6,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"

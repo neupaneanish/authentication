@@ -9,7 +9,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/google/uuid"
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,8 +29,8 @@ func TestNewJWT(t *testing.T) {
 		require.NoError(t, jwtErr)
 		assert.NotNil(t, newJWT)
 
-		userID := uuid.NewString()
-		id := uuid.NewString()
+		userID := uuid.NewV7().String()
+		id := uuid.NewV7().String()
 
 		t.Run("Generate Token", func(t *testing.T) {
 			t.Parallel()

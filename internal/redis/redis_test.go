@@ -9,9 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"uuid"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valkey-io/valkey-go"
+
+	"neupaneanish.com.np/authentication/internal/utils"
 
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -106,5 +110,43 @@ func TestRedis(t *testing.T) {
 		hGetData, hGetErr := redis.HGet[data](ctx, prefix, value.Key, vk)
 		require.Error(t, hGetErr)
 		assert.Nil(t, hGetData)
+	})
+
+	t.Run("SAdd", func(t *testing.T) {
+		t.Parallel()
+
+		err := redis.SAdd(t.Context(), uuid.NewV7().String(), uuid.NewV7().String(), utils.SessionExpiry, vk)
+		require.NoError(t, err)
+	})
+
+	t.Run("SAdd Error", func(t *testing.T) {
+		t.Parallel()
+		ctx, cancel := context.WithTimeout(t.Context(), time.Microsecond)
+		defer cancel()
+
+		err := redis.SAdd(ctx, uuid.NewV7().String(), uuid.NewV7().String(), utils.SessionExpiry, vk)
+		require.Error(t, err)
+	})
+
+	t.Run("SMembers", func(t *testing.T) {
+		t.Parallel()
+
+		members, err := redis.SMembers(t.Context(), uuid.NewV7().String(), vk)
+		require.NoError(t, err)
+		assert.Empty(t, members)
+	})
+
+	t.Run("SRem", func(t *testing.T) {
+		t.Parallel()
+
+		err := redis.SRem(t.Context(), uuid.NewV7().String(), uuid.NewV7().String(), vk)
+		require.NoError(t, err)
+	})
+
+	t.Run("Del", func(t *testing.T) {
+		t.Parallel()
+
+		err := redis.Del(t.Context(), uuid.NewV7().String(), vk)
+		require.NoError(t, err)
 	})
 }
