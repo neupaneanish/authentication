@@ -63,7 +63,7 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 - [X] Resend
 - [X] ChangePassword
 - [X] ConfirmTwoFactor
-- [ ] Role
+- [X] Role
 - [ ] Profile
 - [X] Logout
 - [X] LogoutAll

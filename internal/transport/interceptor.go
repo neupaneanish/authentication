@@ -104,7 +104,7 @@ func AuthInterceptor(ctx context.Context, external, gateway map[string]struct{})
 		if hasUserDetail {
 			return setContextValue(ctx, userID, role, jti), nil
 		}
-		return ctx, errs.ErrSessionExpired
+		return ctx, errs.ErrUnauthenticated
 
 	case isExternalEndpoint:
 		if hasUserDetail {

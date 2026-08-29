@@ -17,10 +17,7 @@ func (s *GatewayAuthenticationService) ChangePassword(
 ) (*gatewayAuthenticationv1.ChangePasswordResponse, error) {
 	serviceName := "ChangePassword"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	result, resultErr := s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userSession.UserID.String())
 	if err := LimiterCheck(

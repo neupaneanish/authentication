@@ -17,10 +17,7 @@ func (s *GatewayAuthenticationService) Logout(
 ) (*gatewayAuthenticationv1.LogoutResponse, error) {
 	serviceName := "Logout"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	data, dataErr := redis.HGet[utils.LoginAccessSession](
 		ctx,
@@ -94,10 +91,7 @@ func (s *GatewayAuthenticationService) LogoutAll(
 ) (*gatewayAuthenticationv1.LogoutAllResponse, error) {
 	serviceName := "LogoutAll"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	if err := s.logoutAll(ctx, userSession.UserID.String(), serviceName); err != nil {
 		return nil, err

@@ -2,12 +2,9 @@ package utils
 
 import (
 	"context"
-	"log/slog"
 	"time"
 
 	"uuid"
-
-	"neupaneanish.com.np/authentication/internal/errs"
 )
 
 const (
@@ -106,11 +103,7 @@ type UserSession struct {
 	Jti    string
 }
 
-func GetUserSessionContext(ctx context.Context, serviceName string, logger *slog.Logger) (*UserSession, error) {
-	session, ok := ctx.Value(SessionKey).(*UserSession)
-	if ok {
-		return session, nil
-	}
-	logger.ErrorContext(ctx, "invalid User Session from context", "service", serviceName)
-	return nil, errs.ErrPermissionDenied
+func UserSessionContext(ctx context.Context) *UserSession {
+	session, _ := ctx.Value(SessionKey).(*UserSession)
+	return session
 }

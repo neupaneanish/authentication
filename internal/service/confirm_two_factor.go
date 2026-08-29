@@ -24,10 +24,7 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 ) (*gatewayAuthenticationv1.ConfirmTwoFactorResponse, error) {
 	serviceName := "Confirm Two Factor"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	result, resultErr := s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userSession.UserID.String())
 	if err := LimiterCheck(
