@@ -104,5 +104,6 @@ type UserSession struct {
 }
 
 func UserSessionContext(ctx context.Context) *UserSession {
-	return ctx.Value(SessionKey).(*UserSession)
+	session, _ := ctx.Value(SessionKey).(*UserSession)
+	return session
 }
