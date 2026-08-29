@@ -29,10 +29,7 @@ func (s *GatewayAuthenticationService) PasswordVerification(
 ) (*gatewayAuthenticationv1.PasswordVerificationResponse, error) {
 	serviceName := "PasswordVerification"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	securityMethod, emailType, rateErr := s.passwordVerificationRateLimiter(
 		ctx,

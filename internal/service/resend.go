@@ -98,10 +98,7 @@ func (s *GatewayAuthenticationService) Resend(
 	serviceName := "ResendPasswordVerification"
 	session := req.GetSession()
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	newSession := rand.Text()
 

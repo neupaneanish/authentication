@@ -28,10 +28,7 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
 	serviceName := "PasswordSessionVerification"
 
-	userSession, userSessionErr := utils.GetUserSessionContext(ctx, serviceName, s.cfg.Logger)
-	if userSessionErr != nil {
-		return nil, userSessionErr
-	}
+	userSession := utils.UserSessionContext(ctx)
 
 	verificationSession, verificationSessionErr := redis.HGet[utils.PasswordVerificationSession](
 		ctx,
