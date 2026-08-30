@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
 
+	"neupaneanish.com.np/authentication/internal/enum"
+
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -37,13 +39,7 @@ func TestLogout(t *testing.T) {
 	t.Run("Logout Success Record Not Found", func(t *testing.T) {
 		t.Parallel()
 
-		md := metadata.Pairs(
-			"x-user-id", uuid.NewV7().String(),
-			"x-role", "test",
-			"x-jti", uuid.NewV7().String(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.LogoutRequest{}
 
@@ -70,15 +66,15 @@ func TestLogoutAll(t *testing.T) {
 
 func seedLogout(t *testing.T) context.Context {
 	t.Helper()
-	userID := uuid.NewV7().String()
+	userID := uuid.NewV7()
 	jti := uuid.NewV7().String()
 	refresh := rand.Text()
 
 	accessData := &utils.LoginAccessSession{
 		Key:     jti,
 		ExAt:    time.Now().Add(utils.AccessSessionExpiry),
-		UserID:  userID,
-		Role:    "test",
+		UserID:  userID.String(),
+		Role:    string(enum.UserRoleUser),
 		Refresh: refresh,
 	}
 
@@ -93,8 +89,8 @@ func seedLogout(t *testing.T) context.Context {
 	refreshData := &utils.LoginRefreshSession{
 		Key:    refresh,
 		ExAt:   time.Now().Add(utils.RefreshSessionExpiry),
-		UserID: userID,
-		Role:   "test",
+		UserID: userID.String(),
+		Role:   string(enum.UserRoleUser),
 		ID:     jti,
 	}
 
@@ -106,12 +102,18 @@ func seedLogout(t *testing.T) context.Context {
 	)
 	require.NoError(t, refreshHSetErr)
 
-	sAddAccessErr := redis.SAdd(t.Context(), utils.UserSessionPrefix+userID, jti, utils.AccessSessionExpiry, cfg.Client)
+	sAddAccessErr := redis.SAdd(
+		t.Context(),
+		utils.UserSessionPrefix+userID.String(),
+		jti,
+		utils.AccessSessionExpiry,
+		cfg.Client,
+	)
 	require.NoError(t, sAddAccessErr)
 
 	isAddRefreshErr := redis.SAdd(
 		t.Context(),
-		utils.UserSessionPrefix+userID,
+		utils.UserSessionPrefix+userID.String(),
 		refresh,
 		utils.RefreshSessionExpiry,
 		cfg.Client,
@@ -119,10 +121,11 @@ func seedLogout(t *testing.T) context.Context {
 	require.NoError(t, isAddRefreshErr)
 
 	md := metadata.Pairs(
-		"x-user-id", userID,
-		"x-role", "test",
+		"x-user-id", userID.String(),
+		"x-role", string(enum.UserRoleUser),
 		"x-jti", jti,
 	)
+
 	ctx := metadata.NewOutgoingContext(t.Context(), md)
 	return ctx
 }

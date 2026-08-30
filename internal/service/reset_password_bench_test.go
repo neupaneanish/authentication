@@ -23,7 +23,7 @@ func BenchmarkResetPassword(b *testing.B) {
 	requests := make([]*externalAuthenticationv1.ResetPasswordRequest, b.N)
 	for i := range b.N {
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
+		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true, enum.UserRoleUser)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed benchmark user: %v", err)
 		}
@@ -32,7 +32,7 @@ func BenchmarkResetPassword(b *testing.B) {
 		data := &utils.ResetPasswordSession{
 			Key:    session,
 			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: userID,
+			UserID: userID.String(),
 		}
 
 		hSetErr := redis.HSet[utils.ResetPasswordSession](ctx, utils.ResetPasswordSessionPrefix, data, cfg.Client)

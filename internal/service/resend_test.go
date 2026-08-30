@@ -29,28 +29,50 @@ import (
 func TestResendVerification(t *testing.T) {
 	t.Parallel()
 
+	t.Run("Invalid method and verification", func(t *testing.T) {
+		t.Parallel()
+		session, _ := seedVerificationSession(
+			t,
+			uuid.NewV7(),
+			"test",
+			"test",
+			false,
+		)
+		req := &externalAuthenticationv1.ResendRequest{Session: session}
+		res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.Equal(t, errs.ErrSessionExpired, err)
+	})
+
 	t.Run("Rate Limiter Session", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
 		req := &externalAuthenticationv1.ResendRequest{Session: session}
 
 		for i := range 6 {
-			response, responseErr := externalAuthenticationServiceClient.Resend(t.Context(), req)
-			require.Error(t, responseErr)
-			assert.Nil(t, response)
+			res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
+			require.Error(t, err)
+			assert.Nil(t, res)
 			if i < 5 {
-				assert.Equal(t, errs.ErrSessionExpired, responseErr)
+				assert.Equal(t, errs.ErrSessionExpired, err)
 			} else {
-				assert.Equal(t, errs.ErrTooManyRequest, responseErr)
+				assert.Equal(t, errs.ErrTooManyRequest, err)
 			}
 		}
 	})
 
 	t.Run("Rate Limiter User ID", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 		for i := range 6 {
-			session, _ := seedVerificationSession(t, userID, enum.MethodLogin, enum.VerificationMethodTwoFactor, false)
+			session, _ := seedVerificationSession(
+				t,
+				userID,
+				enum.MethodLogin,
+				enum.VerificationMethodTwoFactor,
+				false,
+			)
 			req := &externalAuthenticationv1.ResendRequest{Session: session}
 			res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
 			require.Error(t, err)
@@ -97,7 +119,7 @@ func TestResendPasswordVerification(t *testing.T) {
 
 		session := rand.Text()
 
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 
@@ -116,7 +138,7 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Rate Limit UserID", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), enum.SecurityMethodChangePassword)
+		ctx, _, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
 		req := &gatewayAuthenticationv1.ResendRequest{Session: rand.Text()}
 
 		for i := range 6 {
@@ -135,7 +157,7 @@ func TestResendPasswordVerification(t *testing.T) {
 		t.Parallel()
 
 		session := rand.Text()
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -149,7 +171,7 @@ func TestResendPasswordVerification(t *testing.T) {
 
 		ctx, session, _ := seedPasswordSessionVerification(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.SecurityMethodDisableTwoFactor,
 		)
 
@@ -164,7 +186,7 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), "test")
+		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), "test")
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -177,7 +199,7 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Success Change Password", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), enum.SecurityMethodChangePassword)
+		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -190,7 +212,7 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Success Two Factor", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), enum.SecurityMethodEnableTwoFactor)
+		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodEnableTwoFactor)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -203,7 +225,7 @@ func TestResendPasswordVerification(t *testing.T) {
 
 func seedVerificationSession(
 	t *testing.T,
-	userID string,
+	userID uuid.UUID,
 	method enum.Method,
 	verificationMethod enum.VerificationMethod,
 	enabledTwoFactor bool,
@@ -217,12 +239,12 @@ func seedVerificationSession(
 	data := &utils.VerificationSession{
 		Key:                session,
 		ExAt:               time.Now().Add(utils.SessionExpiry),
-		UserID:             userID,
-		Role:               "Test",
+		UserID:             userID.String(),
+		Role:               string(enum.UserRoleUser),
 		Method:             string(method),
 		VerificationMethod: string(verificationMethod),
 		Code:               code,
-		Email:              cfg.Domain.GenerateEmail(userID),
+		Email:              cfg.Domain.GenerateEmail(userID.String()),
 		EnabledTwoFactor:   enabledTwoFactor,
 	}
 
@@ -243,8 +265,7 @@ func successExternalResend(
 	verificationMethod enum.VerificationMethod,
 ) {
 	t.Helper()
-	userID := uuid.NewV7().String()
-	session, _ := seedVerificationSession(t, userID, method, verificationMethod, false)
+	session, _ := seedVerificationSession(t, uuid.NewV7(), method, verificationMethod, false)
 	req := &externalAuthenticationv1.ResendRequest{Session: session}
 	res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
 	require.NoError(t, err)

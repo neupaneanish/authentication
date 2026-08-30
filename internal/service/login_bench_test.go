@@ -19,7 +19,7 @@ func BenchmarkLogin(b *testing.B) {
 	requests := make([]*externalAuthenticationv1.LoginRequest, b.N)
 	for i := range b.N {
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		_, err := seedUser(ctx, email, raw, enum.UserStatusActive, true)
+		_, err := seedUser(ctx, email, raw, enum.UserStatusActive, true, enum.UserRoleUser)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed: %v", err)
 		}

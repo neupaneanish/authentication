@@ -38,28 +38,29 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 		return nil, err
 	}
 
-	data, dataErr := redis.HGet[utils.EnableTwoFactorSession](
+	tfSession, tfSessionErr := redis.HGet[utils.EnableTwoFactorSession](
 		ctx,
 		utils.TwoFactorSessionPrefix,
 		userSession.UserID.String(),
 		s.cfg.Client,
 	)
 
-	if dataErr != nil {
-		if om.IsRecordNotFound(dataErr) {
+	if tfSessionErr != nil {
+		if om.IsRecordNotFound(tfSessionErr) {
 			s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
 			return nil, errs.ErrSessionExpired
 		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", dataErr)
+		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", tfSessionErr)
 		return nil, errs.ErrInternalServer
 	}
 
-	if data.Session != req.GetSession() {
-		s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
+	if tfSession.Session != req.GetSession() {
+		s.cfg.Logger.WarnContext(ctx, "Session not match", "service", serviceName)
+		s.deleteConfirmTwoFactorSession(ctx, tfSession.Key, serviceName)
 		return nil, errs.ErrSessionExpired
 	}
 
-	valid, validateErr := s.cfg.TwoFactor.Validate(req.GetCode(), data.Secret)
+	valid, validateErr := s.cfg.TwoFactor.Validate(req.GetCode(), tfSession.Secret)
 	if validateErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Validation", "service", serviceName, "error", validateErr)
 		return nil, errs.ErrInternalServer
@@ -77,14 +78,14 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 	if confirmErr := s.confirmTwoFactorDatabase(
 		ctx,
 		userSession.UserID,
-		data.Secret,
+		tfSession.Secret,
 		serviceName,
 		codes.Hash,
 	); confirmErr != nil {
 		return nil, confirmErr
 	}
 
-	t, tErr := task.SecurityNotification(task.TypeConfirmTwoFactor, data.Email)
+	t, tErr := task.SecurityNotification(task.TypeConfirmTwoFactor, tfSession.Email)
 	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
 
 	return &gatewayAuthenticationv1.ConfirmTwoFactorResponse{Codes: codes.Plain}, nil
@@ -172,13 +173,17 @@ func (s *GatewayAuthenticationService) confirmTwoFactorDatabase(
 		s.cfg.Logger.ErrorContext(ctx, "commit", "service", serviceName, "error", txCommitErr)
 		return errs.ErrInternalServer
 	}
+	s.deleteConfirmTwoFactorSession(ctx, userID.String(), serviceName)
+	return nil
+}
+
+func (s *GatewayAuthenticationService) deleteConfirmTwoFactorSession(ctx context.Context, key, serviceName string) {
 	if hDeleteErr := redis.HDelete[utils.EnableTwoFactorSession](
 		ctx,
 		utils.TwoFactorSessionPrefix,
-		userID.String(),
+		key,
 		s.cfg.Client,
 	); hDeleteErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey delete setup session", "service", serviceName, "error", hDeleteErr)
 	}
-	return nil
 }

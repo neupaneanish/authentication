@@ -99,7 +99,6 @@ const SessionKey ContextKey = "user_session"
 
 type UserSession struct {
 	UserID uuid.UUID
-	Role   string
 	Jti    string
 }
 

@@ -12,6 +12,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 
+	"neupaneanish.com.np/authentication/internal/enum"
+
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/utils"
@@ -85,24 +87,42 @@ func (w *WrappedTimeoutStream) Context() context.Context {
 	return w.StreamContext
 }
 
-func AuthInterceptor(ctx context.Context, external, gateway map[string]struct{}) (context.Context, error) {
+func AuthInterceptor(ctx context.Context, external, gateway, root map[string]struct{}) (context.Context, error) {
 	fullMethod, ok := grpc.Method(ctx)
 	if !ok {
 		return ctx, errs.ErrInternalServer
 	}
-	userID := userDetail(ctx, "x-user-id")
+	userIDStr := userDetail(ctx, "x-user-id")
 	role := userDetail(ctx, "x-role")
 	jti := userDetail(ctx, "x-jti")
 
-	hasUserDetail := userID != "" && role != "" && jti != ""
+	hasUserDetail := userIDStr != "" && role != "" && jti != ""
+	var userID uuid.UUID
+
+	if hasUserDetail {
+		var userIDErr error
+		userID, userIDErr = uuid.Parse(userIDStr)
+		if userIDErr != nil || !enum.UserRole(role).Valid() {
+			return ctx, errs.ErrUnauthenticated
+		}
+	}
 
 	_, isExternalEndpoint := external[fullMethod]
 	_, isGatewayEndpoint := gateway[fullMethod]
+	_, isRootEndpoint := root[fullMethod]
 
 	switch {
 	case isGatewayEndpoint:
 		if hasUserDetail {
 			return setContextValue(ctx, userID, role, jti), nil
+		}
+		return ctx, errs.ErrUnauthenticated
+	case isRootEndpoint:
+		if hasUserDetail {
+			if enum.UserRole(role) == enum.UserRoleRoot {
+				return setContextValue(ctx, userID, role, jti), nil
+			}
+			return ctx, errs.ErrPermissionDenied
 		}
 		return ctx, errs.ErrUnauthenticated
 
@@ -135,16 +155,15 @@ func isRefreshEndpoint(fullMethod string) bool {
 	return fullMethod == externalAuthenticationv1.ExternalAuthenticationService_Refresh_FullMethodName
 }
 
-func setContextValue(ctx context.Context, userID string, role string, jti string) context.Context {
+func setContextValue(ctx context.Context, userID uuid.UUID, role string, jti string) context.Context {
 	ctx = logging.InjectFields(ctx, logging.Fields{
-		"user_id", userID,
+		"user_id", userID.String(),
 		"role", role,
 		"jti", jti,
 	})
 
 	return context.WithValue(ctx, utils.SessionKey, &utils.UserSession{
-		UserID: uuid.MustParse(userID),
-		Role:   role,
+		UserID: userID,
 		Jti:    jti,
 	})
 }

@@ -33,6 +33,30 @@ func (s *ExternalAuthenticationService) Verification(
 		return nil, verificationSessionErr
 	}
 
+	userID, userIDErr := uuid.Parse(verificationSession.UserID)
+	if userIDErr != nil {
+		s.deleteVerificationSession(ctx, session, serviceName)
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Invalid UserID",
+			"service", serviceName,
+			"userID", verificationSession.UserID,
+			"error", userIDErr,
+		)
+		return nil, errs.ErrSessionExpired
+	}
+
+	if !enum.UserRole(verificationSession.Role).Valid() {
+		s.deleteVerificationSession(ctx, session, serviceName)
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Role",
+			"service", serviceName,
+			"role", verificationSession.Role,
+		)
+		return nil, errs.ErrSessionExpired
+	}
+
 	switch enum.Method(verificationSession.Method) {
 	case enum.MethodLogin:
 		switch enum.VerificationMethod(verificationSession.VerificationMethod) {
@@ -44,7 +68,7 @@ func (s *ExternalAuthenticationService) Verification(
 				newSession := rand.Text()
 				if err := s.verification(
 					ctx,
-					uuid.MustParse(verificationSession.UserID),
+					userID,
 					enum.UserRole(verificationSession.Role),
 					verificationSession.Email,
 					newSession,
@@ -65,9 +89,9 @@ func (s *ExternalAuthenticationService) Verification(
 					},
 				}, nil
 			}
-			return s.verificationEmailLogin(ctx, req, verificationSession, serviceName)
+			return s.verificationEmailLogin(ctx, req, verificationSession, userID, serviceName)
 		case enum.VerificationMethodTwoFactor:
-			return s.verificationTwoFactor(ctx, req, verificationSession, serviceName)
+			return s.verificationTwoFactor(ctx, req, verificationSession, userID, serviceName)
 		default:
 			s.cfg.Logger.WarnContext(
 				ctx,
@@ -80,9 +104,9 @@ func (s *ExternalAuthenticationService) Verification(
 			return nil, errs.ErrSessionExpired
 		}
 	case enum.MethodForgetPassword:
-		return s.verificationForgetPassword(ctx, req, verificationSession, serviceName)
+		return s.verificationForgetPassword(ctx, req, verificationSession, userID, serviceName)
 	case enum.MethodRegister:
-		return s.verificationRegister(ctx, req, verificationSession, serviceName)
+		return s.verificationRegister(ctx, req, verificationSession, userID, serviceName)
 	default:
 		s.cfg.Logger.WarnContext(
 			ctx,
@@ -167,6 +191,7 @@ func (s *ExternalAuthenticationService) verificationEmailLogin(
 	ctx context.Context,
 	req *externalAuthenticationv1.VerificationRequest,
 	verificationSession *utils.VerificationSession,
+	userID uuid.UUID,
 	serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
 	if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
@@ -174,7 +199,8 @@ func (s *ExternalAuthenticationService) verificationEmailLogin(
 	}
 	if err := s.verificationVerifyAccountEmail(
 		ctx,
-		uuid.MustParse(verificationSession.UserID),
+		userID,
+		verificationSession.Key,
 		serviceName,
 	); err != nil {
 		return nil, err
@@ -251,15 +277,14 @@ func (s *ExternalAuthenticationService) verificationTwoFactor(
 	ctx context.Context,
 	req *externalAuthenticationv1.VerificationRequest,
 	verificationSession *utils.VerificationSession,
+	userID uuid.UUID,
 	serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
-	uID := uuid.MustParse(verificationSession.UserID)
-
 	switch code := req.GetCode().(type) {
 	case *externalAuthenticationv1.VerificationRequest_Totp:
 		if err := ValidateTotpCode(
 			ctx,
-			uID,
+			userID,
 			s.cfg.Repository,
 			code.Totp,
 			serviceName,
@@ -268,7 +293,7 @@ func (s *ExternalAuthenticationService) verificationTwoFactor(
 		); err != nil {
 			return nil, err
 		}
-		params := &repository.UpdateTwoFactorParams{UpdatedBy: uID, UserID: uID}
+		params := &repository.UpdateTwoFactorParams{UpdatedBy: userID, UserID: userID}
 		cmdTag, cmdTagErr := s.cfg.Repository.UpdateTwoFactor(ctx, params)
 		if err := AffectedRowCheck(
 			ctx,
@@ -285,7 +310,7 @@ func (s *ExternalAuthenticationService) verificationTwoFactor(
 	case *externalAuthenticationv1.VerificationRequest_Recovery:
 		recoveryID, recoveryErr := ValidateRecoveryCode(
 			ctx,
-			uID,
+			userID,
 			s.cfg.Repository,
 			code.Recovery,
 			serviceName,
@@ -295,7 +320,7 @@ func (s *ExternalAuthenticationService) verificationTwoFactor(
 		if recoveryErr != nil {
 			return nil, recoveryErr
 		}
-		params := &repository.UpdateRecoveryCodeParams{ID: recoveryID, UserID: uID}
+		params := &repository.UpdateRecoveryCodeParams{ID: recoveryID, UserID: userID}
 		cmdTag, cmdTagErr := s.cfg.Repository.UpdateRecoveryCode(ctx, params)
 		if err := AffectedRowCheck(
 			ctx,
@@ -327,17 +352,17 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 	ctx context.Context,
 	req *externalAuthenticationv1.VerificationRequest,
 	verificationSession *utils.VerificationSession,
+	userID uuid.UUID,
 	serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
 	session := rand.Text()
-	userID := uuid.MustParse(verificationSession.UserID)
 	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
 	case enum.VerificationMethodAccount,
 		enum.VerificationMethodEmail:
 		if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
 			return nil, err
 		}
-		if err := s.verificationVerifyAccountEmail(ctx, userID, serviceName); err != nil {
+		if err := s.verificationVerifyAccountEmail(ctx, userID, verificationSession.Key, serviceName); err != nil {
 			return nil, err
 		}
 		if err := s.verification(
@@ -368,7 +393,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 		data := &utils.ResetPasswordSession{
 			Key:    session,
 			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: verificationSession.UserID,
+			UserID: userID.String(),
 			Email:  verificationSession.Email,
 		}
 
@@ -401,6 +426,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 func (s *ExternalAuthenticationService) verificationVerifyAccountEmail(
 	ctx context.Context,
 	userID uuid.UUID,
+	key,
 	serviceName string,
 ) error {
 	params := &repository.VerifyEmailParams{
@@ -423,7 +449,8 @@ func (s *ExternalAuthenticationService) verificationVerifyAccountEmail(
 			serviceName,
 			"userID", userID.String(),
 		)
-		return errs.ErrSessionExpired
+		s.deleteVerificationSession(ctx, key, serviceName)
+		return errs.ErrAccountAlreadyVerified
 	}
 	return nil
 }
@@ -432,11 +459,12 @@ func (s *ExternalAuthenticationService) verificationRegister(
 	ctx context.Context,
 	req *externalAuthenticationv1.VerificationRequest,
 	verificationSession *utils.VerificationSession,
+	userID uuid.UUID,
 	serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
 	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
 	case enum.VerificationMethodAccount:
-		return s.verificationEmailLogin(ctx, req, verificationSession, serviceName)
+		return s.verificationEmailLogin(ctx, req, verificationSession, userID, serviceName)
 	default:
 		s.cfg.Logger.WarnContext(
 			ctx,
