@@ -58,7 +58,7 @@ func TestChangePassword(t *testing.T) {
 	t.Run("Rate Limiter", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 		req := &gatewayAuthenticationv1.ChangePasswordRequest{
 			Session:         rand.Text(),
 			Password:        &passwordv1.Password{Value: newPassword},
@@ -79,11 +79,11 @@ func TestChangePassword(t *testing.T) {
 
 	t.Run("No User in DB", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 		session := rand.Text()
 		seedChangePasswordSession(t, userID, session, cfg.Domain.GenerateEmail(session))
 
-		ctx := contextWithValue(t, userID)
+		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 		req := &gatewayAuthenticationv1.ChangePasswordRequest{
 			Session:         rand.Text(),
 			Password:        &passwordv1.Password{Value: newPassword},
@@ -122,20 +122,21 @@ func changePasswordSeed(t *testing.T, rawPassword string) (context.Context, stri
 		rawPassword,
 		enum.UserStatusActive,
 		true,
+		enum.UserRoleUser,
 	)
 	require.NoError(t, seedErr)
 	assert.NotEmpty(t, userID)
 
 	seedChangePasswordSession(t, userID, session, email)
 
-	ctx := contextWithValue(t, userID)
+	ctx := contextWithValue(t, userID, enum.UserRoleUser)
 	return ctx, session
 }
 
-func seedChangePasswordSession(t *testing.T, userID string, session string, email string) {
+func seedChangePasswordSession(t *testing.T, userID uuid.UUID, session string, email string) {
 	t.Helper()
 	data := &utils.ChangePasswordSession{
-		Key:     userID,
+		Key:     userID.String(),
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Session: session,
 		Email:   email,

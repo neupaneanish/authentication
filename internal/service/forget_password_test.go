@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"testing"
 
-	"uuid"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -44,7 +42,14 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Register email", func(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive, true)
+		_, seedErr := seedUser(
+			t.Context(),
+			email,
+			"forgetPassword@123456",
+			enum.UserStatusActive,
+			true,
+			enum.UserRoleUser,
+		)
 		require.NoError(t, seedErr)
 
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
@@ -58,7 +63,14 @@ func TestForgetPassword(t *testing.T) {
 		t.Parallel()
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusActive, false)
+		_, seedErr := seedUser(
+			t.Context(),
+			email,
+			"forgetPassword@123456",
+			enum.UserStatusActive,
+			false,
+			enum.UserRoleUser,
+		)
 		require.NoError(t, seedErr)
 
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
@@ -72,10 +84,16 @@ func TestForgetPassword(t *testing.T) {
 		t.Parallel()
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		userIDStr, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusPending, false)
+		userID, seedErr := seedUser(
+			t.Context(),
+			email,
+			"forgetPassword@123456",
+			enum.UserStatusPending,
+			false,
+			enum.UserRoleUser,
+		)
 		require.NoError(t, seedErr)
 
-		userID := uuid.MustParse(userIDStr)
 		verifyEmailParams := &repository.VerifyEmailParams{
 			Status:    enum.UserStatusPending,
 			UpdatedBy: userID,
@@ -99,7 +117,14 @@ func TestForgetPassword(t *testing.T) {
 		t.Parallel()
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusPending, false)
+		_, seedErr := seedUser(
+			t.Context(),
+			email,
+			"forgetPassword@123456",
+			enum.UserStatusPending,
+			false,
+			enum.UserRoleUser,
+		)
 		require.NoError(t, seedErr)
 
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
@@ -113,7 +138,14 @@ func TestForgetPassword(t *testing.T) {
 		t.Parallel()
 
 		email := cfg.Domain.GenerateEmail(rand.Text())
-		_, seedErr := seedUser(t.Context(), email, "forgetPassword@123456", enum.UserStatusLocked, false)
+		_, seedErr := seedUser(
+			t.Context(),
+			email,
+			"forgetPassword@123456",
+			enum.UserStatusLocked,
+			false,
+			enum.UserRoleUser,
+		)
 		require.NoError(t, seedErr)
 
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}

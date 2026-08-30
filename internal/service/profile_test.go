@@ -20,7 +20,7 @@ func TestProfile(t *testing.T) {
 
 	t.Run("No User", func(t *testing.T) {
 		t.Parallel()
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.ProfileRequest{}
 		res, err := gatewayAuthenticationServiceClient.Profile(ctx, req)
@@ -38,10 +38,11 @@ func TestProfile(t *testing.T) {
 			"Password@123456",
 			enum.UserStatusActive,
 			true,
+			enum.UserRoleUser,
 		)
 		require.NoError(t, userIDErr)
 
-		ctx := contextWithValue(t, userID)
+		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.ProfileRequest{}
 		res, err := gatewayAuthenticationServiceClient.Profile(ctx, req)

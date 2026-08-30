@@ -34,7 +34,6 @@ func (s *GatewayAuthenticationService) Logout(
 				s.cfg.Client,
 			); err != nil {
 				s.cfg.Logger.ErrorContext(ctx, "Valkey SRem", "service", serviceName, "error", err)
-				return nil, errs.ErrInternalServer
 			}
 			return &gatewayAuthenticationv1.LogoutResponse{}, nil
 		}
@@ -49,7 +48,6 @@ func (s *GatewayAuthenticationService) Logout(
 		s.cfg.Client,
 	); err != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey Access Delete", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
 	}
 
 	if err := redis.HDelete[utils.LoginRefreshSession](
@@ -59,7 +57,6 @@ func (s *GatewayAuthenticationService) Logout(
 		s.cfg.Client,
 	); err != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey Refresh Delete", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
 	}
 
 	if err := redis.SRem(
@@ -69,7 +66,6 @@ func (s *GatewayAuthenticationService) Logout(
 		s.cfg.Client,
 	); err != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey Access SRem Delete", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
 	}
 
 	if err := redis.SRem(
@@ -79,7 +75,6 @@ func (s *GatewayAuthenticationService) Logout(
 		s.cfg.Client,
 	); err != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey Refresh SRem Delete", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
 	}
 
 	return &gatewayAuthenticationv1.LogoutResponse{}, nil

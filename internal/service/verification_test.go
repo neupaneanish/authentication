@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"neupaneanish.com.np/authentication/internal/redis"
+	"neupaneanish.com.np/authentication/internal/utils"
+
 	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -21,6 +24,46 @@ import (
 
 func TestVerification(t *testing.T) {
 	t.Parallel()
+
+	t.Run("Invalid User ID", func(t *testing.T) {
+		t.Parallel()
+		seedVerificationError(
+			t,
+			rand.Text(),
+			string(enum.UserRoleUser),
+			"12345678",
+			enum.MethodLogin,
+			enum.VerificationMethodAccount,
+			false,
+		)
+	})
+
+	t.Run("Invalid Role", func(t *testing.T) {
+		t.Parallel()
+		seedVerificationError(
+			t,
+			uuid.NewV7().String(),
+			"test",
+			"12345678",
+			enum.MethodLogin,
+			enum.VerificationMethodAccount,
+			false,
+		)
+	})
+
+	t.Run("Already verified", func(t *testing.T) {
+		t.Parallel()
+		userID, userIDErr := seedUser(
+			t.Context(),
+			cfg.Domain.GenerateEmail(rand.Text()),
+			"Password@123456",
+			enum.UserStatusActive,
+			true,
+			enum.UserRoleUser,
+		)
+		require.NoError(t, userIDErr)
+		verificationNoUser(t, userID, enum.MethodLogin, enum.VerificationMethodAccount)
+	})
 
 	// Rate Limiter
 	t.Run("Rate Limiter Session", func(t *testing.T) {
@@ -44,19 +87,19 @@ func TestVerification(t *testing.T) {
 
 	t.Run("Rate Limiter Account", func(t *testing.T) {
 		t.Parallel()
-		verificationRateLimiter(t, uuid.NewV7().String(), enum.MethodLogin, enum.VerificationMethodAccount, false)
+		verificationRateLimiter(t, uuid.NewV7(), enum.MethodLogin, enum.VerificationMethodAccount, false)
 	})
 
 	t.Run("Rate Limiter Email", func(t *testing.T) {
 		t.Parallel()
-		verificationRateLimiter(t, uuid.NewV7().String(), enum.MethodLogin, enum.VerificationMethodEmail, false)
+		verificationRateLimiter(t, uuid.NewV7(), enum.MethodLogin, enum.VerificationMethodEmail, false)
 	})
 
 	t.Run("Rate Limiter Reset", func(t *testing.T) {
 		t.Parallel()
 		verificationRateLimiter(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodForgetPassword,
 			enum.VerificationMethodReset,
 			false,
@@ -77,7 +120,7 @@ func TestVerification(t *testing.T) {
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
 
-		session, code := seedVerificationSession(t, uuid.NewV7().String(), "Test", enum.VerificationMethodEmail, false)
+		session, code := seedVerificationSession(t, uuid.NewV7(), "Test", enum.VerificationMethodEmail, false)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: strings.ReplaceAll(code, "-", "")},
@@ -91,7 +134,7 @@ func TestVerification(t *testing.T) {
 	t.Run("Invalid Verification Method", func(t *testing.T) {
 		t.Parallel()
 
-		session, code := seedVerificationSession(t, uuid.NewV7().String(), enum.MethodForgetPassword, "test", false)
+		session, code := seedVerificationSession(t, uuid.NewV7(), enum.MethodForgetPassword, "test", false)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: strings.ReplaceAll(code, "-", "")},
@@ -105,7 +148,7 @@ func TestVerification(t *testing.T) {
 	// Register
 	t.Run("Register Method No User", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, enum.MethodRegister, enum.VerificationMethodAccount)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodRegister, enum.VerificationMethodAccount)
 	})
 
 	t.Run("Register Method Account Success", func(t *testing.T) {
@@ -125,7 +168,7 @@ func TestVerification(t *testing.T) {
 
 		session, code := seedVerificationSession(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodRegister,
 			enum.VerificationMethodEmail,
 			false,
@@ -144,19 +187,19 @@ func TestVerification(t *testing.T) {
 	// Login
 	t.Run("Login Method No User Account", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, enum.MethodLogin, enum.VerificationMethodAccount)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodLogin, enum.VerificationMethodAccount)
 	})
 
 	t.Run("Login Method No User Email", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, enum.MethodLogin, enum.VerificationMethodEmail)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodLogin, enum.VerificationMethodEmail)
 	})
 
 	t.Run("Login Method Account Two Factor Invalid Verification Method", func(t *testing.T) {
 		t.Parallel()
 		session, code := seedVerificationSession(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodLogin,
 			enum.VerificationMethodTwoFactor,
 			false,
@@ -176,7 +219,7 @@ func TestVerification(t *testing.T) {
 
 		session, _ := seedVerificationSession(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodLogin,
 			enum.VerificationMethodAccount,
 			true,
@@ -197,7 +240,7 @@ func TestVerification(t *testing.T) {
 
 		session, code := seedVerificationSession(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodLogin,
 			enum.VerificationMethodAccount,
 			true,
@@ -264,12 +307,12 @@ func TestVerification(t *testing.T) {
 	// Forget
 	t.Run("Forget Password Method No User Account", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, enum.MethodForgetPassword, enum.VerificationMethodAccount)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodForgetPassword, enum.VerificationMethodAccount)
 	})
 
 	t.Run("Forget Password Method No User Email", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, enum.MethodForgetPassword, enum.VerificationMethodEmail)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodForgetPassword, enum.VerificationMethodEmail)
 	})
 
 	t.Run("Forget Password Method Two Factor Error", func(t *testing.T) {
@@ -277,7 +320,7 @@ func TestVerification(t *testing.T) {
 
 		session, code := seedVerificationSession(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.MethodForgetPassword,
 			enum.VerificationMethodTwoFactor,
 			true,
@@ -315,16 +358,15 @@ func TestVerification(t *testing.T) {
 
 func verificationRateLimiter(
 	t *testing.T,
-	userID string,
+	userID uuid.UUID,
 	method enum.Method,
 	verificationMethod enum.VerificationMethod,
 	enabledTwoFactor bool,
 ) {
 	t.Helper()
 
-	session, _ := seedVerificationSession(t, userID, method, verificationMethod, enabledTwoFactor)
-
 	for i := range 6 {
+		session, _ := seedVerificationSession(t, userID, method, verificationMethod, enabledTwoFactor)
 		req := &externalAuthenticationv1.VerificationRequest{}
 
 		switch verificationMethod {
@@ -396,6 +438,7 @@ func successVerification(
 		"Password@12345",
 		status,
 		false,
+		enum.UserRoleUser,
 	)
 	require.NoError(t, userIDErr)
 
@@ -417,12 +460,17 @@ func successVerification(
 	return res
 }
 
-func verificationNoUser(t *testing.T, method enum.Method, verificationMethod enum.VerificationMethod) {
+func verificationNoUser(
+	t *testing.T,
+	userID uuid.UUID,
+	method enum.Method,
+	verificationMethod enum.VerificationMethod,
+) {
 	t.Helper()
 
 	session, code := seedVerificationSession(
 		t,
-		uuid.NewV7().String(),
+		userID,
 		method,
 		verificationMethod,
 		false,
@@ -436,7 +484,7 @@ func verificationNoUser(t *testing.T, method enum.Method, verificationMethod enu
 	res, err := externalAuthenticationServiceClient.Verification(t.Context(), req)
 	require.Error(t, err)
 	assert.Nil(t, res)
-	assert.Equal(t, errs.ErrSessionExpired, err)
+	assert.Equal(t, errs.ErrAccountAlreadyVerified, err)
 }
 
 func verificationInvalidCodeType(
@@ -448,7 +496,7 @@ func verificationInvalidCodeType(
 
 	session, _ := seedVerificationSession(
 		t,
-		uuid.NewV7().String(),
+		uuid.NewV7(),
 		method,
 		verificationMethod,
 		false,
@@ -456,6 +504,45 @@ func verificationInvalidCodeType(
 	req := &externalAuthenticationv1.VerificationRequest{
 		Session: session,
 		Code:    &externalAuthenticationv1.VerificationRequest_Totp{Totp: "123456"},
+	}
+	res, err := externalAuthenticationServiceClient.Verification(t.Context(), req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	assert.Equal(t, errs.ErrSessionExpired, err)
+}
+
+func seedVerificationError(
+	t *testing.T,
+	userID, role, code string,
+	method enum.Method,
+	verificationMethod enum.VerificationMethod,
+	enabledTwoFactor bool,
+) {
+	t.Helper()
+	session := rand.Text()
+	data := &utils.VerificationSession{
+		Key:                session,
+		ExAt:               time.Now().Add(utils.SessionExpiry),
+		UserID:             userID,
+		Role:               role,
+		Method:             string(method),
+		VerificationMethod: string(verificationMethod),
+		Code:               code,
+		Email:              cfg.Domain.GenerateEmail(userID),
+		EnabledTwoFactor:   enabledTwoFactor,
+	}
+
+	hSetErr := redis.HSet[utils.VerificationSession](
+		t.Context(),
+		utils.VerificationSessionPrefix,
+		data,
+		cfg.Client,
+	)
+	require.NoError(t, hSetErr)
+
+	req := &externalAuthenticationv1.VerificationRequest{
+		Session: session,
+		Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: code},
 	}
 	res, err := externalAuthenticationServiceClient.Verification(t.Context(), req)
 	require.Error(t, err)

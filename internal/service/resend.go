@@ -58,6 +58,24 @@ func (s *ExternalAuthenticationService) Resend(
 		return nil, err
 	}
 
+	if !enum.Method(verificationSession.Method).Valid() ||
+		!enum.VerificationMethod(verificationSession.VerificationMethod).Valid() {
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Invalid Methods",
+			"service",
+			serviceName,
+			"userID",
+			verificationSession.UserID,
+			"method",
+			verificationSession.Method,
+			"verificationMethod",
+			verificationSession.VerificationMethod,
+		)
+		s.deleteVerificationSession(ctx, session, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+
 	verificationMethod := enum.VerificationMethod(verificationSession.VerificationMethod)
 	if verificationMethod == enum.VerificationMethodTwoFactor {
 		s.cfg.Logger.WarnContext(
@@ -72,9 +90,22 @@ func (s *ExternalAuthenticationService) Resend(
 		return nil, errs.ErrSessionExpired
 	}
 
+	userID, userIDErr := uuid.Parse(verificationSession.UserID)
+	if userIDErr != nil {
+		s.cfg.Logger.ErrorContext(
+			ctx,
+			"Invalid UserID in session",
+			"service", serviceName,
+			"userID", verificationSession.UserID,
+			"error", userIDErr,
+		)
+		s.deleteVerificationSession(ctx, session, serviceName)
+		return nil, errs.ErrSessionExpired
+	}
+
 	if err := s.verification(
 		ctx,
-		uuid.MustParse(verificationSession.UserID),
+		userID,
 		enum.UserRole(verificationSession.Role),
 		verificationSession.Email,
 		newSession,
@@ -85,6 +116,7 @@ func (s *ExternalAuthenticationService) Resend(
 	); err != nil {
 		return nil, err
 	}
+	s.deleteVerificationSession(ctx, session, serviceName)
 
 	return &externalAuthenticationv1.ResendResponse{
 		Session: newSession,

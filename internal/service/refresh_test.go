@@ -11,8 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/metadata"
 
+	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -41,15 +41,9 @@ func TestRefresh(t *testing.T) {
 
 	t.Run("Limiter UserID", func(t *testing.T) {
 		t.Parallel()
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 
-		md := metadata.Pairs(
-			"x-user-id", userID,
-			"x-role", "test",
-			"x-jti", uuid.NewV7().String(),
-		)
-
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 		for i := range 5 {
 			refresh := setupAccessRefreshRedis(t, userID)
@@ -69,7 +63,7 @@ func TestRefresh(t *testing.T) {
 	})
 }
 
-func setupAccessRefreshRedis(t *testing.T, userID string) string {
+func setupAccessRefreshRedis(t *testing.T, userID uuid.UUID) string {
 	t.Helper()
 
 	ctx := t.Context()
@@ -79,7 +73,7 @@ func setupAccessRefreshRedis(t *testing.T, userID string) string {
 	accessSession := &utils.LoginAccessSession{
 		Key:    access,
 		ExAt:   time.Now().Add(utils.AccessSessionExpiry),
-		UserID: userID,
+		UserID: userID.String(),
 	}
 
 	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, cfg.Client)
@@ -88,7 +82,7 @@ func setupAccessRefreshRedis(t *testing.T, userID string) string {
 	refreshSession := &utils.LoginRefreshSession{
 		Key:    refresh,
 		ExAt:   time.Now().Add(utils.RefreshSessionExpiry),
-		UserID: userID,
+		UserID: userID.String(),
 		Role:   "test",
 		ID:     access,
 	}

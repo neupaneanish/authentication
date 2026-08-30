@@ -198,11 +198,14 @@ func ChangeResetPassword(
 	}
 
 	var emailType string
+	var createdBy uuid.UUID
 
 	if reset {
 		emailType = task.TypePasswordReset
+		createdBy = uuid.Nil()
 	} else {
 		emailType = task.TypeConfirmChangePassword
+		createdBy = userID
 	}
 
 	newHash, newHashErr := utils.CreatePassword(rawPassword)
@@ -211,7 +214,7 @@ func ChangeResetPassword(
 		return errs.ErrInternalServer
 	}
 
-	credentialParams := &repository.CreateCredentialParams{UserID: userID, Password: newHash, CreatedBy: userID}
+	credentialParams := &repository.CreateCredentialParams{UserID: userID, Password: newHash, CreatedBy: createdBy}
 
 	tx, txErr := pool.Begin(ctx)
 	if txErr != nil {

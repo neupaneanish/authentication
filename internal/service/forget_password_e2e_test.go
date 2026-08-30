@@ -24,7 +24,7 @@ func TestForgetPasswordE2E(t *testing.T) {
 	oldPassword := "Test@123456"
 	newPassword := "Test@1234567"
 
-	seedID, seedErr := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true)
+	seedID, seedErr := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true, enum.UserRoleUser)
 	require.NoError(t, seedErr)
 	assert.NotNil(t, seedID)
 

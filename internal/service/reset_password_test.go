@@ -12,8 +12,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -28,6 +26,35 @@ func TestResetPassword(t *testing.T) {
 	oldPassword := "Reset@Password1"
 	newPassword := "Reset@Password12"
 
+	t.Run("Invalid User ID", func(t *testing.T) {
+		t.Parallel()
+		session := rand.Text()
+		data := &utils.ResetPasswordSession{
+			Key:    session,
+			ExAt:   time.Now().Add(utils.SessionExpiry),
+			UserID: session,
+		}
+
+		hSetErr := redis.HSet[utils.ResetPasswordSession](
+			t.Context(),
+			utils.ResetPasswordSessionPrefix,
+			data,
+			cfg.Client,
+		)
+		require.NoError(t, hSetErr)
+
+		req := &externalAuthenticationv1.ResetPasswordRequest{
+			Session:         session,
+			Password:        &passwordv1.Password{Value: newPassword},
+			ConfirmPassword: &passwordv1.Password{Value: newPassword},
+		}
+
+		response, err := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, errs.ErrSessionExpired, err)
+	})
+
 	t.Run("Invalid session", func(t *testing.T) {
 		t.Parallel()
 		req := &externalAuthenticationv1.ResetPasswordRequest{
@@ -36,12 +63,10 @@ func TestResetPassword(t *testing.T) {
 			ConfirmPassword: &passwordv1.Password{Value: newPassword},
 		}
 
-		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
-		require.Error(t, responseErr)
+		response, err := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
+		require.Error(t, err)
 		assert.Nil(t, response)
-
-		st, _ := status.FromError(responseErr)
-		assert.Equal(t, codes.Aborted, st.Code())
+		assert.Equal(t, errs.ErrSessionExpired, err)
 	})
 
 	t.Run("Valid session previous password", func(t *testing.T) {
@@ -79,12 +104,12 @@ func TestResetPassword(t *testing.T) {
 	t.Run("No Passwords", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 
 		data := &utils.ResetPasswordSession{
 			Key:    session,
 			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: userID,
+			UserID: userID.String(),
 		}
 
 		hSetErr := redis.HSet[utils.ResetPasswordSession](
@@ -132,12 +157,12 @@ func TestResetPassword(t *testing.T) {
 	t.Run("Rate limiter UserID", func(t *testing.T) {
 		t.Parallel()
 		session := rand.Text()
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 
 		data := &utils.ResetPasswordSession{
 			Key:    session,
 			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: userID,
+			UserID: userID.String(),
 		}
 
 		hSetErr := redis.HSet[utils.ResetPasswordSession](
@@ -165,7 +190,7 @@ func TestResetPassword(t *testing.T) {
 				newData := &utils.ResetPasswordSession{
 					Key:    newSession,
 					ExAt:   time.Now().Add(utils.SessionExpiry),
-					UserID: userID,
+					UserID: userID.String(),
 				}
 
 				newHSetErr := redis.HSet[utils.ResetPasswordSession](
@@ -192,13 +217,13 @@ func TestResetPassword(t *testing.T) {
 func seedUserResetPassword(t *testing.T, email string, password string) string {
 	t.Helper()
 	session := rand.Text()
-	userID, seedErr := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
+	userID, seedErr := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 	require.NoError(t, seedErr)
 
 	data := &utils.ResetPasswordSession{
 		Key:    session,
 		ExAt:   time.Now().Add(utils.SessionExpiry),
-		UserID: userID,
+		UserID: userID.String(),
 	}
 
 	hSetErr := redis.HSet[utils.ResetPasswordSession](

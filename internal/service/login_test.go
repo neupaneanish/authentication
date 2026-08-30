@@ -62,7 +62,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -79,7 +79,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -100,10 +100,9 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		userIDStr, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
+		userID, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
-		userID := uuid.MustParse(userIDStr)
 		verifyEmailParams := &repository.VerifyEmailParams{
 			Status:    enum.UserStatusPending,
 			UpdatedBy: userID,
@@ -132,7 +131,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked, false)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -153,7 +152,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted, false)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -174,7 +173,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
-		uID, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true)
+		userID, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		secret, secretErr := cfg.TwoFactor.Generate("Test")
@@ -183,7 +182,6 @@ func TestLogin(t *testing.T) {
 		encrypt, encryptErr := cfg.TwoFactor.Encrypt(secret.Secret)
 		require.NoError(t, encryptErr)
 
-		userID := uuid.MustParse(uID)
 		params := &repository.CreateTwoFactorParams{
 			UserID:    userID,
 			Secret:    encrypt,
@@ -213,7 +211,7 @@ func TestLogin(t *testing.T) {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
 
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -234,7 +232,7 @@ func TestLogin(t *testing.T) {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
 
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -257,7 +255,7 @@ func TestLogin(t *testing.T) {
 		email := cfg.Domain.GenerateEmail(rand.Text())
 		password := "Test@123456"
 
-		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, false)
+		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, false, enum.UserRoleUser)
 		require.NoError(t, err)
 
 		req := &externalAuthenticationv1.LoginRequest{
@@ -303,7 +301,7 @@ func TestLogin(t *testing.T) {
 		t.Parallel()
 		md := metadata.Pairs(
 			"x-user-id", uuid.NewV7().String(),
-			"x-role", "test",
+			"x-role", string(enum.UserRoleUser),
 			"x-jti", uuid.NewV7().String(),
 		)
 

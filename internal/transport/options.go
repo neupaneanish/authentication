@@ -14,6 +14,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
+	rootAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/root/authentication/v1"
 
 	protovalidatemiddleware "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"google.golang.org/grpc"
@@ -63,8 +64,15 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 		gatewayAuthenticationv1.GatewayAuthenticationService_Resend_FullMethodName:                      {},
 	}
 
+	rootEndpoints := map[string]struct{}{
+		rootAuthenticationv1.RootAuthenticationService_UpdateRole_FullMethodName:   {},
+		rootAuthenticationv1.RootAuthenticationService_UpdateStatus_FullMethodName: {},
+		rootAuthenticationv1.RootAuthenticationService_User_FullMethodName:         {},
+		rootAuthenticationv1.RootAuthenticationService_Users_FullMethodName:        {},
+	}
+
 	authFunc := func(ctx context.Context) (context.Context, error) {
-		return AuthInterceptor(ctx, externalEndpoints, gatewayEndpoints)
+		return AuthInterceptor(ctx, externalEndpoints, gatewayEndpoints, rootEndpoints)
 	}
 
 	opts := []grpc.ServerOption{

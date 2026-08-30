@@ -5,6 +5,7 @@ modules:
     includes:
       - protobuf/external/authentication
       - protobuf/gateway/authentication
+      - protobuf/root/authentication
       - protobuf/common
 lint:
   use:

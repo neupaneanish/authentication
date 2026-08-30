@@ -258,10 +258,17 @@ func runMigrations(url string) error {
 	return nil
 }
 
-func seedUser(ctx context.Context, email string, password string, status enum.UserStatus, active bool) (string, error) {
+func seedUser(
+	ctx context.Context,
+	email string,
+	password string,
+	status enum.UserStatus,
+	active bool,
+	role enum.UserRole,
+) (uuid.UUID, error) {
 	tx, txErr := cfg.Pool.Begin(ctx)
 	if txErr != nil {
-		return "", txErr
+		return uuid.Nil(), txErr
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
@@ -276,19 +283,19 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 		Email:     email,
 		Username:  email,
 		Phone:     phone,
-		Role:      enum.UserRoleUser,
+		Role:      role,
 		Status:    status,
 		CreatedBy: uuid.Nil(),
 		UpdatedBy: uuid.Nil(),
 	}
 	userRow, userRowErr := qtx.CreateUser(ctx, userParams)
 	if userRowErr != nil {
-		return "", userRowErr
+		return uuid.Nil(), userRowErr
 	}
 
 	hash, hashErr := utils.CreatePassword(password)
 	if hashErr != nil {
-		return "", hashErr
+		return uuid.Nil(), hashErr
 	}
 
 	credentialsParams := &repository.CreateCredentialParams{
@@ -299,11 +306,11 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 
 	affected, credentialsErr := qtx.CreateCredential(ctx, credentialsParams)
 	if credentialsErr != nil {
-		return "", credentialsErr
+		return uuid.Nil(), credentialsErr
 	}
 
 	if affected.RowsAffected() == 0 {
-		return "", errors.New("cannot create credentials")
+		return uuid.Nil(), errors.New("cannot create credentials")
 	}
 
 	if active {
@@ -315,18 +322,18 @@ func seedUser(ctx context.Context, email string, password string, status enum.Us
 
 		_, userErr := qtx.VerifyEmail(ctx, verifyEmailParams)
 		if userErr != nil {
-			return "", userErr
+			return uuid.Nil(), userErr
 		}
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
-		return "", txCommitErr
+		return uuid.Nil(), txCommitErr
 	}
 
-	return userRow.ID.String(), nil
+	return userRow.ID, nil
 }
 
-func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
+func seedTwoFactor(t *testing.T, recovery bool) (uuid.UUID, string, []string) {
 	t.Helper()
 	email := cfg.Domain.GenerateEmail(uuid.NewV7().String())
 	userID, seedErr := seedUser(
@@ -335,6 +342,7 @@ func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
 		"Password@12345",
 		enum.UserStatusActive,
 		true,
+		enum.UserRoleUser,
 	)
 	require.NoError(t, seedErr)
 
@@ -343,10 +351,10 @@ func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
 	assert.NotNil(t, tf)
 
 	twoFactorParams := &repository.CreateTwoFactorParams{
-		UserID:    uuid.MustParse(userID),
+		UserID:    userID,
 		Secret:    tf.Encrypt,
-		CreatedBy: uuid.MustParse(userID),
-		UpdatedBy: uuid.MustParse(userID),
+		CreatedBy: userID,
+		UpdatedBy: userID,
 	}
 
 	recoveryCodes, recoveryCodesErr := cfg.TwoFactor.GenerateRecoveryCodes()
@@ -356,10 +364,10 @@ func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
 	if recovery {
 		for _, hash := range recoveryCodes.Hash {
 			recoveryCodesRows = append(recoveryCodesRows, &repository.CreateRecoveryCodesParams{
-				UserID:    uuid.MustParse(userID),
+				UserID:    userID,
 				Code:      hash,
-				CreatedBy: uuid.MustParse(userID),
-				UpdatedBy: uuid.MustParse(userID),
+				CreatedBy: userID,
+				UpdatedBy: userID,
 			})
 		}
 	}
@@ -382,12 +390,12 @@ func seedTwoFactor(t *testing.T, recovery bool) (string, string, []string) {
 	return userID, tf.Secret, recoveryCodes.Plain
 }
 
-func contextWithValue(t *testing.T, userID string) context.Context {
+func contextWithValue(t *testing.T, userID uuid.UUID, role enum.UserRole) context.Context {
 	t.Helper()
 
 	md := metadata.Pairs(
-		"x-user-id", userID,
-		"x-role", "test",
+		"x-user-id", userID.String(),
+		"x-role", string(role),
 		"x-jti", uuid.NewV7().String(),
 	)
 

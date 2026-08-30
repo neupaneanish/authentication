@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-
 	"uuid"
 
 	"github.com/valkey-io/valkey-go/om"
@@ -18,14 +17,14 @@ func (s *ExternalAuthenticationService) ResetPassword(
 	req *externalAuthenticationv1.ResetPasswordRequest,
 ) (*externalAuthenticationv1.ResetPasswordResponse, error) {
 	serviceName := "ResetPassword"
-
-	result, resultErr := s.cfg.RateLimiter.ResetPassword.Allow(ctx, req.GetSession())
+	session := req.GetSession()
+	result, resultErr := s.cfg.RateLimiter.ResetPassword.Allow(ctx, session)
 	if limiterErr := LimiterCheck(
 		ctx,
 		&result,
 		resultErr,
 		serviceName,
-		req.GetSession(),
+		session,
 		s.cfg.Logger,
 	); limiterErr != nil {
 		return nil, limiterErr
@@ -34,16 +33,23 @@ func (s *ExternalAuthenticationService) ResetPassword(
 	resetSession, resetSessionErr := redis.HGet[utils.ResetPasswordSession](
 		ctx,
 		utils.ResetPasswordSessionPrefix,
-		req.GetSession(),
+		session,
 		s.cfg.Client,
 	)
 	if resetSessionErr != nil {
 		if om.IsRecordNotFound(resetSessionErr) {
-			s.cfg.Logger.WarnContext(ctx, serviceName+" session expired", "session", req.GetSession())
+			s.cfg.Logger.WarnContext(ctx, "Session not found", "service", serviceName, "session", session)
 			return nil, errs.ErrSessionExpired
 		}
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey hGet", "error", resetSessionErr)
+		s.cfg.Logger.ErrorContext(ctx, "Valkey Get", "service", serviceName, "error", resetSessionErr)
 		return nil, errs.ErrInternalServer
+	}
+
+	userID, userIDErr := uuid.Parse(resetSession.UserID)
+	if userIDErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Invalid UserID", "session", session, "error", userIDErr)
+		s.deleteResetPasswordSession(ctx, session, serviceName)
+		return nil, errs.ErrSessionExpired
 	}
 
 	resultUserID, resultUserIDErr := s.cfg.RateLimiter.ResetPasswordUserID.Allow(ctx, resetSession.UserID)
@@ -58,7 +64,6 @@ func (s *ExternalAuthenticationService) ResetPassword(
 		return nil, userIDLimiterErr
 	}
 
-	userID := uuid.MustParse(resetSession.UserID)
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
 		s.cfg.Pool,
@@ -73,15 +78,17 @@ func (s *ExternalAuthenticationService) ResetPassword(
 	); changeResetPasswordErr != nil {
 		return nil, changeResetPasswordErr
 	}
-	hDeleteErr := redis.HDelete[utils.ResetPasswordSession](
+	s.deleteResetPasswordSession(ctx, resetSession.Key, serviceName)
+	return &externalAuthenticationv1.ResetPasswordResponse{}, nil
+}
+
+func (s *ExternalAuthenticationService) deleteResetPasswordSession(ctx context.Context, session, serviceName string) {
+	if err := redis.HDelete[utils.ResetPasswordSession](
 		ctx,
 		utils.ResetPasswordSessionPrefix,
-		req.GetSession(),
+		session,
 		s.cfg.Client,
-	)
-	if hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" valkey delete", "error", hDeleteErr)
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "vValkey delete", "service", serviceName, "error", err)
 	}
-
-	return &externalAuthenticationv1.ResetPasswordResponse{}, nil
 }

@@ -35,9 +35,9 @@ func TestPasswordSessionVerification(t *testing.T) {
 	t.Run("Session Not Found", func(t *testing.T) {
 		t.Parallel()
 
-		userID := uuid.NewV7().String()
+		userID := uuid.NewV7()
 
-		ctx := contextWithValue(t, userID)
+		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: rand.Text(),
@@ -53,24 +53,24 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 	t.Run("Rate Limiter Change", func(t *testing.T) {
 		t.Parallel()
-		passwordSessionVerificationRateLimiter(t, uuid.NewV7().String(), enum.SecurityMethodChangePassword, false)
+		passwordSessionVerificationRateLimiter(t, uuid.NewV7(), enum.SecurityMethodChangePassword, false)
 	})
 
 	t.Run("Rate Limiter Enable", func(t *testing.T) {
 		t.Parallel()
 
-		passwordSessionVerificationRateLimiter(t, uuid.NewV7().String(), enum.SecurityMethodEnableTwoFactor, false)
+		passwordSessionVerificationRateLimiter(t, uuid.NewV7(), enum.SecurityMethodEnableTwoFactor, false)
 	})
 
 	t.Run("Rate Limiter Disabled", func(t *testing.T) {
 		t.Parallel()
 
-		passwordSessionVerificationRateLimiter(t, uuid.NewV7().String(), enum.SecurityMethodDisableTwoFactor, false)
+		passwordSessionVerificationRateLimiter(t, uuid.NewV7(), enum.SecurityMethodDisableTwoFactor, false)
 	})
 
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
-		ctx, session, code := seedPasswordSessionVerification(t, uuid.NewV7().String(), "Test")
+		ctx, session, code := seedPasswordSessionVerification(t, uuid.NewV7(), "Test")
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
 			Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: code},
@@ -94,7 +94,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 	t.Run("Invalid Code for Change and Enable TOTP", func(t *testing.T) {
 		t.Parallel()
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), enum.SecurityMethodChangePassword)
+		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
 			Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Totp{Totp: "123456"},
@@ -110,7 +110,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 		t.Parallel()
 		ctx, session, _ := seedPasswordSessionVerification(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.SecurityMethodDisableTwoFactor,
 		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
@@ -161,7 +161,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 		ctx, session, code := seedPasswordSessionVerification(
 			t,
-			uuid.NewV7().String(),
+			uuid.NewV7(),
 			enum.SecurityMethodChangePassword,
 		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
@@ -231,14 +231,14 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 func seedPasswordSessionVerification(
 	t *testing.T,
-	userID string,
+	userID uuid.UUID,
 	method enum.SecurityMethod,
 ) (context.Context, string, string) {
 	t.Helper()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	email := cfg.Domain.GenerateEmail(userID)
+	email := cfg.Domain.GenerateEmail(userID.String())
 
 	code, _, err := service.GenerateEmailCode(t.Context(), logger)
 	require.NoError(t, err)
@@ -246,7 +246,7 @@ func seedPasswordSessionVerification(
 	session := rand.Text()
 
 	data := &utils.PasswordVerificationSession{
-		Key:     userID,
+		Key:     userID.String(),
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Code:    code,
 		Email:   email,
@@ -262,14 +262,14 @@ func seedPasswordSessionVerification(
 	)
 	require.NoError(t, hSetErr)
 
-	ctx := contextWithValue(t, userID)
+	ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 	return ctx, session, code
 }
 
 func passwordSessionVerificationRateLimiter(
 	t *testing.T,
-	userID string,
+	userID uuid.UUID,
 	method enum.SecurityMethod,
 	recovery bool,
 ) {
@@ -324,7 +324,7 @@ func passwordSessionVerificationRateLimiter(
 func invalidCode(t *testing.T, method enum.SecurityMethod) {
 	t.Helper()
 
-	ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7().String(), method)
+	ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), method)
 	req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 		Session: session,
 		Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: "12345678"},
@@ -358,6 +358,7 @@ func seedSuccessEnable(t *testing.T) (context.Context, string, string) {
 		"Password@1234",
 		enum.UserStatusActive,
 		true,
+		enum.UserRoleUser,
 	)
 	require.NoError(t, seedErr)
 

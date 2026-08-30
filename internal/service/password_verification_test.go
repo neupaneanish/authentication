@@ -23,7 +23,7 @@ func TestPasswordVerification(t *testing.T) {
 	t.Run("No User", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.PasswordVerificationRequest{
 			Password: &passwordv1.Password{Value: "Password@12345"},
@@ -38,7 +38,7 @@ func TestPasswordVerification(t *testing.T) {
 	t.Run("Unknown Method", func(t *testing.T) {
 		t.Parallel()
 
-		ctx := contextWithValue(t, uuid.NewV7().String())
+		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.PasswordVerificationRequest{
 			Password: &passwordv1.Password{Value: "Password@12345"},
@@ -82,10 +82,11 @@ func TestPasswordVerification(t *testing.T) {
 			"Password@1234",
 			enum.UserStatusActive,
 			true,
+			enum.UserRoleUser,
 		)
 		require.NoError(t, seedErr)
 
-		ctx := contextWithValue(t, userID)
+		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 		req := &gatewayAuthenticationv1.PasswordVerificationRequest{
 			Password: &passwordv1.Password{Value: "Password@12345"},
@@ -126,9 +127,9 @@ func passwordVerificationRateLimit(t *testing.T, method gatewayAuthenticationv1.
 	t.Helper()
 
 	password := "Password@12345"
-	userID := uuid.NewV7().String()
+	userID := uuid.NewV7()
 
-	ctx := contextWithValue(t, userID)
+	ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 	req := &gatewayAuthenticationv1.PasswordVerificationRequest{
 		Password: &passwordv1.Password{Value: password},
@@ -157,10 +158,11 @@ func successPasswordVerification(t *testing.T, method gatewayAuthenticationv1.Pa
 		password,
 		enum.UserStatusActive,
 		true,
+		enum.UserRoleUser,
 	)
 	require.NoError(t, seedErr)
 
-	ctx := contextWithValue(t, userID)
+	ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
 	req := &gatewayAuthenticationv1.PasswordVerificationRequest{
 		Password: &passwordv1.Password{Value: password},
