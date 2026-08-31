@@ -25,7 +25,7 @@ func (s *GatewayAuthenticationService) Profile(
 	if userErr != nil {
 		if errors.Is(userErr, pgx.ErrNoRows) {
 			s.cfg.Logger.WarnContext(ctx, "User not found", "service", serviceName)
-			_ = s.logoutAll(ctx, userSession.UserID.String(), serviceName)
+			_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 			return nil, errs.ErrUnauthenticated
 		}
 		s.cfg.Logger.ErrorContext(ctx, "PostgreSQL User Query", "service", serviceName, "error", userErr)

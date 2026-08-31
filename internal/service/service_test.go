@@ -26,6 +26,8 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
+	rootAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/root/authentication/v1"
+
 	"neupaneanish.com.np/authentication/internal/config"
 	"neupaneanish.com.np/authentication/internal/enum"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -48,6 +50,7 @@ var (
 	cfg                                 *config.Config
 	externalAuthenticationServiceClient externalAuthenticationv1.ExternalAuthenticationServiceClient
 	gatewayAuthenticationServiceClient  gatewayAuthenticationv1.GatewayAuthenticationServiceClient
+	rootAuthenticationServiceClient     rootAuthenticationv1.RootAuthenticationServiceClient
 	phoneCounter                        atomic.Uint64
 )
 
@@ -95,6 +98,7 @@ func TestMain(m *testing.M) {
 
 	externalAuthenticationServiceClient = externalAuthenticationv1.NewExternalAuthenticationServiceClient(client)
 	gatewayAuthenticationServiceClient = gatewayAuthenticationv1.NewGatewayAuthenticationServiceClient(client)
+	rootAuthenticationServiceClient = rootAuthenticationv1.NewRootAuthenticationServiceClient(client)
 
 	code := m.Run()
 	loggerCleanupErr := loggerCleanup(ctx)
@@ -194,6 +198,10 @@ func testClientServer(cfg *config.Config, logger *slog.Logger) (*grpc.ClientConn
 	gatewayAuthenticationv1.RegisterGatewayAuthenticationServiceServer(
 		server,
 		service.NewGatewayAuthenticationService(cfg),
+	)
+	rootAuthenticationv1.RegisterRootAuthenticationServiceServer(
+		server,
+		service.NewRootAuthenticationService(cfg),
 	)
 
 	go func() {

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -334,20 +335,20 @@ func AffectedRowCheck(
 	return nil
 }
 
-func (s *GatewayAuthenticationService) logoutAll(ctx context.Context, userID, serviceName string) error {
-	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, s.cfg.Client)
+func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Client, logger *slog.Logger) error {
+	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, client)
 	if keysErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
+		logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
 		return errs.ErrInternalServer
 	}
 
 	for _, key := range keys {
-		_ = redis.HDelete[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, key, s.cfg.Client)
-		_ = redis.HDelete[utils.LoginRefreshSession](ctx, utils.LoginRefreshSessionPrefix, key, s.cfg.Client)
+		_ = redis.HDelete[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, key, client)
+		_ = redis.HDelete[utils.LoginRefreshSession](ctx, utils.LoginRefreshSessionPrefix, key, client)
 	}
 
-	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, s.cfg.Client); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
+	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, client); err != nil {
+		logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
 		return errs.ErrInternalServer
 	}
 

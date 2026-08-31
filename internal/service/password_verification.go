@@ -53,17 +53,7 @@ func (s *GatewayAuthenticationService) PasswordVerification(
 				"userID",
 				userSession.UserID.String(),
 			)
-			if logoutAllErr := s.logoutAll(ctx, userSession.UserID.String(), serviceName); logoutAllErr != nil {
-				s.cfg.Logger.ErrorContext(
-					ctx,
-					"Valkey Logout",
-					"service",
-					serviceName,
-					"userID",
-					userSession.UserID.String(),
-					"error", logoutAllErr,
-				)
-			}
+			_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 			return nil, errs.ErrSessionExpired
 		}
 		s.cfg.Logger.ErrorContext(ctx, "Postgres get", "service", serviceName, "error", rowErr)

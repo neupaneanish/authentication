@@ -75,9 +75,7 @@ func (s *GatewayAuthenticationService) ChangePassword(
 		s.cfg.Logger.ErrorContext(ctx, "Valkey delete", "service", serviceName, "error", hDeleteErr)
 	}
 
-	if err := s.logoutAll(ctx, userSession.UserID.String(), serviceName); err != nil {
-		return nil, err
-	}
+	_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 
 	return &gatewayAuthenticationv1.ChangePasswordResponse{}, nil
 }

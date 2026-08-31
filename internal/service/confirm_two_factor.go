@@ -178,12 +178,12 @@ func (s *GatewayAuthenticationService) confirmTwoFactorDatabase(
 }
 
 func (s *GatewayAuthenticationService) deleteConfirmTwoFactorSession(ctx context.Context, key, serviceName string) {
-	if hDeleteErr := redis.HDelete[utils.EnableTwoFactorSession](
+	if err := redis.HDelete[utils.EnableTwoFactorSession](
 		ctx,
 		utils.TwoFactorSessionPrefix,
 		key,
 		s.cfg.Client,
-	); hDeleteErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey delete setup session", "service", serviceName, "error", hDeleteErr)
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey delete setup session", "service", serviceName, "error", err)
 	}
 }

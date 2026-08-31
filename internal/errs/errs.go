@@ -14,6 +14,8 @@ var (
 	ErrInvalidEmail           = status.Error(codes.InvalidArgument, "Invalid email")
 	ErrEmailAlreadyExists     = status.Error(codes.AlreadyExists, "Email already exists")
 	ErrInvalidPhone           = status.Error(codes.InvalidArgument, "Invalid phone number")
+	ErrInvalidRole            = status.Error(codes.InvalidArgument, "Invalid role")
+	ErrInvalidStatus          = status.Error(codes.InvalidArgument, "Invalid status")
 	ErrPhoneAlreadyExists     = status.Error(codes.AlreadyExists, "Phone already exists")
 	ErrUsernameAlreadyExists  = status.Error(codes.AlreadyExists, "username already exists")
 	ErrAccountAlreadyVerified = status.Error(codes.AlreadyExists, "Account already verified")
@@ -29,4 +31,16 @@ var (
 	ErrAlreadyEnabled         = status.Error(codes.AlreadyExists, "Already Enabled")
 	ErrInvalidMethod          = status.Error(codes.InvalidArgument, "Invalid method")
 	ErrUnauthenticated        = status.Error(codes.Unauthenticated, "Session Expired")
+	ErrFailedPreconditionRole = status.Error(
+		codes.FailedPrecondition,
+		"Role update rejected, Role is identical or record is stale. Please refresh.",
+	)
+	ErrFailedPreconditionStatus = status.Error(
+		codes.FailedPrecondition,
+		"Status update rejected, Status is identical or record is stale. Please refresh.",
+	)
+	ErrSelfUpdate = status.Error(
+		codes.PermissionDenied,
+		"Self-update rejected: You are not permitted to update your information",
+	)
 )
