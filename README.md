@@ -64,9 +64,16 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 - [X] ChangePassword
 - [X] ConfirmTwoFactor
 - [X] Role
-- [ ] Profile
+- [X] Profile
 - [X] Logout
 - [X] LogoutAll
+
+### Root
+
+- [X] Users
+- [X] User
+- [X] UpdateRole
+- [X] UpdateStatus
 
 ---
 
@@ -208,7 +215,7 @@ go run cmd/server/main.go
 
 ---
 
-## Coverage ~88.90%
+## Coverage ~89.00%
 
 > Note: Metrics reflect core application logic after filtering out `main.go`, generated protobuf definitions, raw SQL
 > repository code, and test helper suites.

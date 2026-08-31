@@ -4,6 +4,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/config"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
+	rootAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/root/authentication/v1"
 )
 
 type ExternalAuthenticationService struct {
@@ -26,6 +27,18 @@ type GatewayAuthenticationService struct {
 
 func NewGatewayAuthenticationService(cfg *config.Config) *GatewayAuthenticationService {
 	return &GatewayAuthenticationService{
+		cfg: cfg,
+	}
+}
+
+type RootAuthenticationService struct {
+	rootAuthenticationv1.UnimplementedRootAuthenticationServiceServer
+
+	cfg *config.Config
+}
+
+func NewRootAuthenticationService(cfg *config.Config) *RootAuthenticationService {
+	return &RootAuthenticationService{
 		cfg: cfg,
 	}
 }
