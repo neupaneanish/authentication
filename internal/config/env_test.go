@@ -29,13 +29,9 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("ENVIRONMENT")
 		_ = os.Unsetenv("TELEMETRY_URL")
 		_ = os.Unsetenv("ISSUER")
-		_ = os.Unsetenv("DOMAIN")
-		_ = os.Unsetenv("DOMAIN_VERIFICATION")
 		_ = os.Unsetenv("ALLOW_FREE_EMAIL")
 		_ = os.Unsetenv("ALLOW_ROLE_EMAIL")
 	}
-
-	txt := "DR2JTINSHENMG45HCADCSKYJZS"
 
 	t.Run("Success with all variables", func(t *testing.T) {
 		cleanup()
@@ -53,13 +49,10 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("ENVIRONMENT", "production")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
 		t.Setenv("ISSUER", "Test Issuer")
-		t.Setenv("DOMAIN", "neupaneanish.com.np")
-		t.Setenv("DOMAIN_VERIFICATION", txt)
-		t.Setenv("DOMAIN_NAME", "test")
 		t.Setenv("ALLOW_FREE_EMAIL", "1")
 		t.Setenv("ALLOW_ROLE_EMAIL", "1")
 
-		env, envErr := config.LoadEnv(t.Context())
+		env, envErr := config.LoadEnv()
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
 		assert.Equal(t, "50051", env.Port)
@@ -75,27 +68,24 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
-		t.Setenv("DOMAIN", "neupaneanish.com.np")
-		t.Setenv("DOMAIN_VERIFICATION", txt)
-		t.Setenv("DOMAIN_NAME", "test")
 		t.Setenv("ALLOW_FREE_EMAIL", "1")
 		t.Setenv("ALLOW_ROLE_EMAIL", "1")
 
-		env, envErr := config.LoadEnv(t.Context())
+		env, envErr := config.LoadEnv()
 		require.NoError(t, envErr)
 		assert.NotNil(t, env)
 		assert.Equal(t, "50051", env.Port)
 
 		t.Run("Invalid port", func(t *testing.T) {
 			t.Setenv("PORT", "79")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
 
 		t.Run("Invalid http port", func(t *testing.T) {
 			t.Setenv("HTTP_PORT", "79")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
@@ -103,49 +93,30 @@ func TestLoadEnv(t *testing.T) {
 		t.Run("Both port same", func(t *testing.T) {
 			t.Setenv("HTTP_PORT", "8080")
 			t.Setenv("PORT", "8080")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
 
 		t.Run("Invalid environment", func(t *testing.T) {
 			t.Setenv("ENVIRONMENT", "staging")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
 
 		t.Run("Invalid Database PORT", func(t *testing.T) {
 			t.Setenv("DATABASE_PORT", "79")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.Error(t, pEnvErr)
 			assert.Nil(t, pEnv)
 		})
 
 		t.Run("Database SSL False", func(t *testing.T) {
 			t.Setenv("DATABASE_SSL", "False")
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
+			pEnv, pEnvErr := config.LoadEnv()
 			require.NoError(t, pEnvErr)
 			assert.NotNil(t, pEnv)
-		})
-
-		t.Run("Invalid domain", func(t *testing.T) {
-			cleanup()
-			t.Setenv("DATABASE_HOST", "127.0.0.1")
-			t.Setenv("DATABASE_NAME", "postgres")
-			t.Setenv("DATABASE_USER", "postgres")
-			t.Setenv("DATABASE_PASSWORD", "postgres")
-			t.Setenv("VALKEY_URL", "localhost:6379")
-			t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
-			t.Setenv("JWT_KEY", "jwt-key")
-			t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
-			t.Setenv("DOMAIN", "neupaneanish.com.np")
-			t.Setenv("DOMAIN_VERIFICATION", rand.Text())
-			t.Setenv("DOMAIN_NAME", "test")
-
-			pEnv, pEnvErr := config.LoadEnv(t.Context())
-			require.Error(t, pEnvErr)
-			assert.Nil(t, pEnv)
 		})
 	})
 
@@ -159,20 +130,17 @@ func TestLoadEnv(t *testing.T) {
 			"JWT_KEY",
 			"TWO_FACTOR_KEY",
 			"TELEMETRY_URL",
-			"DOMAIN",
-			"DOMAIN_VERIFICATION",
-			"DOMAIN_NAME",
 		}
 
 		for _, v := range requiredVariables {
 			t.Run("Missing "+v, func(t *testing.T) {
 				for _, all := range requiredVariables {
-					t.Setenv(all, txt)
+					t.Setenv(all, rand.Text())
 				}
 
 				_ = os.Unsetenv(v)
 
-				env, err := config.LoadEnv(t.Context())
+				env, err := config.LoadEnv()
 				require.Error(t, err)
 				assert.Nil(t, env)
 				assert.Contains(t, err.Error(), v)

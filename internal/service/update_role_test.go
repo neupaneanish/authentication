@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"testing"
 	"time"
 	"uuid"
@@ -41,7 +40,7 @@ func TestUpdateRole(t *testing.T) {
 		t.Parallel()
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password",
 			enum.UserStatusActive,
 			false,
@@ -61,7 +60,7 @@ func TestUpdateRole(t *testing.T) {
 		t.Parallel()
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password",
 			enum.UserStatusActive,
 			false,
@@ -101,7 +100,7 @@ func TestUpdateRole(t *testing.T) {
 
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password",
 			enum.UserStatusActive,
 			false,

@@ -34,11 +34,6 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 		),
 	}
 
-	if !s.cfg.Domain.ValidateEmail(email) {
-		s.cfg.Logger.WarnContext(ctx, "invalid email", "email", email)
-		return response, nil
-	}
-
 	params := &repository.UserByEmailParams{Email: email}
 
 	row, rowErr := s.cfg.Repository.UserByEmail(ctx, params)

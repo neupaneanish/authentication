@@ -25,7 +25,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Not register", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{
@@ -60,7 +60,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Registered user", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Invalid Credentials", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -98,7 +98,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Pending", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		userID, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Restricted", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusLocked, false, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -150,7 +150,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Soft Delete", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusDeleted, false, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -171,7 +171,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Two factor", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 		userID, err := seedUser(t.Context(), email, password, enum.UserStatusActive, true, enum.UserRoleUser)
 		require.NoError(t, err)
@@ -208,7 +208,7 @@ func TestLogin(t *testing.T) {
 	t.Run("Verification", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
@@ -229,7 +229,7 @@ func TestLogin(t *testing.T) {
 	t.Run("Verification invalid password", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusPending, false, enum.UserRoleUser)
@@ -252,7 +252,7 @@ func TestLogin(t *testing.T) {
 	t.Run("Verification email not verified", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		password := "Test@123456"
 
 		_, err := seedUser(t.Context(), email, password, enum.UserStatusActive, false, enum.UserRoleUser)
@@ -273,7 +273,7 @@ func TestLogin(t *testing.T) {
 	t.Run("Rate Limiter", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 
 		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
@@ -307,7 +307,7 @@ func TestLogin(t *testing.T) {
 
 		ctx := metadata.NewOutgoingContext(t.Context(), md)
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
 			Password: &passwordv1.Password{

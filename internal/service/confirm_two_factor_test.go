@@ -30,7 +30,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 		session := rand.Text()
 		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
-		secret := seedConfirmTwoFactorSession(t, userID, session, cfg.Domain.GenerateEmail(session))
+		secret := seedConfirmTwoFactorSession(t, userID, session, generateEmail())
 		code, codeErr := totp.GenerateCode(secret, time.Now())
 		require.NoError(t, codeErr)
 
@@ -63,7 +63,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 				assert.Len(t, response.GetCodes(), 10)
 			} else {
 				newSession := rand.Text()
-				newSecret := seedConfirmTwoFactorSession(t, userID, newSession, cfg.Domain.GenerateEmail(rand.Text()))
+				newSecret := seedConfirmTwoFactorSession(t, userID, newSession, generateEmail())
 				newCode, newCodeErr := totp.GenerateCode(newSecret, time.Now())
 				require.NoError(t, newCodeErr)
 				req := &gatewayAuthenticationv1.ConfirmTwoFactorRequest{
@@ -105,7 +105,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 
 		userID := uuid.NewV7()
 
-		_ = seedConfirmTwoFactorSession(t, userID, rand.Text(), cfg.Domain.GenerateEmail(userID.String()))
+		_ = seedConfirmTwoFactorSession(t, userID, rand.Text(), generateEmail())
 
 		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
@@ -126,7 +126,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 		userID := uuid.NewV7()
 		session := rand.Text()
 
-		_ = seedConfirmTwoFactorSession(t, userID, session, cfg.Domain.GenerateEmail(userID.String()))
+		_ = seedConfirmTwoFactorSession(t, userID, session, generateEmail())
 
 		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 
@@ -145,7 +145,7 @@ func TestConfirmTwoFactor(t *testing.T) {
 func seedConfirmTwoFactor(t *testing.T) (context.Context, string, string, uuid.UUID) {
 	t.Helper()
 	session := rand.Text()
-	email := cfg.Domain.GenerateEmail(session)
+	email := generateEmail()
 
 	userID, seedErr := seedUser(
 		t.Context(),

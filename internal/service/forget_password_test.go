@@ -31,7 +31,7 @@ func TestForgetPassword(t *testing.T) {
 
 	t.Run("Unregister email", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
 		response, err := externalAuthenticationServiceClient.ForgetPassword(t.Context(), req)
@@ -41,7 +41,7 @@ func TestForgetPassword(t *testing.T) {
 
 	t.Run("Register email", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		_, seedErr := seedUser(
 			t.Context(),
 			email,
@@ -62,7 +62,7 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Email not verified", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		_, seedErr := seedUser(
 			t.Context(),
 			email,
@@ -83,7 +83,7 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Pending", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		userID, seedErr := seedUser(
 			t.Context(),
 			email,
@@ -116,7 +116,7 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Verification", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		_, seedErr := seedUser(
 			t.Context(),
 			email,
@@ -137,7 +137,7 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Locked", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		_, seedErr := seedUser(
 			t.Context(),
 			email,
@@ -158,7 +158,7 @@ func TestForgetPassword(t *testing.T) {
 	t.Run("Rate limiter", func(t *testing.T) {
 		t.Parallel()
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		req := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
 
 		for i := range 5 {

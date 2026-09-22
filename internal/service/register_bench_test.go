@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"fmt"
 	"testing"
 
@@ -18,7 +17,7 @@ func BenchmarkRegister(b *testing.B) {
 		id := phoneCounter.Add(1)
 		phone := fmt.Sprintf("+97798041%d", 10000+id)
 		requests[i] = &externalAuthenticationv1.RegisterRequest{
-			Email:           cfg.Domain.GenerateEmail(rand.Text()),
+			Email:           generateEmail(),
 			Password:        &passwordv1.Password{Value: "Password@12345"},
 			ConfirmPassword: &passwordv1.Password{Value: "Password@12345"},
 			Phone:           phone,

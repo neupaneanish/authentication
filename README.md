@@ -29,18 +29,19 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Technologies Stack
 
-| Technology                                                |                                                                                                       | Description                                                                      |
-|:----------------------------------------------------------|:-----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
-| [**Go**](https://go.dev)                                  |               <img src="https://thesvg.org/icons/go/default.svg" height="12" alt="Go">                | Core application logic                                                           |
-| [**gRPC**](https://grpc.io)                               |             <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
-| [**PostgreSQL**](https://postgresql.org)                  |       <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
-| [**JWT**](https://jwt.io)                                 |              <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
-| [**Valkey**](https://valkey.io)                           |           <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
-| [**Docker**](https://docker.com)                          |           <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
-| [**Test Containers**](https://testcontainers.com)         |   <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
-| [**GitHub Actions**](https://github.com/features/actions) |   <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
-| [**OpenTelemetry**](https://opentelemetry.io)             |    <img src="https://thesvg.org/icons/opentelemetry/default.svg" height="24" alt="OpenTelemetry">     | Observability and telemetry framework                                            |
-| [**Google Authenticator**]()                              | <img src="https://thesvg.org/icons/google-authenticator/default.svg" height="24" alt="OpenTelemetry"> | Two-Factor Authentication (2FA) via TOTP                                         |
+| Technology                                                        |                                                                                                       | Description                                                                      |
+|:------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
+| [**Go**](https://go.dev)                                          |               <img src="https://thesvg.org/icons/go/default.svg" height="12" alt="Go">                | Core application logic                                                           |
+| [**gRPC**](https://grpc.io)                                       |             <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
+| [**PostgreSQL**](https://postgresql.org)                          |       <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
+| [**JWT**](https://jwt.io)                                         |              <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
+| [**Valkey**](https://valkey.io)                                   |           <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
+| [**Docker**](https://docker.com)                                  |           <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
+| [**Test Containers**](https://testcontainers.com)                 |   <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
+| [**GitHub Actions**](https://github.com/features/actions)         |   <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
+| [**OpenTelemetry**](https://opentelemetry.io)                     |    <img src="https://thesvg.org/icons/opentelemetry/default.svg" height="24" alt="OpenTelemetry">     | Observability and telemetry framework                                            |
+| [**Google Authenticator**]()                                      | <img src="https://thesvg.org/icons/google-authenticator/default.svg" height="24" alt="OpenTelemetry"> | Two-Factor Authentication (2FA) via TOTP                                         |
+| [**Email Verifier**](https://github.com/AfterShip/email-verifier) |        <img src="https://thesvg.org/icons/aftership/default.svg" height="24" alt="AfterShip">         | Email Verifier                                                                   |
 
 ---
 
@@ -81,26 +82,25 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ### Server
 
-|        Name         |               Default                |                                   Options                                    |
-|:-------------------:|:------------------------------------:|:----------------------------------------------------------------------------:|
-|    DATABASE_HOST    |                                      |                                                                              |
-|    DATABASE_NAME    |                                      |                                                                              |
-|    DATABASE_USER    |                                      |                                                                              |
-|  DATABASE_PASSWORD  |                                      |                                                                              |
-|    DATABASE_PORT    |                `5432`                |                                                                              |
-|    DATABASE_SSL     |                `True`                |                                                                              |
-|     VALKEY_URL      |                                      |                                                                              |
-|       JWT_KEY       |                                      |                      `ed25519` Private Key Seed Size 32                      |
-|   TWO_FACTOR_KEY    |                                      |                      `ed25519` Private Key Seed Size 32                      |
-|       ISSUER        |           `Anish Neupane`            |                                                                              |
-|        PORT         |               `50051`                |                               `80` to `65535`                                |
-|      HTTP_PORT      |                `8000`                |                               `80` to `65535`                                |
-|    SERVICE_NAME     | `neupaneanish.com.np/authentication` |                                                                              |
-|     ENVIRONMENT     |            `development`             |                        `development` or `production`                         |
-|    TELEMETRY_URL    |                                      |                                gRPC port only                                |
-|       DOMAIN        |                                      |           Naked domain (e.g., neupaneanish.com.np or example.com)            |
-| DOMAIN_VERIFICATION |                                      |                Random token string generated via rand.Text()                 |
-|     DOMAIN_NAME     |                                      | Prefix e.g. api (api.neupaneanish.com.np) for user to point their own domain |
+|       Name        |         Default          |              Options               |
+|:-----------------:|:------------------------:|:----------------------------------:|
+|   DATABASE_HOST   |                          |                                    |
+|   DATABASE_NAME   |                          |                                    |
+|   DATABASE_USER   |                          |                                    |
+| DATABASE_PASSWORD |                          |                                    |
+|   DATABASE_PORT   |          `5432`          |                                    |
+|   DATABASE_SSL    |          `True`          |                                    |
+|    VALKEY_URL     |                          |                                    |
+|      JWT_KEY      |                          | `ed25519` Private Key Seed Size 32 |
+|  TWO_FACTOR_KEY   |                          | `ed25519` Private Key Seed Size 32 |
+|      ISSUER       |        `Founder`         |                                    |
+|       PORT        |         `50051`          |          `80` to `65535`           |
+|     HTTP_PORT     |          `8000`          |          `80` to `65535`           |
+|   SERVICE_NAME    | `Founder Authentication` |                                    |
+|    ENVIRONMENT    |      `development`       |   `development` or `production`    |
+|   TELEMETRY_URL   |                          |           gRPC port only           |
+| ALLOW_FREE_EMAIL  |         `false`          |                                    |
+| ALLOW_ROLE_EMAIL  |         `false`          |                                    |
 
 ```dotenv
 DATABASE_HOST=
@@ -112,14 +112,13 @@ DATABASE_SSL=
 VALKEY_URL=127.0.0.1:6379
 JWT_KEY=
 TWO_FACTOR_KEY=
-ISSUER='Anish Neupane'
+ISSUER=Founder
 PORT=50051
-SERVICE_NAME=neupaneanish.com.np/api
+SERVICE_NAME="Founder Authentication"
 ENVIRONMENT=development
 TELEMETRY_URL=127.0.0.1:4317
-DOMAIN=neupaneanish.com.np
-DOMAIN_VERIFICATION=
-DOMAIN_NAME=api
+ALLOW_FREE_EMAIL=false
+ALLOW_ROLE_EMAIL=false
 ```
 
 ### Worker

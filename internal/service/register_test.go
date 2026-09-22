@@ -38,7 +38,7 @@ func TestRegister(t *testing.T) {
 		t.Parallel()
 
 		req := &externalAuthenticationv1.RegisterRequest{
-			Email:           cfg.Domain.GenerateEmail(rand.Text()),
+			Email:           generateEmail(),
 			Password:        &passwordv1.Password{Value: rawPassword},
 			ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 			Phone:           "+11234567890",
@@ -54,7 +54,7 @@ func TestRegister(t *testing.T) {
 		t.Parallel()
 		id := phoneCounter.Add(1)
 
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		phone := fmt.Sprintf("+1212%07d", 5000000+id)
 
 		req := &externalAuthenticationv1.RegisterRequest{
@@ -88,7 +88,7 @@ func TestRegister(t *testing.T) {
 			t.Parallel()
 
 			phoneReq := &externalAuthenticationv1.RegisterRequest{
-				Email:           cfg.Domain.GenerateEmail(rand.Text()),
+				Email:           generateEmail(),
 				Password:        &passwordv1.Password{Value: rawPassword},
 				ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 				Phone:           phone,

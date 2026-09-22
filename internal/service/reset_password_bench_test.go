@@ -22,7 +22,7 @@ func BenchmarkResetPassword(b *testing.B) {
 
 	requests := make([]*externalAuthenticationv1.ResetPasswordRequest, b.N)
 	for i := range b.N {
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		userID, err := seedUser(ctx, email, oldPassword, enum.UserStatusActive, true, enum.UserRoleUser)
 		if err != nil {
 			b.Fatalf("Failed to pre-seed benchmark user: %v", err)

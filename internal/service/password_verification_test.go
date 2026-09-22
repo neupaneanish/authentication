@@ -78,7 +78,7 @@ func TestPasswordVerification(t *testing.T) {
 		t.Parallel()
 		userID, seedErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(uuid.NewV7().String()),
+			generateEmail(),
 			"Password@1234",
 			enum.UserStatusActive,
 			true,
@@ -154,7 +154,7 @@ func successPasswordVerification(t *testing.T, method gatewayAuthenticationv1.Pa
 	password := "Password@12345"
 	userID, seedErr := seedUser(
 		t.Context(),
-		cfg.Domain.GenerateEmail(uuid.NewV7().String()),
+		generateEmail(),
 		password,
 		enum.UserStatusActive,
 		true,

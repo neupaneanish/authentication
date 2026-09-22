@@ -71,7 +71,7 @@ func TestResetPassword(t *testing.T) {
 
 	t.Run("Valid session previous password", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(rand.Text())
+		email := generateEmail()
 		session := seedUserResetPassword(t, email, oldPassword)
 		req := &externalAuthenticationv1.ResetPasswordRequest{
 			Session:         session,

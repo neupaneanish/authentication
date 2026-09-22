@@ -65,7 +65,7 @@ func TestRole(t *testing.T) {
 
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(uuid.NewV7().String()),
+			generateEmail(),
 			"Password@123456",
 			enum.UserStatusActive,
 			true,

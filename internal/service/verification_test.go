@@ -55,7 +55,7 @@ func TestVerification(t *testing.T) {
 		t.Parallel()
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password@123456",
 			enum.UserStatusActive,
 			true,
@@ -434,7 +434,7 @@ func successVerification(
 
 	userID, userIDErr := seedUser(
 		t.Context(),
-		cfg.Domain.GenerateEmail(uuid.NewV7().String()),
+		generateEmail(),
 		"Password@12345",
 		status,
 		false,
@@ -528,7 +528,7 @@ func seedVerificationError(
 		Method:             string(method),
 		VerificationMethod: string(verificationMethod),
 		Code:               code,
-		Email:              cfg.Domain.GenerateEmail(userID),
+		Email:              generateEmail(),
 		EnabledTwoFactor:   enabledTwoFactor,
 	}
 
