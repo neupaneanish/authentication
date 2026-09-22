@@ -23,6 +23,8 @@ type Env struct {
 	TelemetryURL string
 	Domain       string
 	API          string
+	AllowFree    bool
+	AllowRole    bool
 }
 
 func LoadEnv(ctx context.Context) (*Env, error) {
@@ -107,5 +109,7 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		TelemetryURL: telemetryURL,
 		Domain:       validDomain,
 		API:          api,
+		AllowFree:    env.ValidateBoolEnv("ALLOW_FREE_EMAIL", false),
+		AllowRole:    env.ValidateBoolEnv("ALLOW_ROLE_EMAIL", false),
 	}, nil
 }

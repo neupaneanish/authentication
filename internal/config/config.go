@@ -12,15 +12,16 @@ import (
 )
 
 type Config struct {
-	Pool        *pgxpool.Pool
-	Client      valkey.Client
-	Logger      *slog.Logger
-	Jwt         *JWT
-	TwoFactor   *TwoFactor
-	RateLimiter *RateLimiter
-	Repository  repository.Querier
-	Domain      *Domain
-	Worker      *asynq.Client
+	Pool          *pgxpool.Pool
+	Client        valkey.Client
+	Logger        *slog.Logger
+	Jwt           *JWT
+	TwoFactor     *TwoFactor
+	RateLimiter   *RateLimiter
+	Repository    repository.Querier
+	Domain        *Domain
+	Worker        *asynq.Client
+	EmailVerifier *EmailVerifier
 }
 
 func NewConfig(
@@ -58,16 +59,19 @@ func NewConfig(
 		return nil, workerErr
 	}
 
+	emailVerifier := NewEmailVerifier(env.AllowFree, env.AllowRole)
+
 	return &Config{
-		Pool:        pool,
-		Client:      client,
-		Logger:      logger,
-		Jwt:         jwt,
-		TwoFactor:   twoFactor,
-		RateLimiter: rateLimiter,
-		Repository:  repository.New(pool),
-		Domain:      NewDomain(env.Domain, env.API),
-		Worker:      worker,
+		Pool:          pool,
+		Client:        client,
+		Logger:        logger,
+		Jwt:           jwt,
+		TwoFactor:     twoFactor,
+		RateLimiter:   rateLimiter,
+		Repository:    repository.New(pool),
+		Domain:        NewDomain(env.Domain, env.API),
+		Worker:        worker,
+		EmailVerifier: emailVerifier,
 	}, nil
 }
 
