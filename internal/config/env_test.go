@@ -31,7 +31,8 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("ISSUER")
 		_ = os.Unsetenv("DOMAIN")
 		_ = os.Unsetenv("DOMAIN_VERIFICATION")
-		_ = os.Unsetenv("DOMAIN_NAME")
+		_ = os.Unsetenv("ALLOW_FREE_EMAIL")
+		_ = os.Unsetenv("ALLOW_ROLE_EMAIL")
 	}
 
 	txt := "DR2JTINSHENMG45HCADCSKYJZS"
@@ -55,6 +56,8 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("DOMAIN", "neupaneanish.com.np")
 		t.Setenv("DOMAIN_VERIFICATION", txt)
 		t.Setenv("DOMAIN_NAME", "test")
+		t.Setenv("ALLOW_FREE_EMAIL", "1")
+		t.Setenv("ALLOW_ROLE_EMAIL", "1")
 
 		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
@@ -75,6 +78,8 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("DOMAIN", "neupaneanish.com.np")
 		t.Setenv("DOMAIN_VERIFICATION", txt)
 		t.Setenv("DOMAIN_NAME", "test")
+		t.Setenv("ALLOW_FREE_EMAIL", "1")
+		t.Setenv("ALLOW_ROLE_EMAIL", "1")
 
 		env, envErr := config.LoadEnv(t.Context())
 		require.NoError(t, envErr)
