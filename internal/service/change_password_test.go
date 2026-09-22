@@ -81,7 +81,7 @@ func TestChangePassword(t *testing.T) {
 		t.Parallel()
 		userID := uuid.NewV7()
 		session := rand.Text()
-		seedChangePasswordSession(t, userID, session, cfg.Domain.GenerateEmail(session))
+		seedChangePasswordSession(t, userID, session, generateEmail())
 
 		ctx := contextWithValue(t, userID, enum.UserRoleUser)
 		req := &gatewayAuthenticationv1.ChangePasswordRequest{
@@ -114,7 +114,7 @@ func TestChangePassword(t *testing.T) {
 func changePasswordSeed(t *testing.T, rawPassword string) (context.Context, string) {
 	t.Helper()
 	session := rand.Text()
-	email := cfg.Domain.GenerateEmail(session)
+	email := generateEmail()
 
 	userID, seedErr := seedUser(
 		t.Context(),

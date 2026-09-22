@@ -5,6 +5,7 @@ package service_test
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -176,7 +177,6 @@ func setupEnv(db string, vk string, logger *slog.Logger) *config.Env {
 		Issuer:       "Test",
 		Environment:  "test",
 		ServiceName:  "Test",
-		Domain:       "api.neupaneanish.com.np",
 	}
 }
 
@@ -343,7 +343,7 @@ func seedUser(
 
 func seedTwoFactor(t *testing.T, recovery bool) (uuid.UUID, string, []string) {
 	t.Helper()
-	email := cfg.Domain.GenerateEmail(uuid.NewV7().String())
+	email := generateEmail()
 	userID, seedErr := seedUser(
 		t.Context(),
 		email,
@@ -409,4 +409,8 @@ func contextWithValue(t *testing.T, userID uuid.UUID, role enum.UserRole) contex
 
 	ctx := metadata.NewOutgoingContext(t.Context(), md)
 	return ctx
+}
+
+func generateEmail() string {
+	return fmt.Sprintf("%s@neupaneanish.com.np", rand.Text())
 }

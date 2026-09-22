@@ -1,12 +1,9 @@
 package config
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"strings"
 
-	"neupaneanish.com.np/authentication/internal/domain"
 	"neupaneanish.com.np/authentication/internal/env"
 )
 
@@ -21,13 +18,11 @@ type Env struct {
 	ServiceName  string
 	Environment  string
 	TelemetryURL string
-	Domain       string
-	API          string
 	AllowFree    bool
 	AllowRole    bool
 }
 
-func LoadEnv(ctx context.Context) (*Env, error) {
+func LoadEnv() (*Env, error) {
 	databaseURL, databaseURLErr := env.DatabaseURL()
 	if databaseURLErr != nil {
 		return nil, databaseURLErr
@@ -74,41 +69,17 @@ func LoadEnv(ctx context.Context) (*Env, error) {
 		return nil, telemetryURLErr
 	}
 
-	url, urlErr := env.ValidateEnv("DOMAIN")
-	if urlErr != nil {
-		return nil, urlErr
-	}
-
-	domainVerification, domainVerificationErr := env.ValidateEnv("DOMAIN_VERIFICATION")
-	if domainVerificationErr != nil {
-		return nil, domainVerificationErr
-	}
-
-	domainName, domainNameErr := env.ValidateEnv("DOMAIN_NAME")
-	if domainNameErr != nil {
-		return nil, domainNameErr
-	}
-
-	validDomain, validDomainErr := domain.ValidateDomainWithTXT(ctx, strings.ToLower(url), domainVerification)
-	if validDomainErr != nil {
-		return nil, validDomainErr
-	}
-
-	api := fmt.Sprintf("%s.%s", strings.ToLower(domainName), validDomain)
-
 	return &Env{
 		DatabaseURL:  databaseURL,
 		ValkeyURL:    valkeyURL,
 		JWTKey:       jwtKey,
 		TwoFactorKey: twoFactorKey,
-		Issuer:       env.ValidateDefaultEnv("ISSUER", "Anish Neupane"),
+		Issuer:       env.ValidateDefaultEnv("ISSUER", "Founder"),
 		Port:         port,
 		HTTPPort:     httpPort,
-		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", "neupaneanish.com.np/authentication"),
+		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", "Founder Authentication"),
 		Environment:  environment,
 		TelemetryURL: telemetryURL,
-		Domain:       validDomain,
-		API:          api,
 		AllowFree:    env.ValidateBoolEnv("ALLOW_FREE_EMAIL", false),
 		AllowRole:    env.ValidateBoolEnv("ALLOW_ROLE_EMAIL", false),
 	}, nil

@@ -19,7 +19,6 @@ type Config struct {
 	TwoFactor     *TwoFactor
 	RateLimiter   *RateLimiter
 	Repository    repository.Querier
-	Domain        *Domain
 	Worker        *asynq.Client
 	EmailVerifier *EmailVerifier
 }
@@ -69,7 +68,6 @@ func NewConfig(
 		TwoFactor:     twoFactor,
 		RateLimiter:   rateLimiter,
 		Repository:    repository.New(pool),
-		Domain:        NewDomain(env.Domain, env.API),
 		Worker:        worker,
 		EmailVerifier: emailVerifier,
 	}, nil

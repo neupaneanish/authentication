@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"testing"
 	"uuid"
 
@@ -36,7 +35,7 @@ func TestUser(t *testing.T) {
 		ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleRoot)
 		userID, userIDErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password@12345",
 			enum.UserStatusPending,
 			false,

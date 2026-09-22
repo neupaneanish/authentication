@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +19,7 @@ func TestForgetPasswordE2E(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
-	email := cfg.Domain.GenerateEmail(rand.Text())
+	email := generateEmail()
 	oldPassword := "Test@123456"
 	newPassword := "Test@1234567"
 

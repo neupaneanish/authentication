@@ -28,11 +28,6 @@ func (s *ExternalAuthenticationService) Login(
 		return nil, limiterErr
 	}
 
-	if !s.cfg.Domain.ValidateEmail(email) {
-		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid email", "email", email)
-		return nil, errs.ErrInvalidCredentials
-	}
-
 	row, rowErr := s.cfg.Repository.Login(ctx, &repository.LoginParams{Email: email})
 	if rowErr != nil {
 		if errors.Is(rowErr, pgx.ErrNoRows) {

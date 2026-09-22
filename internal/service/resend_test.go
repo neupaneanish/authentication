@@ -244,7 +244,7 @@ func seedVerificationSession(
 		Method:             string(method),
 		VerificationMethod: string(verificationMethod),
 		Code:               code,
-		Email:              cfg.Domain.GenerateEmail(userID.String()),
+		Email:              generateEmail(),
 		EnabledTwoFactor:   enabledTwoFactor,
 	}
 

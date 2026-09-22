@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"fmt"
 	"testing"
 
@@ -22,7 +21,7 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	id := phoneCounter.Add(1)
 
 	rawPassword := "Password@1234"
-	email := cfg.Domain.GenerateEmail(rand.Text())
+	email := generateEmail()
 	phone := fmt.Sprintf("+1562%07d", 5000000+id)
 
 	req := &externalAuthenticationv1.RegisterRequest{

@@ -238,7 +238,7 @@ func seedPasswordSessionVerification(
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
-	email := cfg.Domain.GenerateEmail(userID.String())
+	email := generateEmail()
 
 	code, _, err := service.GenerateEmailCode(t.Context(), logger)
 	require.NoError(t, err)
@@ -354,7 +354,7 @@ func seedSuccessEnable(t *testing.T) (context.Context, string, string) {
 
 	userID, seedErr := seedUser(
 		t.Context(),
-		cfg.Domain.GenerateEmail(uuid.NewV7().String()),
+		generateEmail(),
 		"Password@1234",
 		enum.UserStatusActive,
 		true,

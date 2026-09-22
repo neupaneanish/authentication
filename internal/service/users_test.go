@@ -3,7 +3,6 @@
 package service_test
 
 import (
-	"crypto/rand"
 	"testing"
 	"uuid"
 
@@ -53,7 +52,7 @@ func TestUsers(t *testing.T) {
 		t.Parallel()
 		rootUser, rootUserErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password@1345",
 			enum.UserStatusActive,
 			true,
@@ -62,7 +61,7 @@ func TestUsers(t *testing.T) {
 		require.NoError(t, rootUserErr)
 		_, userErr := seedUser(
 			t.Context(),
-			cfg.Domain.GenerateEmail(rand.Text()),
+			generateEmail(),
 			"Password@12345",
 			enum.UserStatusPending,
 			false,

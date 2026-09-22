@@ -24,8 +24,8 @@ func (s *ExternalAuthenticationService) Register(
 ) (*externalAuthenticationv1.RegisterResponse, error) {
 	serviceName := "Register"
 
-	if !s.cfg.Domain.ValidateEmail(req.GetEmail()) {
-		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid email", "email", req.GetEmail())
+	if err := s.cfg.EmailVerifier.Validate(req.GetEmail()); err != nil {
+		s.cfg.Logger.WarnContext(ctx, "Invalid email", "service", serviceName, "email", req.GetEmail())
 		return nil, errs.ErrInvalidEmail
 	}
 
@@ -43,7 +43,7 @@ func (s *ExternalAuthenticationService) Register(
 
 	userParams := &repository.CreateUserParams{
 		Email:     req.GetEmail(),
-		Username:  s.cfg.Domain.GenerateUsername(req.GetEmail()),
+		Username:  rand.Text(),
 		Phone:     phoneNumber,
 		Role:      enum.UserRoleUser,
 		Status:    enum.UserStatusPending,

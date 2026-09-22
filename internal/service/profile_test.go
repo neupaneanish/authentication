@@ -31,7 +31,7 @@ func TestProfile(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
-		email := cfg.Domain.GenerateEmail(uuid.NewV7().String())
+		email := generateEmail()
 		userID, userIDErr := seedUser(
 			t.Context(),
 			email,
