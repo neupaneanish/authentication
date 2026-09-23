@@ -8,18 +8,20 @@ import (
 )
 
 type Env struct {
-	DatabaseURL  string
-	ValkeyURL    string
-	JWTKey       string
-	TwoFactorKey string
-	Issuer       string
-	Port         string
-	HTTPPort     string
-	ServiceName  string
-	Environment  string
-	TelemetryURL string
-	AllowFree    bool
-	AllowRole    bool
+	DatabaseURL   string
+	ValkeyURL     string
+	JWTKey        string
+	TwoFactorKey  string
+	Issuer        string
+	Port          string
+	HTTPPort      string
+	ServiceName   string
+	Environment   string
+	TelemetryURL  string
+	RedpandaURL   string
+	RedpandaGroup string
+	AllowFree     bool
+	AllowRole     bool
 }
 
 func LoadEnv() (*Env, error) {
@@ -69,18 +71,25 @@ func LoadEnv() (*Env, error) {
 		return nil, telemetryURLErr
 	}
 
+	redpandaURL, redpandaURLErr := env.ValidateEnv("REDPANDA_URL")
+	if redpandaURLErr != nil {
+		return nil, redpandaURLErr
+	}
+
 	return &Env{
-		DatabaseURL:  databaseURL,
-		ValkeyURL:    valkeyURL,
-		JWTKey:       jwtKey,
-		TwoFactorKey: twoFactorKey,
-		Issuer:       env.ValidateDefaultEnv("ISSUER", "Founder"),
-		Port:         port,
-		HTTPPort:     httpPort,
-		ServiceName:  env.ValidateDefaultEnv("SERVICE_NAME", "Founder Authentication"),
-		Environment:  environment,
-		TelemetryURL: telemetryURL,
-		AllowFree:    env.ValidateBoolEnv("ALLOW_FREE_EMAIL", false),
-		AllowRole:    env.ValidateBoolEnv("ALLOW_ROLE_EMAIL", false),
+		DatabaseURL:   databaseURL,
+		ValkeyURL:     valkeyURL,
+		JWTKey:        jwtKey,
+		TwoFactorKey:  twoFactorKey,
+		Issuer:        env.ValidateDefaultEnv("ISSUER", "Founder"),
+		Port:          port,
+		HTTPPort:      httpPort,
+		ServiceName:   env.ValidateDefaultEnv("SERVICE_NAME", "Founder Authentication"),
+		Environment:   environment,
+		TelemetryURL:  telemetryURL,
+		AllowFree:     env.ValidateBoolEnv("ALLOW_FREE_EMAIL", false),
+		AllowRole:     env.ValidateBoolEnv("ALLOW_ROLE_EMAIL", false),
+		RedpandaURL:   redpandaURL,
+		RedpandaGroup: env.ValidateDefaultEnv("REDPANDA_GROUP", "founder-authentication"),
 	}, nil
 }

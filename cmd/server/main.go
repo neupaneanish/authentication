@@ -61,7 +61,7 @@ func main() {
 		return
 	}
 	logger.InfoContext(ctx, "Config loaded successfully")
-	defer cfg.Close()
+	defer cfg.Close(ctx)
 
 	serverErr := make(chan error, 1)
 

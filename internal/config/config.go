@@ -6,6 +6,7 @@ import (
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/valkey-io/valkey-go"
 
 	"neupaneanish.com.np/authentication/internal/repository"
@@ -21,6 +22,7 @@ type Config struct {
 	Repository    repository.Querier
 	Worker        *asynq.Client
 	EmailVerifier *EmailVerifier
+	Redpanda      *kgo.Client
 }
 
 func NewConfig(
@@ -60,6 +62,11 @@ func NewConfig(
 
 	emailVerifier := NewEmailVerifier(env.AllowFree, env.AllowRole)
 
+	redpanda, redpandaErr := NewRedpanda(ctx, env.RedpandaURL, env.RedpandaGroup)
+	if redpandaErr != nil {
+		return nil, redpandaErr
+	}
+
 	return &Config{
 		Pool:          pool,
 		Client:        client,
@@ -70,10 +77,11 @@ func NewConfig(
 		Repository:    repository.New(pool),
 		Worker:        worker,
 		EmailVerifier: emailVerifier,
+		Redpanda:      redpanda,
 	}, nil
 }
 
-func (c *Config) Close() {
+func (c *Config) Close(ctx context.Context) {
 	if c.Pool != nil {
 		c.Pool.Close()
 	}
@@ -82,5 +90,11 @@ func (c *Config) Close() {
 	}
 	if c.Worker != nil {
 		_ = c.Worker.Close()
+	}
+	if c.Redpanda != nil {
+		if err := c.Redpanda.Flush(ctx); err != nil {
+			c.Redpanda.Close()
+		}
+		c.Redpanda.Close()
 	}
 }
