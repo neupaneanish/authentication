@@ -20,6 +20,7 @@ import (
 var (
 	databaseURL string
 	valkeyURL   string
+	redpandaURL string
 )
 
 func TestMain(m *testing.M) {
@@ -34,13 +35,21 @@ func TestMain(m *testing.M) {
 		panic(valkeyErr)
 	}
 
+	rpURL, rpCleanup, rpErr := tests.Redpanda()
+	if rpErr != nil {
+		rpCleanup()
+		panic(rpErr)
+	}
+
 	databaseURL = dbURL
 	valkeyURL = vkURL
+	redpandaURL = rpURL
 
 	code := m.Run()
 
-	valkeyCleanup()
 	dbCleanup()
+	valkeyCleanup()
+	rpCleanup()
 
 	os.Exit(code)
 }
@@ -58,6 +67,7 @@ func TestNewConfig(t *testing.T) {
 		env := &config.Env{
 			DatabaseURL:  databaseURL,
 			ValkeyURL:    valkeyURL,
+			RedpandaURL:  redpandaURL,
 			JWTKey:       hex.EncodeToString(private.Seed()),
 			TwoFactorKey: hex.EncodeToString(private.Seed()),
 			Issuer:       "Test",
@@ -71,7 +81,7 @@ func TestNewConfig(t *testing.T) {
 		require.NoError(t, cfgErr)
 		assert.NotNil(t, cfg)
 
-		cfg.Close()
+		cfg.Close(t.Context())
 	})
 
 	t.Run("Invalid Pool", func(t *testing.T) {

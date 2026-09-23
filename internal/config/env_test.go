@@ -28,6 +28,7 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("HTTP_PORT")
 		_ = os.Unsetenv("ENVIRONMENT")
 		_ = os.Unsetenv("TELEMETRY_URL")
+		_ = os.Unsetenv("REDPANDA_URL")
 		_ = os.Unsetenv("ISSUER")
 		_ = os.Unsetenv("ALLOW_FREE_EMAIL")
 		_ = os.Unsetenv("ALLOW_ROLE_EMAIL")
@@ -48,6 +49,7 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("SERVICE_NAME", "Test Service")
 		t.Setenv("ENVIRONMENT", "production")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
+		t.Setenv("REDPANDA_URL", "127.0.0.1:4317")
 		t.Setenv("ISSUER", "Test Issuer")
 		t.Setenv("ALLOW_FREE_EMAIL", "1")
 		t.Setenv("ALLOW_ROLE_EMAIL", "1")
@@ -68,6 +70,7 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
 		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
+		t.Setenv("REDPANDA_URL", "127.0.0.1:4317")
 		t.Setenv("ALLOW_FREE_EMAIL", "1")
 		t.Setenv("ALLOW_ROLE_EMAIL", "1")
 
