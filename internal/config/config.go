@@ -4,7 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/valkey-io/valkey-go"
@@ -20,7 +19,6 @@ type Config struct {
 	TwoFactor     *TwoFactor
 	RateLimiter   *RateLimiter
 	Repository    repository.Querier
-	Worker        *asynq.Client
 	EmailVerifier *EmailVerifier
 	Redpanda      *kgo.Client
 }
@@ -55,11 +53,6 @@ func NewConfig(
 		return nil, rateLimiterErr
 	}
 
-	worker, workerErr := NewWorker(env.ValkeyURL)
-	if workerErr != nil {
-		return nil, workerErr
-	}
-
 	emailVerifier := NewEmailVerifier(env.AllowFree, env.AllowRole)
 
 	redpanda, redpandaErr := NewRedpanda(ctx, env.RedpandaURL, env.RedpandaGroup)
@@ -75,7 +68,6 @@ func NewConfig(
 		TwoFactor:     twoFactor,
 		RateLimiter:   rateLimiter,
 		Repository:    repository.New(pool),
-		Worker:        worker,
 		EmailVerifier: emailVerifier,
 		Redpanda:      redpanda,
 	}, nil
@@ -88,12 +80,9 @@ func (c *Config) Close(ctx context.Context) {
 	if c.Client != nil {
 		c.Client.Close()
 	}
-	if c.Worker != nil {
-		_ = c.Worker.Close()
-	}
 	if c.Redpanda != nil {
 		if err := c.Redpanda.Flush(ctx); err != nil {
-			c.Redpanda.Close()
+			c.Logger.ErrorContext(ctx, "failed to flush redpanda", "error", err)
 		}
 		c.Redpanda.Close()
 	}

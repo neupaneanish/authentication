@@ -25,6 +25,21 @@ const (
 	PasswordVerificationSessionPrefix = "password:verification:session"
 	UserSessionPrefix                 = "user:session:"
 	VerificationSessionPrefix         = "verification:session"
+
+	EmailTemplateAccountVerification    = "account-verification"
+	EmailTemplateForgetPassword         = "forget-password"
+	EmailTemplateEmailVerification      = "email-verification"
+	EmailTemplatePasswordReset          = "password-reset"
+	EmailTemplateChangePassword         = "change-password"
+	EmailTemplateEnableTwoFactor        = "enable-two-factor"
+	EmailTemplateDisableTwoFactor       = "disable-two-factor"
+	EmailTemplateConfirmChangePassword  = "confirm-change-password"
+	EmailTemplateConfirmTwoFactor       = "confirm-two-factor"
+	EmailTemplateConfirmDeleteTwoFactor = "confirm-delete-two-factor"
+
+	RedpandaAuthEmailNotificationTopic     = "auth-email-notification"
+	RedpandaSecurityEmailNotificationTopic = "security-email-notification"
+	RedpandaRootNotificationTopic          = "root-notification"
 )
 
 type LoginAccessSession struct {
@@ -91,6 +106,25 @@ type VerificationSession struct {
 	Code               string    `json:"code"`
 	Email              string    `json:"email"`
 	EnabledTwoFactor   bool      `json:"enabledTwoFactor"`
+}
+
+type AuthEmail struct {
+	Value         string
+	Email         string
+	EmailTemplate string
+}
+
+type SecurityEmail struct {
+	Email         string
+	EmailTemplate string
+}
+
+type RootNotification struct {
+	ActorID  uuid.UUID
+	UserID   uuid.UUID
+	Username string
+	Table    string
+	Method   string
 }
 
 type ContextKey string

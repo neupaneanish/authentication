@@ -66,15 +66,15 @@ func (s *ExternalAuthenticationService) ResetPassword(
 
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
-		s.cfg.Pool,
-		s.cfg.Repository,
 		userID,
 		serviceName,
-		s.cfg.Logger,
 		req.GetPassword().GetValue(),
 		resetSession.Email,
 		true,
-		s.cfg.Worker,
+		s.cfg.Pool,
+		s.cfg.Repository,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
 	); changeResetPasswordErr != nil {
 		return nil, changeResetPasswordErr
 	}

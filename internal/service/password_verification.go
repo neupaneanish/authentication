@@ -5,14 +5,14 @@ import (
 	"crypto/rand"
 	"errors"
 	"time"
+	"uuid"
 
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 
-	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/redpanda"
 
-	"neupaneanish.com.np/authentication/internal/task"
+	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
@@ -75,7 +75,7 @@ func (s *GatewayAuthenticationService) PasswordVerification(
 	session := rand.Text()
 	if err := s.passwordVerification(
 		ctx,
-		userSession.UserID.String(),
+		userSession.UserID,
 		row.Email,
 		session,
 		emailType,
@@ -96,21 +96,21 @@ func (s *GatewayAuthenticationService) passwordVerificationRateLimiter(
 	var result valkeylimiter.Result
 	var resultErr error
 	var securityMethod enum.SecurityMethod
-	var emailType string
+	var emailTemplate string
 
 	switch method {
 	case gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_CHANGE:
 		result, resultErr = s.cfg.RateLimiter.PasswordWorkflow.Allow(ctx, userID)
-		emailType = task.TypeChangePassword
+		emailTemplate = utils.EmailTemplateChangePassword
 		securityMethod = enum.SecurityMethodChangePassword
 	case gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_ENABLED,
 		gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_DISABLED:
 		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userID)
 		if method == gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_ENABLED {
-			emailType = task.TypeEnableTwoFactor
+			emailTemplate = utils.EmailTemplateEnableTwoFactor
 			securityMethod = enum.SecurityMethodEnableTwoFactor
 		} else {
-			emailType = task.TypeDisableTwoFactor
+			emailTemplate = utils.EmailTemplateDisableTwoFactor
 			securityMethod = enum.SecurityMethodDisableTwoFactor
 		}
 	case gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_UNSPECIFIED:
@@ -129,15 +129,15 @@ func (s *GatewayAuthenticationService) passwordVerificationRateLimiter(
 	); limiterErr != nil {
 		return "", "", limiterErr
 	}
-	return securityMethod, emailType, nil
+	return securityMethod, emailTemplate, nil
 }
 
 func (s *GatewayAuthenticationService) passwordVerification(
 	ctx context.Context,
-	userID,
+	userID uuid.UUID,
 	email,
 	session,
-	emailType,
+	emailTemplate,
 	serviceName string,
 	securityMethod enum.SecurityMethod,
 ) error {
@@ -147,7 +147,7 @@ func (s *GatewayAuthenticationService) passwordVerification(
 	}
 
 	data := &utils.PasswordVerificationSession{
-		Key:     userID,
+		Key:     userID.String(),
 		ExAt:    time.Now().Add(utils.SessionExpiry),
 		Code:    code,
 		Email:   email,
@@ -165,15 +165,10 @@ func (s *GatewayAuthenticationService) passwordVerification(
 		return errs.ErrInternalServer
 	}
 
-	var tErr error
-	var t *asynq.Task
-
 	if securityMethod == enum.SecurityMethodDisableTwoFactor {
-		t, tErr = task.SecurityNotification(emailType, email)
+		redpanda.SecurityEmailProduce(ctx, userID, email, emailTemplate, serviceName, s.cfg.Redpanda, s.cfg.Logger)
 	} else {
-		t, tErr = task.AuthEmailTask(emailType, email, plain)
+		redpanda.AuthEmailProduce(ctx, userID, plain, email, emailTemplate, serviceName, s.cfg.Redpanda, s.cfg.Logger)
 	}
-
-	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
 	return nil
 }
