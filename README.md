@@ -23,7 +23,7 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 - OpenTelemetry observability
 - Dockerized testing (testcontainers)
 - Benchmarks, E2E
-- Background Worker (asynq)
+- Redpanda
 
 ---
 
@@ -31,11 +31,12 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 | Technology                                                        |                                                                                                       | Description                                                                      |
 |:------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
-| [**Go**](https://go.dev)                                          |               <img src="https://thesvg.org/icons/go/default.svg" height="12" alt="Go">                | Core application logic                                                           |
+| [**Go**](https://go.dev)                                          |              <img src="https://cdn.simpleicons.org/go" height="12" height="24" alt="Go">              | Core application logic                                                           |
 | [**gRPC**](https://grpc.io)                                       |             <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
 | [**PostgreSQL**](https://postgresql.org)                          |       <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
 | [**JWT**](https://jwt.io)                                         |              <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
 | [**Valkey**](https://valkey.io)                                   |           <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
+| [**Redpanda**](https://redpanda.com)                              |             <img src="https://cdn.simpleicons.org/apachekafka" height="24" alt="Valkey">              | High-performance data stream                                                     |
 | [**Docker**](https://docker.com)                                  |           <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
 | [**Test Containers**](https://testcontainers.com)                 |   <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
 | [**GitHub Actions**](https://github.com/features/actions)         |   <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
@@ -80,8 +81,6 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 ## Environments
 
-### Server
-
 |       Name        |         Default          |              Options               |
 |:-----------------:|:------------------------:|:----------------------------------:|
 |   DATABASE_HOST   |                          |                                    |
@@ -91,6 +90,8 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 |   DATABASE_PORT   |          `5432`          |                                    |
 |   DATABASE_SSL    |          `True`          |                                    |
 |    VALKEY_URL     |                          |                                    |
+|   REDPANDA_URL    |                          |                                    |
+|  REDPANDA_GROUP   | `founder-authentication` |                                    |
 |      JWT_KEY      |                          | `ed25519` Private Key Seed Size 32 |
 |  TWO_FACTOR_KEY   |                          | `ed25519` Private Key Seed Size 32 |
 |      ISSUER       |        `Founder`         |                                    |
@@ -110,6 +111,8 @@ DATABASE_PASSWORD=
 DATABASE_PORT=
 DATABASE_SSL=
 VALKEY_URL=127.0.0.1:6379
+REDPANDA_URL=
+REDPANDA_GROUP="founder-authentication"
 JWT_KEY=
 TWO_FACTOR_KEY=
 ISSUER=Founder
@@ -121,15 +124,6 @@ ALLOW_FREE_EMAIL=false
 ALLOW_ROLE_EMAIL=false
 ```
 
-### Worker
-
-```dotenv
-VALKEY_URL=127.0.0.1:6379
-SMTP2GO_API=
-SENDER_DOMAIN=neupaneanish.com.np
-```
-
-> **Note:** Server and Worker valkey should be same
 ---
 
 ## Flow Chart

@@ -53,15 +53,15 @@ func (s *GatewayAuthenticationService) ChangePassword(
 
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
-		s.cfg.Pool,
-		s.cfg.Repository,
 		userSession.UserID,
 		serviceName,
-		s.cfg.Logger,
 		req.GetPassword().GetValue(),
 		data.Email,
 		false,
-		s.cfg.Worker,
+		s.cfg.Pool,
+		s.cfg.Repository,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
 	); changeResetPasswordErr != nil {
 		return nil, changeResetPasswordErr
 	}

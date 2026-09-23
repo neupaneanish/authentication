@@ -10,9 +10,9 @@ import (
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 
-	"neupaneanish.com.np/authentication/internal/enum"
+	"neupaneanish.com.np/authentication/internal/redpanda"
 
-	"neupaneanish.com.np/authentication/internal/task"
+	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/repository"
 
@@ -142,8 +142,15 @@ func (s *GatewayAuthenticationService) disableTwoFactor(
 
 	s.deletePasswordVerificationSession(ctx, userID.String(), serviceName)
 
-	t, tErr := task.SecurityNotification(task.TypeConfirmDeleteTwoFactor, email)
-	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
+	redpanda.SecurityEmailProduce(
+		ctx,
+		userID,
+		email,
+		utils.EmailTemplateConfirmDeleteTwoFactor,
+		serviceName,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
+	)
 
 	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
 		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_DisabledTwoFactor{

@@ -9,8 +9,6 @@ import (
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 
-	"neupaneanish.com.np/authentication/internal/task"
-
 	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -169,15 +167,15 @@ func (s *GatewayAuthenticationService) Resend(
 
 	method := enum.SecurityMethod(verificationSession.Method)
 
-	var emailType string
+	var emailTemplate string
 
 	switch method {
 	case enum.SecurityMethodChangePassword:
-		emailType = task.TypeChangePassword
+		emailTemplate = utils.EmailTemplateChangePassword
 	case enum.SecurityMethodEnableTwoFactor:
-		emailType = task.TypeEnableTwoFactor
+		emailTemplate = utils.EmailTemplateEnableTwoFactor
 	case enum.SecurityMethodDisableTwoFactor:
-		emailType = task.TypeDisableTwoFactor
+		emailTemplate = utils.EmailTemplateDisableTwoFactor
 	default:
 		s.cfg.Logger.WarnContext(ctx, "Invalid Method", "service", serviceName)
 		s.deletePasswordVerificationSession(ctx, userSession.UserID.String(), serviceName)
@@ -194,10 +192,10 @@ func (s *GatewayAuthenticationService) Resend(
 
 	if err := s.passwordVerification(
 		ctx,
-		verificationSession.Key,
+		userSession.UserID,
 		verificationSession.Email,
 		newSession,
-		emailType,
+		emailTemplate,
 		serviceName,
 		method,
 	); err != nil {

@@ -23,24 +23,6 @@ func TestLimiterCheck(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestEmailEnqueue(t *testing.T) {
-	t.Parallel()
-	logger := slog.New(slog.DiscardHandler)
-
-	t.Run("Task Error", func(t *testing.T) {
-		t.Parallel()
-		tErr := errors.New("task error")
-		err := service.EmailEnqueue(t.Context(), nil, tErr, "test", logger, nil)
-		require.Error(t, err)
-	})
-
-	t.Run("Worker Error", func(t *testing.T) {
-		t.Parallel()
-		err := service.EmailEnqueue(t.Context(), nil, nil, "test", logger, nil)
-		require.Error(t, err)
-	})
-}
-
 func TestAffectedRowCheck(t *testing.T) {
 	t.Parallel()
 	logger := slog.New(slog.DiscardHandler)

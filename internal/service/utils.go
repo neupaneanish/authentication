@@ -10,12 +10,14 @@ import (
 
 	"uuid"
 
-	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+
+	"neupaneanish.com.np/authentication/internal/redpanda"
 
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 
@@ -24,7 +26,6 @@ import (
 	"neupaneanish.com.np/authentication/internal/errs"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
-	"neupaneanish.com.np/authentication/internal/task"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
@@ -126,41 +127,6 @@ func GenerateEmailCode(ctx context.Context, logger *slog.Logger) (string, string
 	return code, format, nil
 }
 
-func EmailEnqueue(
-	ctx context.Context,
-	t *asynq.Task,
-	tErr error,
-	serviceName string,
-	logger *slog.Logger,
-	worker *asynq.Client,
-) error {
-	if tErr != nil {
-		logger.ErrorContext(ctx, "New email task failed", "service", serviceName, "error", tErr)
-		return errs.ErrInternalServer
-	}
-
-	info, workerErr := worker.Enqueue(t)
-	if workerErr != nil {
-		logger.ErrorContext(ctx, "Failed to enqueue email task", "service", serviceName, "error", workerErr)
-		return errs.ErrInternalServer
-	}
-
-	logger.InfoContext(
-		ctx,
-		"Successfully enqueue task",
-		"service",
-		serviceName,
-		"task_id",
-		info.ID,
-		"queue",
-		info.Queue,
-		"type",
-		info.Type,
-	)
-
-	return nil
-}
-
 const (
 	UsersEmailKey = "users_email_key"
 	UsersPhoneKey = "users_phone_key"
@@ -168,15 +134,15 @@ const (
 
 func ChangeResetPassword(
 	ctx context.Context,
-	pool *pgxpool.Pool,
-	repo repository.Querier,
 	userID uuid.UUID,
 	serviceName string,
-	logger *slog.Logger,
 	rawPassword string,
 	email string,
 	reset bool,
-	worker *asynq.Client,
+	pool *pgxpool.Pool,
+	repo repository.Querier,
+	client *kgo.Client,
+	logger *slog.Logger,
 ) error {
 	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: utils.CredentialsHistoryLimit}
 
@@ -198,14 +164,14 @@ func ChangeResetPassword(
 		}
 	}
 
-	var emailType string
+	var emailTemplate string
 	var createdBy uuid.UUID
 
 	if reset {
-		emailType = task.TypePasswordReset
+		emailTemplate = utils.EmailTemplatePasswordReset
 		createdBy = uuid.Nil()
 	} else {
-		emailType = task.TypeConfirmChangePassword
+		emailTemplate = utils.EmailTemplateConfirmChangePassword
 		createdBy = userID
 	}
 
@@ -238,8 +204,7 @@ func ChangeResetPassword(
 		return errs.ErrInternalServer
 	}
 
-	t, tErr := task.SecurityNotification(emailType, email)
-	_ = EmailEnqueue(ctx, t, tErr, serviceName, logger, worker) // Error already handled by EmailEnqueue
+	redpanda.SecurityEmailProduce(ctx, userID, email, emailTemplate, serviceName, client, logger)
 
 	return nil
 }
@@ -370,17 +335,17 @@ func (s *ExternalAuthenticationService) verification(
 	if codeErr != nil {
 		return codeErr
 	}
-	var taskType string
+	var emailTemplate string
 
 	switch verificationMethod {
 	case enum.VerificationMethodAccount:
-		taskType = task.TypeAccountVerification
+		emailTemplate = utils.EmailTemplateAccountVerification
 	case enum.VerificationMethodEmail:
-		taskType = task.TypeEmailVerification
+		emailTemplate = utils.EmailTemplateEmailVerification
 	case enum.VerificationMethodReset:
-		taskType = task.TypePasswordReset
+		emailTemplate = utils.EmailTemplateForgetPassword
 	case enum.VerificationMethodTwoFactor:
-		taskType = task.TypeEnableTwoFactor // Two Factor doesn't send email, its only placeholder
+		emailTemplate = utils.EmailTemplateEnableTwoFactor // Two Factor doesn't send email, its only placeholder
 	default:
 		s.cfg.Logger.ErrorContext(
 			ctx,
@@ -415,12 +380,11 @@ func (s *ExternalAuthenticationService) verification(
 		return errs.ErrInternalServer
 	}
 
-	if verificationMethod == enum.VerificationMethodTwoFactor {
-		return nil
+	if verificationMethod != enum.VerificationMethodTwoFactor {
+		redpanda.AuthEmailProduce(ctx, userID, format, email, emailTemplate, serviceName, s.cfg.Redpanda, s.cfg.Logger)
 	}
 
-	t, tErr := task.AuthEmailTask(taskType, email, format)
-	return EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker)
+	return nil
 }
 
 func externalVerification(

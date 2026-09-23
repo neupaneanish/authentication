@@ -10,11 +10,12 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/valkey-io/valkey-go/om"
 
+	"neupaneanish.com.np/authentication/internal/redpanda"
+
 	"neupaneanish.com.np/authentication/internal/errs"
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/repository"
-	"neupaneanish.com.np/authentication/internal/task"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
@@ -22,7 +23,7 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 	ctx context.Context,
 	req *gatewayAuthenticationv1.ConfirmTwoFactorRequest,
 ) (*gatewayAuthenticationv1.ConfirmTwoFactorResponse, error) {
-	serviceName := "Confirm Two Factor"
+	serviceName := "ConfirmTwoFactor"
 
 	userSession := utils.UserSessionContext(ctx)
 
@@ -85,9 +86,15 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 		return nil, confirmErr
 	}
 
-	t, tErr := task.SecurityNotification(task.TypeConfirmTwoFactor, tfSession.Email)
-	_ = EmailEnqueue(ctx, t, tErr, serviceName, s.cfg.Logger, s.cfg.Worker) // Error already handled by EmailEnqueue
-
+	redpanda.SecurityEmailProduce(
+		ctx,
+		userSession.UserID,
+		tfSession.Email,
+		utils.EmailTemplateConfirmTwoFactor,
+		serviceName,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
+	)
 	return &gatewayAuthenticationv1.ConfirmTwoFactorResponse{Codes: codes.Plain}, nil
 }
 
