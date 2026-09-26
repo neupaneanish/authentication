@@ -53,7 +53,7 @@ func (s *GatewayAuthenticationService) PasswordVerification(
 				"userID",
 				userSession.UserID.String(),
 			)
-			_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
+			LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 			return nil, errs.ErrSessionExpired
 		}
 		s.cfg.Logger.ErrorContext(ctx, "Postgres get", "service", serviceName, "error", rowErr)
@@ -113,6 +113,10 @@ func (s *GatewayAuthenticationService) passwordVerificationRateLimiter(
 			emailTemplate = utils.EmailTemplateDisableTwoFactor
 			securityMethod = enum.SecurityMethodDisableTwoFactor
 		}
+	case gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_EMAIL:
+		result, resultErr = s.cfg.RateLimiter.ChangeEmailWorkFlow.Allow(ctx, userID)
+		emailTemplate = utils.EmailTemplateChangeEmail
+		securityMethod = enum.SecurityMethodChangeEmail
 	case gatewayAuthenticationv1.PasswordVerificationMethod_PASSWORD_VERIFICATION_METHOD_UNSPECIFIED:
 	default:
 		s.cfg.Logger.ErrorContext(ctx, "Invalid method", "service", serviceName)

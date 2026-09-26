@@ -13,7 +13,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/errs"
-	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 )
 

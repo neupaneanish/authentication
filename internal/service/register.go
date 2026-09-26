@@ -10,6 +10,8 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"neupaneanish.com.np/authentication/internal/redpanda"
+
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
@@ -43,7 +45,7 @@ func (s *ExternalAuthenticationService) Register(
 
 	userParams := &repository.CreateUserParams{
 		Email:     req.GetEmail(),
-		Username:  rand.Text(),
+		Username:  req.GetUsername(),
 		Phone:     phoneNumber,
 		Role:      enum.UserRoleUser,
 		Status:    enum.UserStatusPending,
@@ -101,14 +103,15 @@ func (s *ExternalAuthenticationService) Register(
 		return nil, errs.ErrInternalServer
 	}
 
-	tag, tagErr := qtx.CreateCredential(ctx, &repository.CreateCredentialParams{
+	credentialParams := &repository.CreateCredentialParams{
 		UserID:    user.ID,
 		Password:  hashPassword,
 		CreatedBy: uuid.Nil(),
-	})
+	}
 
-	if err := AffectedRowCheck(ctx, tag, tagErr, "create credentials", serviceName, 1, s.cfg.Logger); err != nil {
-		return nil, err
+	if err := qtx.CreateCredential(ctx, credentialParams); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Failed to create credential", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
@@ -122,6 +125,7 @@ func (s *ExternalAuthenticationService) Register(
 		ctx,
 		user.ID,
 		user.Role,
+		user.Username,
 		user.Email,
 		session,
 		serviceName,
@@ -131,6 +135,18 @@ func (s *ExternalAuthenticationService) Register(
 	); err != nil {
 		return nil, err
 	}
+
+	redpanda.RootNotificationProduce(
+		ctx,
+		user.ID,
+		user.ID,
+		user.Username,
+		utils.DatabaseTableUser,
+		utils.DatabaseMethodCreate,
+		serviceName,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
+	)
 
 	return &externalAuthenticationv1.RegisterResponse{
 		Verification: externalVerification(

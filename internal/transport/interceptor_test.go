@@ -163,7 +163,7 @@ func TestAuthInterceptor(t *testing.T) {
 		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
-		ct, err := transport.AuthInterceptor(ctx, nil, nil, nil)
+		ct, err := transport.AuthInterceptor(ctx, "test", nil, nil, nil, &slog.Logger{})
 		require.Error(t, err)
 		assert.Equal(t, ctx, ct)
 		assert.Equal(t, errs.ErrInternalServer, err)

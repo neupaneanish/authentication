@@ -20,7 +20,10 @@ func (s *RootAuthenticationService) Users(
 	serviceName := "Users"
 	userSession := utils.UserSessionContext(ctx)
 
-	params := &repository.UsersParams{PageSize: pageSize}
+	params := &repository.UsersParams{
+		ID:       userSession.UserID,
+		PageSize: pageSize,
+	}
 
 	users, err := s.cfg.Repository.Users(ctx, params)
 	if err != nil {
@@ -28,15 +31,7 @@ func (s *RootAuthenticationService) Users(
 		return nil, errs.ErrInternalServer
 	}
 
-	length := len(users)
-
-	if length == 0 {
-		s.cfg.Logger.WarnContext(ctx, "No users found in system", "service", serviceName)
-		_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
-		return nil, errs.ErrUnauthenticated
-	}
-
-	userSummary := make([]*rootAuthenticationv1.UserSummary, length)
+	userSummary := make([]*rootAuthenticationv1.UserSummary, len(users))
 	for i, u := range users {
 		userSummary[i] = &rootAuthenticationv1.UserSummary{
 			Id:       u.ID.String(),

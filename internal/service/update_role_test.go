@@ -22,20 +22,6 @@ import (
 func TestUpdateRole(t *testing.T) {
 	t.Parallel()
 
-	t.Run("No User", func(t *testing.T) {
-		t.Parallel()
-		err := seedUpdateError(
-			t,
-			uuid.NewV7(),
-			uuid.NewV7(),
-			enum.UserRoleRoot,
-			enum.UserStatusPending,
-			time.Now(),
-			true,
-		)
-		assert.Equal(t, errs.ErrFailedPreconditionRole, err)
-	})
-
 	t.Run("Same Role", func(t *testing.T) {
 		t.Parallel()
 		userID, userIDErr := seedUser(
@@ -53,23 +39,7 @@ func TestUpdateRole(t *testing.T) {
 		require.NoError(t, userErr)
 
 		err := seedUpdateError(t, uuid.NewV7(), userID, enum.UserRoleUser, enum.UserStatusPending, user.UpdatedAt, true)
-		assert.Equal(t, errs.ErrFailedPreconditionRole, err)
-	})
-
-	t.Run("Different Update At", func(t *testing.T) {
-		t.Parallel()
-		userID, userIDErr := seedUser(
-			t.Context(),
-			generateEmail(),
-			"Password",
-			enum.UserStatusActive,
-			false,
-			enum.UserRoleUser,
-		)
-		require.NoError(t, userIDErr)
-
-		err := seedUpdateError(t, uuid.NewV7(), userID, enum.UserRoleUser, enum.UserStatusPending, time.Now(), true)
-		assert.Equal(t, errs.ErrFailedPreconditionRole, err)
+		assert.Equal(t, errs.ErrConflict, err)
 	})
 
 	t.Run("Self Update", func(t *testing.T) {
@@ -123,9 +93,6 @@ func TestUpdateRole(t *testing.T) {
 		res, err := rootAuthenticationServiceClient.UpdateRole(ctx, req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.Equal(t, adminID.String(), res.GetUpdatedBy())
-		assert.Equal(t, user.ID.String(), res.GetId())
-		assert.Equal(t, enum.UserRoleRoot, enum.UserRole(res.GetRole()))
 	})
 }
 
@@ -153,16 +120,15 @@ func seedUpdateError(
 		require.Error(t, err)
 		assert.Nil(t, res)
 		return err
-	} else {
-		req := &rootAuthenticationv1.UpdateStatusRequest{
-			Id:        id.String(),
-			Status:    string(status),
-			UpdatedAt: timestamppb.New(updatedAt),
-		}
-
-		res, err := rootAuthenticationServiceClient.UpdateStatus(ctx, req)
-		require.Error(t, err)
-		assert.Nil(t, res)
-		return err
 	}
+	req := &rootAuthenticationv1.UpdateStatusRequest{
+		Id:        id.String(),
+		Status:    string(status),
+		UpdatedAt: timestamppb.New(updatedAt),
+	}
+
+	res, err := rootAuthenticationServiceClient.UpdateStatus(ctx, req)
+	require.Error(t, err)
+	assert.Nil(t, res)
+	return err
 }

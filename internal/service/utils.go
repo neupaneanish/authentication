@@ -11,11 +11,11 @@ import (
 	"uuid"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"golang.org/x/sync/errgroup"
 
 	"neupaneanish.com.np/authentication/internal/redpanda"
 
@@ -135,9 +135,7 @@ const (
 func ChangeResetPassword(
 	ctx context.Context,
 	userID uuid.UUID,
-	serviceName string,
-	rawPassword string,
-	email string,
+	username, serviceName, rawPassword, email string,
 	reset bool,
 	pool *pgxpool.Pool,
 	repo repository.Querier,
@@ -157,21 +155,37 @@ func ChangeResetPassword(
 		return errs.ErrSessionExpired
 	}
 
+	g, gCtx := errgroup.WithContext(ctx)
+
 	for _, hash := range passwords {
-		if utils.ComparePassword(hash, rawPassword) {
-			logger.WarnContext(ctx, "Previous password", "service", serviceName, "userID", userID)
-			return errs.ErrPreviousPassword
-		}
+		g.Go(func() error {
+			if err := gCtx.Err(); err != nil {
+				return err
+			}
+
+			if utils.ComparePassword(hash, rawPassword) {
+				logger.WarnContext(ctx, "Previous password", "service", serviceName, "userID", userID)
+				return errs.ErrPreviousPassword
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	var emailTemplate string
+	var method string
 	var createdBy uuid.UUID
 
 	if reset {
 		emailTemplate = utils.EmailTemplatePasswordReset
+		method = utils.DatabaseMethodReset
 		createdBy = uuid.Nil()
 	} else {
 		emailTemplate = utils.EmailTemplateConfirmChangePassword
+		method = utils.DatabaseMethodUpdate
 		createdBy = userID
 	}
 
@@ -194,9 +208,9 @@ func ChangeResetPassword(
 
 	qtx := repository.New(tx)
 
-	tag, tagErr := qtx.CreateCredential(ctx, credentialParams)
-	if err := AffectedRowCheck(ctx, tag, tagErr, "create credentials", serviceName, 1, logger); err != nil {
-		return err
+	if err := qtx.CreateCredential(ctx, credentialParams); err != nil {
+		logger.ErrorContext(ctx, "Failed to create credential", "service", serviceName, "error", err)
+		return errs.ErrInternalServer
 	}
 
 	if txCommitErr := tx.Commit(ctx); txCommitErr != nil {
@@ -205,7 +219,17 @@ func ChangeResetPassword(
 	}
 
 	redpanda.SecurityEmailProduce(ctx, userID, email, emailTemplate, serviceName, client, logger)
-
+	redpanda.RootNotificationProduce(
+		ctx,
+		userID,
+		userID,
+		username,
+		utils.DatabaseTableCredential,
+		method,
+		serviceName,
+		client,
+		logger,
+	)
 	return nil
 }
 
@@ -277,34 +301,34 @@ func ValidateRecoveryCode(
 
 func AffectedRowCheck(
 	ctx context.Context,
-	tag pgconn.CommandTag,
-	tagErr error,
+	affected int64,
+	affectedErr error,
 	msg string,
 	serviceName string,
 	count int64,
 	logger *slog.Logger,
 ) error {
-	if tagErr != nil {
-		logger.ErrorContext(ctx, msg+" execution failure", "service", serviceName, "error", tagErr)
+	if affectedErr != nil {
+		logger.ErrorContext(ctx, msg+" execution failure", "service", serviceName, "error", affectedErr)
 		return errs.ErrInternalServer
 	}
 
-	if tag.RowsAffected() != count {
+	if affected != count {
 		logger.WarnContext(ctx, msg+" rows mismatch",
 			"service", serviceName,
 			"expected", count,
-			"actual", tag.RowsAffected(),
+			"actual", affected,
 		)
-		return errs.ErrInternalServer
+		return errs.ErrConflict
 	}
 	return nil
 }
 
-func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Client, logger *slog.Logger) error {
+func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Client, logger *slog.Logger) {
 	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, client)
 	if keysErr != nil {
 		logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
-		return errs.ErrInternalServer
+		return
 	}
 
 	for _, key := range keys {
@@ -314,16 +338,15 @@ func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Cl
 
 	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, client); err != nil {
 		logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
-		return errs.ErrInternalServer
+		return
 	}
-
-	return nil
 }
 
 func (s *ExternalAuthenticationService) verification(
 	ctx context.Context,
 	userID uuid.UUID,
 	role enum.UserRole,
+	username,
 	email,
 	session,
 	serviceName string,
@@ -368,6 +391,7 @@ func (s *ExternalAuthenticationService) verification(
 		Code:               code,
 		Email:              email,
 		EnabledTwoFactor:   enabledTwoFactor,
+		Username:           username,
 	}
 
 	if err := redis.HSet[utils.VerificationSession](
@@ -394,5 +418,73 @@ func externalVerification(
 	return &externalAuthenticationv1.VerificationSession{
 		Session: session,
 		Method:  method,
+	}
+}
+
+func (s *RootAuthenticationService) updateRoleStatusUsername(
+	ctx context.Context,
+	id, value, serviceName, method string,
+	updatedAt time.Time,
+) error {
+	userSession := utils.UserSessionContext(ctx)
+
+	idx, idxErr := utils.ParsedUUID(ctx, id, serviceName, s.cfg.Logger)
+	if idxErr != nil {
+		return idxErr
+	}
+
+	if idx == userSession.UserID {
+		s.cfg.Logger.WarnContext(ctx, "Attempted self update", "service", serviceName)
+		return errs.ErrSelfUpdate
+	}
+
+	var affected int64
+	var affectedErr error
+
+	switch method {
+	case "status":
+		status := enum.UserStatus(value)
+		if !status.Valid() {
+			s.cfg.Logger.WarnContext(ctx, "Invalid Status", "service", serviceName)
+			return errs.ErrInvalidStatus
+		}
+		params := &repository.UpdateStatusParams{
+			Status:    status,
+			UpdatedBy: userSession.UserID,
+			ID:        idx,
+			UpdatedAt: updatedAt,
+		}
+		affected, affectedErr = s.cfg.Repository.UpdateStatus(ctx, params)
+	case "role":
+		role := enum.UserRole(value)
+		if !role.Valid() {
+			s.cfg.Logger.WarnContext(ctx, "Invalid Role", "service", serviceName)
+			return errs.ErrInvalidRole
+		}
+		params := &repository.UpdateRoleParams{
+			Role:      role,
+			UpdatedBy: userSession.UserID,
+			ID:        idx,
+			UpdatedAt: updatedAt,
+		}
+		affected, affectedErr = s.cfg.Repository.UpdateRole(ctx, params)
+	default:
+		s.cfg.Logger.WarnContext(ctx, "Invalid method", "service", serviceName, "method", method)
+		return errs.ErrInternalServer
+	}
+
+	if err := AffectedRowCheck(ctx, affected, affectedErr, "update "+method, serviceName, 1, s.cfg.Logger); err != nil {
+		return err
+	}
+
+	LogoutAll(ctx, id, serviceName, s.cfg.Client, s.cfg.Logger)
+	return nil
+}
+
+func setUsername(ctx context.Context, userID, username, service string, client valkey.Client, logger *slog.Logger) {
+	key := fmt.Sprintf("user:username:%s", userID)
+	cmd := client.B().Set().Key(key).Value(username).Build()
+	if err := client.Do(ctx, cmd).Error(); err != nil {
+		logger.ErrorContext(ctx, "Failed to update username", "service", service, "username", username, "error", err)
 	}
 }

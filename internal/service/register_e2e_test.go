@@ -4,12 +4,13 @@ package service_test
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
@@ -23,12 +24,14 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	rawPassword := "Password@1234"
 	email := generateEmail()
 	phone := fmt.Sprintf("+1562%07d", 5000000+id)
+	username := fmt.Sprintf("username%d", rand.Int63n(1000000))
 
 	req := &externalAuthenticationv1.RegisterRequest{
 		Email:           email,
 		Password:        &passwordv1.Password{Value: rawPassword},
 		ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 		Phone:           phone,
+		Username:        username,
 	}
 
 	response, err := externalAuthenticationServiceClient.Register(ctx, req)

@@ -105,6 +105,7 @@ func (s *ExternalAuthenticationService) Resend(
 		ctx,
 		userID,
 		enum.UserRole(verificationSession.Role),
+		verificationSession.Username,
 		verificationSession.Email,
 		newSession,
 		serviceName,
@@ -176,6 +177,8 @@ func (s *GatewayAuthenticationService) Resend(
 		emailTemplate = utils.EmailTemplateEnableTwoFactor
 	case enum.SecurityMethodDisableTwoFactor:
 		emailTemplate = utils.EmailTemplateDisableTwoFactor
+	case enum.SecurityMethodChangeEmail:
+		emailTemplate = utils.EmailTemplateChangeEmail
 	default:
 		s.cfg.Logger.WarnContext(ctx, "Invalid Method", "service", serviceName)
 		s.deletePasswordVerificationSession(ctx, userSession.UserID.String(), serviceName)

@@ -47,12 +47,8 @@ func TestLogout(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 	})
-}
 
-func TestLogoutAll(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Success", func(t *testing.T) {
+	t.Run("Logout All Success", func(t *testing.T) {
 		t.Parallel()
 
 		ctx := seedLogout(t)
@@ -124,6 +120,7 @@ func seedLogout(t *testing.T) context.Context {
 		"x-user-id", userID.String(),
 		"x-role", string(enum.UserRoleUser),
 		"x-jti", jti,
+		"x-username", rand.Text(),
 	)
 
 	ctx := metadata.NewOutgoingContext(t.Context(), md)

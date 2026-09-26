@@ -37,7 +37,7 @@ func NewTransport(
 		return fmt.Errorf("failed to listen on %s: %w", address, lisErr)
 	}
 
-	opts, optsErr := NewOptions(cfg)
+	opts, optsErr := NewOptions(cfg.Logger)
 	if optsErr != nil {
 		return optsErr
 	}

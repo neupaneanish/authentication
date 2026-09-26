@@ -71,6 +71,7 @@ func (s *ExternalAuthenticationService) Verification(
 					userID,
 					enum.UserRole(verificationSession.Role),
 					verificationSession.Email,
+					verificationSession.Username,
 					newSession,
 					serviceName,
 					enum.MethodLogin,
@@ -370,6 +371,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 			userID,
 			enum.UserRole(verificationSession.Role),
 			verificationSession.Email,
+			verificationSession.Username,
 			session,
 			serviceName,
 			enum.MethodForgetPassword,
@@ -391,10 +393,11 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 			return nil, err
 		}
 		data := &utils.ResetPasswordSession{
-			Key:    session,
-			ExAt:   time.Now().Add(utils.SessionExpiry),
-			UserID: userID.String(),
-			Email:  verificationSession.Email,
+			Key:      session,
+			ExAt:     time.Now().Add(utils.SessionExpiry),
+			UserID:   userID.String(),
+			Email:    verificationSession.Email,
+			Username: verificationSession.Username,
 		}
 
 		if err := redis.HSet[utils.ResetPasswordSession](
@@ -435,13 +438,13 @@ func (s *ExternalAuthenticationService) verificationVerifyAccountEmail(
 		ID:        userID,
 	}
 
-	tag, tagErr := s.cfg.Repository.VerifyEmail(ctx, params)
-	if tagErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Verify Account / Email", "service", serviceName, "error", tagErr)
+	affected, affectedErr := s.cfg.Repository.VerifyEmail(ctx, params)
+	if affectedErr != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Verify Account / Email", "service", serviceName, "error", affectedErr)
 		return errs.ErrInternalServer
 	}
 
-	if tag.RowsAffected() == 0 {
+	if affected != 1 {
 		s.cfg.Logger.WarnContext(
 			ctx,
 			"Account already verified / account not found",

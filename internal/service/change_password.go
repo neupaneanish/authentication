@@ -54,6 +54,7 @@ func (s *GatewayAuthenticationService) ChangePassword(
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
 		userSession.UserID,
+		userSession.Username,
 		serviceName,
 		req.GetPassword().GetValue(),
 		data.Email,
@@ -75,7 +76,7 @@ func (s *GatewayAuthenticationService) ChangePassword(
 		s.cfg.Logger.ErrorContext(ctx, "Valkey delete", "service", serviceName, "error", hDeleteErr)
 	}
 
-	_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
+	LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 
 	return &gatewayAuthenticationv1.ChangePasswordResponse{}, nil
 }

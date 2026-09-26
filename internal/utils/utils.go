@@ -2,9 +2,12 @@ package utils
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"uuid"
+
+	"neupaneanish.com.np/authentication/internal/errs"
 )
 
 const (
@@ -21,6 +24,7 @@ const (
 	LoginRefreshSessionPrefix         = "login:refresh:session"
 	ResetPasswordSessionPrefix        = "reset:password:session"
 	ChangePasswordSessionPrefix       = "change:password:session"
+	ChangeEmailSessionPrefix          = "change:email:session"
 	TwoFactorSessionPrefix            = "two:factor:session"
 	PasswordVerificationSessionPrefix = "password:verification:session"
 	UserSessionPrefix                 = "user:session:"
@@ -36,6 +40,17 @@ const (
 	EmailTemplateConfirmChangePassword  = "confirm-change-password"
 	EmailTemplateConfirmTwoFactor       = "confirm-two-factor"
 	EmailTemplateConfirmDeleteTwoFactor = "confirm-delete-two-factor"
+	EmailTemplateChangeEmail            = "change-email"
+	EmailTemplateSuccessChangeEmail     = "success-change-email"
+
+	DatabaseTableUser       = "user"
+	DatabaseTableCredential = "credential"
+	DatabaseTableTwoFactor  = "twofactor"
+
+	DatabaseMethodCreate = "create"
+	DatabaseMethodUpdate = "update"
+	DatabaseMethodDelete = "delete"
+	DatabaseMethodReset  = "reset"
 
 	RedpandaAuthEmailNotificationTopic     = "auth-email-notification"
 	RedpandaSecurityEmailNotificationTopic = "security-email-notification"
@@ -78,6 +93,13 @@ type ChangePasswordSession struct {
 	Email   string    `json:"email"`
 }
 
+type ChangeEmailSession struct {
+	Key     string    `json:"key"     valkey:",key"`
+	Ver     int64     `json:"ver"     valkey:",ver"`
+	ExAt    time.Time `json:"exat"    valkey:",exat"`
+	Session string    `json:"session"`
+}
+
 type EnableTwoFactorSession struct {
 	Key     string    `json:"key"     valkey:",key"`
 	Ver     int64     `json:"ver"     valkey:",ver"`
@@ -88,11 +110,12 @@ type EnableTwoFactorSession struct {
 }
 
 type ResetPasswordSession struct {
-	Key    string    `json:"key"     valkey:",key"`
-	Ver    int64     `json:"ver"     valkey:",ver"`
-	ExAt   time.Time `json:"exat"    valkey:",exat"`
-	UserID string    `json:"user_id"`
-	Email  string    `json:"email"`
+	Key      string    `json:"key"      valkey:",key"`
+	Ver      int64     `json:"ver"      valkey:",ver"`
+	ExAt     time.Time `json:"exat"     valkey:",exat"`
+	UserID   string    `json:"user_id"`
+	Email    string    `json:"email"`
+	Username string    `json:"username"`
 }
 
 type VerificationSession struct {
@@ -105,6 +128,7 @@ type VerificationSession struct {
 	VerificationMethod string    `json:"VerificationMethod"`
 	Code               string    `json:"code"`
 	Email              string    `json:"email"`
+	Username           string    `json:"username"`
 	EnabledTwoFactor   bool      `json:"enabledTwoFactor"`
 }
 
@@ -132,11 +156,27 @@ type ContextKey string
 const SessionKey ContextKey = "user_session"
 
 type UserSession struct {
-	UserID uuid.UUID
-	Jti    string
+	UserID   uuid.UUID
+	Username string
+	Jti      string
 }
 
 func UserSessionContext(ctx context.Context) *UserSession {
 	session, _ := ctx.Value(SessionKey).(*UserSession)
 	return session
+}
+
+func ParsedUUID(ctx context.Context, id, serviceName string, logger *slog.Logger) (uuid.UUID, error) {
+	idx, err := uuid.Parse(id)
+	if err != nil {
+		logger.ErrorContext(
+			ctx,
+			"Invalid User ID",
+			"service", serviceName,
+			"userID", id,
+			"error", err,
+		)
+		return uuid.Nil(), errs.ErrNotFound
+	}
+	return idx, nil
 }

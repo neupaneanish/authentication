@@ -30,13 +30,33 @@ func TestRole(t *testing.T) {
 		assert.Equal(t, errs.ErrUnauthenticated, err)
 	})
 
-	t.Run("Invalid Role and Invalid User ID", func(t *testing.T) {
+	t.Run("Invalid Role", func(t *testing.T) {
+		t.Parallel()
+
+		md := metadata.Pairs(
+			"x-user-id", uuid.NewV7().String(),
+			"x-role", "test",
+			"x-jti", uuid.NewV7().String(),
+			"x-username", rand.Text(),
+		)
+
+		ctx := metadata.NewOutgoingContext(t.Context(), md)
+
+		req := &gatewayAuthenticationv1.RoleRequest{}
+		res, err := gatewayAuthenticationServiceClient.Role(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.Equal(t, errs.ErrUnauthenticated, err)
+	})
+
+	t.Run("Invalid UserID", func(t *testing.T) {
 		t.Parallel()
 
 		md := metadata.Pairs(
 			"x-user-id", rand.Text(),
 			"x-role", "test",
 			"x-jti", uuid.NewV7().String(),
+			"x-username", rand.Text(),
 		)
 
 		ctx := metadata.NewOutgoingContext(t.Context(), md)

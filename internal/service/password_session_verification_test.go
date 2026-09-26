@@ -175,6 +175,25 @@ func TestPasswordSessionVerification(t *testing.T) {
 		assert.NotEmpty(t, res.GetChangePassword())
 	})
 
+	t.Run("Success Email", func(t *testing.T) {
+		t.Parallel()
+
+		ctx, session, code := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodChangeEmail,
+		)
+		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
+			Session: session,
+			Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: code},
+		}
+
+		res, err := gatewayAuthenticationServiceClient.PasswordSessionVerification(ctx, req)
+		require.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.NotEmpty(t, res.GetChangeEmail())
+	})
+
 	t.Run("Success Enable", func(t *testing.T) {
 		t.Parallel()
 
@@ -306,6 +325,11 @@ func passwordSessionVerificationRateLimiter(
 					Session: session,
 					Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Totp{Totp: "123456"},
 				}
+			}
+		case enum.SecurityMethodChangeEmail:
+			req = &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
+				Session: session,
+				Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: code},
 			}
 		}
 

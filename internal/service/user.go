@@ -35,14 +35,14 @@ func (s *RootAuthenticationService) User(
 	}
 	params := &repository.UserParams{ID: userID}
 
-	user, err := s.cfg.Repository.User(ctx, params)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+	user, userErr := s.cfg.Repository.User(ctx, params)
+	if userErr != nil {
+		if errors.Is(userErr, pgx.ErrNoRows) {
 			s.cfg.Logger.WarnContext(ctx, "User not found", "service", serviceName, "userID", userID.String())
-			_ = LogoutAll(ctx, userID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
+			LogoutAll(ctx, req.GetId(), serviceName, s.cfg.Client, s.cfg.Logger)
 			return nil, errs.ErrNotFound
 		}
-		s.cfg.Logger.ErrorContext(ctx, "Failed to fetch user", "service", serviceName, "error", err)
+		s.cfg.Logger.ErrorContext(ctx, "Failed to fetch user", "service", serviceName, "error", userErr)
 		return nil, errs.ErrInternalServer
 	}
 	return &rootAuthenticationv1.UserResponse{

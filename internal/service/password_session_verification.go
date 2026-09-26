@@ -75,13 +75,22 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 
 	switch enum.SecurityMethod(verificationSession.Method) {
 	case enum.SecurityMethodDisableTwoFactor:
-		return s.disableTwoFactor(ctx, userSession.UserID, serviceName, verificationSession.Email)
+		return s.disableTwoFactor(ctx, userSession.UserID, serviceName, verificationSession.Email, userSession.Username)
 
 	case enum.SecurityMethodChangePassword:
 		return s.changePasswordSession(ctx, verificationSession.Key, newSession, verificationSession.Email, serviceName)
 
 	case enum.SecurityMethodEnableTwoFactor:
-		return s.enableTwoFactor(ctx, verificationSession.Key, newSession, verificationSession.Email, serviceName)
+		return s.enableTwoFactor(
+			ctx,
+			verificationSession.Key,
+			newSession,
+			verificationSession.Email,
+			userSession.Username,
+			serviceName,
+		)
+	case enum.SecurityMethodChangeEmail:
+		return s.changeEmailSession(ctx, verificationSession.Key, newSession, serviceName)
 
 	default:
 		s.cfg.Logger.ErrorContext(ctx, "Invalid method", "service", serviceName)
@@ -93,8 +102,7 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 func (s *GatewayAuthenticationService) disableTwoFactor(
 	ctx context.Context,
 	userID uuid.UUID,
-	serviceName string,
-	email string,
+	serviceName, email, username string,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
 	twoFactorParams := &repository.DeleteTwoFactorParams{UserID: userID}
 	recoveryCodesParams := &repository.DeleteRecoveryCodesParams{UserID: userID}
@@ -152,6 +160,18 @@ func (s *GatewayAuthenticationService) disableTwoFactor(
 		s.cfg.Logger,
 	)
 
+	redpanda.RootNotificationProduce(
+		ctx,
+		userID,
+		userID,
+		username,
+		utils.DatabaseTableTwoFactor,
+		utils.DatabaseMethodDelete,
+		serviceName,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
+	)
+
 	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
 		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_DisabledTwoFactor{
 			DisabledTwoFactor: true,
@@ -189,14 +209,44 @@ func (s *GatewayAuthenticationService) changePasswordSession(
 	}, nil
 }
 
+func (s *GatewayAuthenticationService) changeEmailSession(
+	ctx context.Context,
+	userID, session, serviceName string,
+) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
+	data := &utils.ChangeEmailSession{
+		Key:     userID,
+		ExAt:    time.Now().Add(utils.SessionExpiry),
+		Session: session,
+	}
+
+	if err := redis.HSet[utils.ChangeEmailSession](
+		ctx,
+		utils.ChangeEmailSessionPrefix,
+		data,
+		s.cfg.Client,
+	); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "Valkey set", "service", serviceName, "error", err)
+		return nil, errs.ErrInternalServer
+	}
+
+	s.deletePasswordVerificationSession(ctx, userID, serviceName)
+
+	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
+		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_ChangeEmail{
+			ChangeEmail: session,
+		},
+	}, nil
+}
+
 func (s *GatewayAuthenticationService) enableTwoFactor(
 	ctx context.Context,
 	userID,
 	session,
 	email,
+	username,
 	serviceName string,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
-	tfa, err := s.cfg.TwoFactor.Generate(email)
+	tfa, err := s.cfg.TwoFactor.Generate(username)
 	if err != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Two Factor generate", "service", serviceName, "error", err)
 		return nil, errs.ErrInternalServer
@@ -246,6 +296,8 @@ func (s *GatewayAuthenticationService) passwordSessionVerificationRateLimiter(
 	case enum.SecurityMethodEnableTwoFactor,
 		enum.SecurityMethodDisableTwoFactor:
 		result, resultErr = s.cfg.RateLimiter.TwoFactorWorkflow.Allow(ctx, userID)
+	case enum.SecurityMethodChangeEmail:
+		result, resultErr = s.cfg.RateLimiter.ChangeEmailWorkFlow.Allow(ctx, userID)
 	default:
 		s.cfg.Logger.ErrorContext(ctx, "Invalid method", "service", serviceName)
 		s.deletePasswordVerificationSession(ctx, userID, serviceName)
@@ -274,7 +326,8 @@ func (s *GatewayAuthenticationService) passwordSessionVerificationCodeCheck(
 ) error {
 	switch enum.SecurityMethod(method) {
 	case enum.SecurityMethodChangePassword,
-		enum.SecurityMethodEnableTwoFactor:
+		enum.SecurityMethodEnableTwoFactor,
+		enum.SecurityMethodChangeEmail:
 		switch code := req.GetCode().(type) {
 		case *gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email:
 			if sessionCode != code.Email {

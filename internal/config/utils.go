@@ -38,8 +38,9 @@ const (
 	refreshSessionLimiterPrefix = "limiter:refresh:session"
 	refreshLimiterUserIDPrefix  = "limiter:refresh:userid"
 
-	passwordWorkflowLimiterPrefix  = "limiter:password:workflow"
-	twoFactorWorkflowLimiterPrefix = "limiter:two:factor:workflow"
+	passwordWorkflowLimiterPrefix    = "limiter:password:workflow"
+	twoFactorWorkflowLimiterPrefix   = "limiter:two:factor:workflow"
+	changeEmailWorkflowLimiterPrefix = "limiter:change:email:workflow"
 
 	limiterLimit                = 5
 	authenticationLimiterLimit  = 6

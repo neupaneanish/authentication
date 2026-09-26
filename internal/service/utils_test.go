@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
 	"neupaneanish.com.np/authentication/internal/service"
@@ -31,7 +30,7 @@ func TestAffectedRowCheck(t *testing.T) {
 		t.Parallel()
 		err := service.AffectedRowCheck(
 			t.Context(),
-			pgconn.CommandTag{},
+			1,
 			errors.New("error"),
 			"test",
 			"test",
@@ -43,7 +42,7 @@ func TestAffectedRowCheck(t *testing.T) {
 
 	t.Run("Affected", func(t *testing.T) {
 		t.Parallel()
-		err := service.AffectedRowCheck(t.Context(), pgconn.CommandTag{}, nil, "test", "test", 1, logger)
+		err := service.AffectedRowCheck(t.Context(), 0, nil, "test", "test", 1, logger)
 		require.Error(t, err)
 	})
 }

@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"neupaneanish.com.np/authentication/internal/enum"
-	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
