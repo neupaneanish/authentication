@@ -245,7 +245,7 @@ This repository uses a modern, completely containerized testing environment:
 
 Benchmarks were executed on:
 
-- OS: Ubuntu Linux (WSL)
+- OS: Fedora 44 Cosmic
 - Architecture: amd64
 - CPU: Intel® Core™ i7-10750H @ 2.60GHz (12 Execution Threads)
 
@@ -256,9 +256,9 @@ ran a benchmark. Seeded users before the benchmark and utilized **ResetTimer** t
 
 | Endpoints      | Size | Latency (ns/op) | Memory (B/op) | Heap (allocs/op) | Cryptographic Passes |
 |----------------|------|-----------------|---------------|------------------|----------------------|
-| Register       | 136  | 9161800         | 61382         | 637              | 1                    |
-| Login          | 120  | 10219451        | 92462         | 682              | 1                    |
-| Reset Password | 55   | 19387333        | 99606         | 602              | 2 (Max 6)            |
+| Register       | 192  | 5384798         | 58513         | 616              | 1                    |
+| Login          | 187  | 5510001         | 75629         | 662              | 1                    |
+| Reset Password | 94   | 10935457        | 71413         | 586              | 2 (Max 6)            |
 
 #### Security Architecture Notes:
 

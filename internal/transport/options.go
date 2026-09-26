@@ -2,6 +2,7 @@ package transport
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"buf.build/go/protovalidate"
@@ -18,8 +19,6 @@ import (
 
 	protovalidatemiddleware "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/protovalidate"
 	"google.golang.org/grpc"
-
-	"neupaneanish.com.np/authentication/internal/config"
 )
 
 const (
@@ -27,19 +26,19 @@ const (
 	maxTimeout         = 5 * time.Minute
 )
 
-func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
+func NewOptions(logger *slog.Logger) ([]grpc.ServerOption, error) {
 	oTelHandler := otelgrpc.NewServerHandler(
 		otelgrpc.WithFilter(filters.Not(filters.HealthCheck())),
 	)
 
 	validator, validatorErr := protovalidate.New()
 	if validatorErr != nil {
-		cfg.Logger.Error("proto validate", "error", validatorErr)
+		logger.Error("proto validate", "error", validatorErr)
 		return nil, validatorErr
 	}
 
 	recoveryOpt := recovery.WithRecoveryHandler(func(p any) error {
-		cfg.Logger.Error("panic recovered in gRPC handler", "panic", p)
+		logger.Error("panic recovered in gRPC handler", "panic", p)
 		return errs.ErrInternalServer
 	})
 
@@ -62,17 +61,20 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 		gatewayAuthenticationv1.GatewayAuthenticationService_Logout_FullMethodName:                      {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_LogoutAll_FullMethodName:                   {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_Resend_FullMethodName:                      {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_ChangeEmail_FullMethodName:                 {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_UpdateUsername_FullMethodName:              {},
 	}
 
 	rootEndpoints := map[string]struct{}{
-		rootAuthenticationv1.RootAuthenticationService_UpdateRole_FullMethodName:   {},
-		rootAuthenticationv1.RootAuthenticationService_UpdateStatus_FullMethodName: {},
-		rootAuthenticationv1.RootAuthenticationService_User_FullMethodName:         {},
-		rootAuthenticationv1.RootAuthenticationService_Users_FullMethodName:        {},
+		rootAuthenticationv1.RootAuthenticationService_UpdateRole_FullMethodName:     {},
+		rootAuthenticationv1.RootAuthenticationService_UpdateStatus_FullMethodName:   {},
+		rootAuthenticationv1.RootAuthenticationService_UpdateUsername_FullMethodName: {},
+		rootAuthenticationv1.RootAuthenticationService_User_FullMethodName:           {},
+		rootAuthenticationv1.RootAuthenticationService_Users_FullMethodName:          {},
 	}
 
 	authFunc := func(ctx context.Context) (context.Context, error) {
-		return AuthInterceptor(ctx, externalEndpoints, gatewayEndpoints, rootEndpoints)
+		return AuthInterceptor(ctx, "Interceptor", externalEndpoints, gatewayEndpoints, rootEndpoints, logger)
 	}
 
 	opts := []grpc.ServerOption{
@@ -82,7 +84,7 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 			UnaryTimeoutInterceptor(interceptorTimeout),
 			protovalidatemiddleware.UnaryServerInterceptor(validator),
 			logging.UnaryServerInterceptor(
-				LoggerInterceptor(cfg.Logger),
+				LoggerInterceptor(logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			auth.UnaryServerInterceptor(authFunc),
@@ -92,7 +94,7 @@ func NewOptions(cfg *config.Config) ([]grpc.ServerOption, error) {
 			StreamTimeoutInterceptor(maxTimeout),
 			protovalidatemiddleware.StreamServerInterceptor(validator),
 			logging.StreamServerInterceptor(
-				LoggerInterceptor(cfg.Logger),
+				LoggerInterceptor(logger),
 				logging.WithLogOnEvents(logging.StartCall, logging.FinishCall),
 			),
 			auth.StreamServerInterceptor(authFunc),

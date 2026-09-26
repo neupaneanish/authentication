@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"uuid"
-
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -18,6 +16,13 @@ import (
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
+
+type MetadataDetails struct {
+	UserID   string
+	Jti      string
+	Role     string
+	Username string
+}
 
 func LoggerInterceptor(logger *slog.Logger) logging.Logger {
 	return logging.LoggerFunc(func(ctx context.Context, level logging.Level, msg string, fields ...any) {
@@ -87,54 +92,62 @@ func (w *WrappedTimeoutStream) Context() context.Context {
 	return w.StreamContext
 }
 
-func AuthInterceptor(ctx context.Context, external, gateway, root map[string]struct{}) (context.Context, error) {
+func AuthInterceptor(
+	ctx context.Context,
+	serviceName string,
+	external, gateway, root map[string]struct{},
+	logger *slog.Logger,
+) (context.Context, error) {
 	fullMethod, ok := grpc.Method(ctx)
 	if !ok {
 		return ctx, errs.ErrInternalServer
-	}
-	userIDStr := userDetail(ctx, "x-user-id")
-	role := userDetail(ctx, "x-role")
-	jti := userDetail(ctx, "x-jti")
-
-	hasUserDetail := userIDStr != "" && role != "" && jti != ""
-	var userID uuid.UUID
-
-	if hasUserDetail {
-		var userIDErr error
-		userID, userIDErr = uuid.Parse(userIDStr)
-		if userIDErr != nil || !enum.UserRole(role).Valid() {
-			return ctx, errs.ErrUnauthenticated
-		}
 	}
 
 	_, isExternalEndpoint := external[fullMethod]
 	_, isGatewayEndpoint := gateway[fullMethod]
 	_, isRootEndpoint := root[fullMethod]
 
+	userMeta, hasUserDetail := userMetadata(ctx)
+
 	switch {
 	case isGatewayEndpoint:
 		if hasUserDetail {
-			return setContextValue(ctx, userID, role, jti), nil
+			return authContext(ctx, serviceName, "", userMeta, logger)
 		}
+		logger.WarnContext(
+			ctx, "missing required headers",
+			"service", serviceName,
+			"method", fullMethod,
+		)
 		return ctx, errs.ErrUnauthenticated
+
 	case isRootEndpoint:
 		if hasUserDetail {
-			if enum.UserRole(role) == enum.UserRoleRoot {
-				return setContextValue(ctx, userID, role, jti), nil
-			}
-			return ctx, errs.ErrPermissionDenied
+			return authContext(ctx, serviceName, enum.UserRoleRoot, userMeta, logger)
 		}
+		logger.WarnContext(
+			ctx,
+			"missing required headers for root endpoint",
+			"service", serviceName,
+			"method", fullMethod,
+		)
 		return ctx, errs.ErrUnauthenticated
 
 	case isExternalEndpoint:
 		if hasUserDetail {
+			logger.WarnContext(
+				ctx,
+				"authenticated user blocked from external endpoint",
+				"service", serviceName,
+				"userID", userMeta.UserID,
+			)
 			return ctx, errs.ErrPermissionDenied
 		}
 		return ctx, nil
 
 	case isRefreshEndpoint(fullMethod):
 		if hasUserDetail {
-			return setContextValue(ctx, userID, role, jti), nil
+			return authContext(ctx, serviceName, "", userMeta, logger)
 		}
 		return ctx, nil
 
@@ -143,7 +156,7 @@ func AuthInterceptor(ctx context.Context, external, gateway, root map[string]str
 	}
 }
 
-func userDetail(ctx context.Context, header string) string {
+func metadataDetail(ctx context.Context, header string) string {
 	value := metadata.ValueFromIncomingContext(ctx, header)
 	if len(value) == 0 {
 		return ""
@@ -155,15 +168,66 @@ func isRefreshEndpoint(fullMethod string) bool {
 	return fullMethod == externalAuthenticationv1.ExternalAuthenticationService_Refresh_FullMethodName
 }
 
-func setContextValue(ctx context.Context, userID uuid.UUID, role string, jti string) context.Context {
+func userMetadata(ctx context.Context) (MetadataDetails, bool) {
+	xUserID := metadataDetail(ctx, "x-user-id")
+	xRole := metadataDetail(ctx, "x-role")
+	xJti := metadataDetail(ctx, "x-jti")
+	xUsername := metadataDetail(ctx, "x-username")
+
+	if xUserID == "" || xRole == "" || xJti == "" || xUsername == "" {
+		return MetadataDetails{}, false
+	}
+
+	return MetadataDetails{
+		UserID:   xUserID,
+		Jti:      xJti,
+		Role:     xRole,
+		Username: xUsername,
+	}, true
+}
+
+func authContext(
+	ctx context.Context,
+	serviceName string,
+	role enum.UserRole,
+	meta MetadataDetails,
+	logger *slog.Logger,
+) (context.Context, error) {
+	userID, userIDErr := utils.ParsedUUID(ctx, meta.UserID, serviceName, logger)
+	if userIDErr != nil {
+		return ctx, errs.ErrUnauthenticated
+	}
+
+	userRole := enum.UserRole(meta.Role)
+	if !userRole.Valid() {
+		logger.WarnContext(ctx, "Invalid role", "service", serviceName, "role", meta.Role)
+		return ctx, errs.ErrUnauthenticated
+	}
+
+	if role != "" && userRole != role {
+		logger.WarnContext(ctx, "Insufficient permissions for endpoint",
+			"service", serviceName,
+			"userID", meta.UserID,
+			"provided_role", meta.Role,
+			"required_role", role,
+		)
+		return ctx, errs.ErrPermissionDenied
+	}
+
 	ctx = logging.InjectFields(ctx, logging.Fields{
-		"user_id", userID.String(),
-		"role", role,
-		"jti", jti,
+		"user_id", meta.UserID,
+		"role", meta.Role,
+		"jti", meta.Jti,
+		"username", meta.Username,
 	})
 
-	return context.WithValue(ctx, utils.SessionKey, &utils.UserSession{
-		UserID: userID,
-		Jti:    jti,
-	})
+	return context.WithValue(
+		ctx,
+		utils.SessionKey,
+		&utils.UserSession{
+			UserID:   userID,
+			Username: meta.Username,
+			Jti:      meta.Jti,
+		},
+	), nil
 }

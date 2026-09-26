@@ -88,7 +88,7 @@ func (s *GatewayAuthenticationService) LogoutAll(
 
 	userSession := utils.UserSessionContext(ctx)
 
-	_ = LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
+	LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
 
 	return &gatewayAuthenticationv1.LogoutAllResponse{}, nil
 }

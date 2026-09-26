@@ -1,18 +1,19 @@
 package config
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"time"
-
 	"uuid"
 
 	"github.com/pquerna/otp"
 	"github.com/pquerna/otp/totp"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/sync/errgroup"
 
 	"neupaneanish.com.np/authentication/internal/repository"
 )
@@ -150,23 +151,43 @@ func (f *TwoFactor) Validate(
 	return valid, nil
 }
 
-func (f *TwoFactor) GenerateRecoveryCodes() (*RecoveryCodes, error) {
+func (f *TwoFactor) GenerateRecoveryCodes(ctx context.Context) (*RecoveryCodes, error) {
 	plains := make([]string, recoveryCodeCount)
 	hashes := make([][]byte, recoveryCodeCount)
 
-	for i := range recoveryCodeCount {
-		b := make([]byte, recoveryCodeBytes)
-		if _, err := rand.Read(b); err != nil {
-			return nil, err
-		}
-		code := fmt.Sprintf("%X", b)
-		plains[i] = fmt.Sprintf("%s-%s", code[0:5], code[5:10])
+	g, gCtx := errgroup.WithContext(ctx)
 
-		hash, hashErr := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
-		if hashErr != nil {
-			return nil, hashErr
-		}
-		hashes[i] = hash
+	for i := range recoveryCodeCount {
+		g.Go(func() error {
+			if err := gCtx.Err(); err != nil {
+				return err
+			}
+
+			b := make([]byte, recoveryCodeBytes)
+			if _, err := rand.Read(b); err != nil {
+				return err
+			}
+
+			code := fmt.Sprintf("%X", b)
+			plains[i] = fmt.Sprintf("%s-%s", code[0:5], code[5:10])
+
+			if err := gCtx.Err(); err != nil {
+				return err
+			}
+
+			hash, hashErr := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
+			if hashErr != nil {
+				return hashErr
+			}
+
+			hashes[i] = hash
+
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	return &RecoveryCodes{

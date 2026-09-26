@@ -70,7 +70,7 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 		s.cfg.Logger.WarnContext(ctx, "Invalid code", "service", serviceName)
 		return nil, errs.ErrInvalidCode
 	}
-	codes, codesErr := s.cfg.TwoFactor.GenerateRecoveryCodes()
+	codes, codesErr := s.cfg.TwoFactor.GenerateRecoveryCodes(ctx)
 	if codesErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Recovery Code Generation", "service", serviceName, "error", codesErr)
 		return nil, errs.ErrInternalServer
@@ -91,6 +91,17 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 		userSession.UserID,
 		tfSession.Email,
 		utils.EmailTemplateConfirmTwoFactor,
+		serviceName,
+		s.cfg.Redpanda,
+		s.cfg.Logger,
+	)
+	redpanda.RootNotificationProduce(
+		ctx,
+		userSession.UserID,
+		userSession.UserID,
+		userSession.Username,
+		utils.DatabaseTableTwoFactor,
+		utils.DatabaseMethodCreate,
 		serviceName,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
@@ -132,9 +143,8 @@ func (s *GatewayAuthenticationService) confirmTwoFactorDatabase(
 
 	qtx := repository.New(tx)
 
-	cmdTag, secretErr := qtx.CreateTwoFactor(ctx, twoFactorParams)
-	if secretErr != nil {
-		if pgErr, ok := errors.AsType[*pgconn.PgError](secretErr); ok {
+	if err := qtx.CreateTwoFactor(ctx, twoFactorParams); err != nil {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok {
 			switch pgErr.Code {
 			case pgerrcode.UniqueViolation:
 				s.cfg.Logger.WarnContext(
@@ -154,12 +164,7 @@ func (s *GatewayAuthenticationService) confirmTwoFactorDatabase(
 				return errs.ErrSessionExpired
 			}
 		}
-		s.cfg.Logger.ErrorContext(ctx, "Create Two Factor", "service", serviceName, "error", secretErr)
-		return errs.ErrInternalServer
-	}
-
-	if cmdTag.RowsAffected() == 0 {
-		s.cfg.Logger.WarnContext(ctx, "Cannot create", "service", serviceName)
+		s.cfg.Logger.ErrorContext(ctx, "Create Two Factor", "service", serviceName, "error", err)
 		return errs.ErrInternalServer
 	}
 

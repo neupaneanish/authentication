@@ -31,13 +31,9 @@ var (
 	ErrAlreadyEnabled         = status.Error(codes.AlreadyExists, "Already Enabled")
 	ErrInvalidMethod          = status.Error(codes.InvalidArgument, "Invalid method")
 	ErrUnauthenticated        = status.Error(codes.Unauthenticated, "Session Expired")
-	ErrFailedPreconditionRole = status.Error(
+	ErrConflict               = status.Error(
 		codes.FailedPrecondition,
-		"Role update rejected, Role is identical or record is stale. Please refresh.",
-	)
-	ErrFailedPreconditionStatus = status.Error(
-		codes.FailedPrecondition,
-		"Status update rejected, Status is identical or record is stale. Please refresh.",
+		"Something went wrong, please refresh and try again",
 	)
 	ErrSelfUpdate = status.Error(
 		codes.PermissionDenied,

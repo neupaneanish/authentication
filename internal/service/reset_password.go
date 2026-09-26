@@ -67,6 +67,7 @@ func (s *ExternalAuthenticationService) ResetPassword(
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
 		userID,
+		resetSession.Username,
 		serviceName,
 		req.GetPassword().GetValue(),
 		resetSession.Email,
@@ -89,6 +90,6 @@ func (s *ExternalAuthenticationService) deleteResetPasswordSession(ctx context.C
 		session,
 		s.cfg.Client,
 	); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "vValkey delete", "service", serviceName, "error", err)
+		s.cfg.Logger.ErrorContext(ctx, "valkey delete", "service", serviceName, "error", err)
 	}
 }

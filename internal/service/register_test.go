@@ -5,13 +5,14 @@ package service_test
 import (
 	"crypto/rand"
 	"fmt"
+	rand2 "math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"neupaneanish.com.np/authentication/internal/errs"
-	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 )
 
@@ -26,6 +27,7 @@ func TestRegister(t *testing.T) {
 			Password:        &passwordv1.Password{Value: rawPassword},
 			ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 			Phone:           "+12121212121",
+			Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
 		}
 
 		response, err := externalAuthenticationServiceClient.Register(t.Context(), req)
@@ -42,6 +44,7 @@ func TestRegister(t *testing.T) {
 			Password:        &passwordv1.Password{Value: rawPassword},
 			ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 			Phone:           "+11234567890",
+			Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
 		}
 
 		response, err := externalAuthenticationServiceClient.Register(t.Context(), req)
@@ -62,6 +65,7 @@ func TestRegister(t *testing.T) {
 			Password:        &passwordv1.Password{Value: rawPassword},
 			ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 			Phone:           phone,
+			Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
 		}
 
 		response, err := externalAuthenticationServiceClient.Register(t.Context(), req)
@@ -76,6 +80,7 @@ func TestRegister(t *testing.T) {
 				Password:        &passwordv1.Password{Value: rawPassword},
 				ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 				Phone:           phone,
+				Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
 			}
 
 			emailRes, emailErr := externalAuthenticationServiceClient.Register(t.Context(), emailReq)
@@ -92,6 +97,7 @@ func TestRegister(t *testing.T) {
 				Password:        &passwordv1.Password{Value: rawPassword},
 				ConfirmPassword: &passwordv1.Password{Value: rawPassword},
 				Phone:           phone,
+				Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
 			}
 
 			phoneRes, phoneErr := externalAuthenticationServiceClient.Register(t.Context(), phoneReq)

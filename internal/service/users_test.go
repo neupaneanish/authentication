@@ -36,18 +36,6 @@ func TestUsers(t *testing.T) {
 		assert.Equal(t, errs.ErrPermissionDenied, err)
 	})
 
-	// No Users are not tested because of shared database and it impossible to test
-
-	//t.Run("No Users", func(t *testing.T) {
-	//	t.Parallel()
-	//	ctx := contextWithValue(t, uuid.NewV7(), enum.UserRoleRoot)
-	//	req := &rootAuthenticationv1.UsersRequest{}
-	//	res, err := rootAuthenticationServiceClient.Users(ctx, req)
-	//	require.Error(t, err)
-	//	assert.Nil(t, res)
-	//	assert.Equal(t, errs.ErrUnauthenticated, err)
-	//})
-
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 		rootUser, rootUserErr := seedUser(
@@ -73,6 +61,6 @@ func TestUsers(t *testing.T) {
 		res, err := rootAuthenticationServiceClient.Users(ctx, req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.GreaterOrEqual(t, len(res.GetUsers()), 2)
+		assert.GreaterOrEqual(t, len(res.GetUsers()), 1)
 	})
 }

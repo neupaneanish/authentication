@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	rand2 "math/rand"
 	"net"
 	"os"
 	"path/filepath"
@@ -150,7 +151,7 @@ func setupContainer(logger *slog.Logger) *container {
 
 	rpURL, rpCleanup, rpErr := tests.Redpanda()
 	if rpErr != nil {
-		logger.Error("Failed to start valkey container", "error", vkErr)
+		logger.Error("Failed to start redpanda container", "error", rpErr)
 		os.Exit(1)
 	}
 
@@ -194,7 +195,7 @@ func setupEnv(db, vk, rp string, logger *slog.Logger) *config.Env {
 func testClientServer(cfg *config.Config, logger *slog.Logger) (*grpc.ClientConn, *grpc.Server, error) {
 	listen := bufconn.Listen(1024 * 1024)
 
-	opts, optsErr := transport.NewOptions(cfg)
+	opts, optsErr := transport.NewOptions(cfg.Logger)
 
 	if optsErr != nil {
 		return nil, nil, optsErr
@@ -297,10 +298,11 @@ func seedUser(
 	phone := fmt.Sprintf("+1571%07d", 5000000+id)
 
 	qtx := repository.New(tx)
+	username := fmt.Sprintf("username%d", rand2.Int63n(999999999999999))
 
 	userParams := &repository.CreateUserParams{
 		Email:     email,
-		Username:  email,
+		Username:  username,
 		Phone:     phone,
 		Role:      role,
 		Status:    status,
@@ -323,13 +325,9 @@ func seedUser(
 		CreatedBy: userRow.ID,
 	}
 
-	affected, credentialsErr := qtx.CreateCredential(ctx, credentialsParams)
+	credentialsErr := qtx.CreateCredential(ctx, credentialsParams)
 	if credentialsErr != nil {
 		return uuid.Nil(), credentialsErr
-	}
-
-	if affected.RowsAffected() == 0 {
-		return uuid.Nil(), errors.New("cannot create credentials")
 	}
 
 	if active {
@@ -376,7 +374,7 @@ func seedTwoFactor(t *testing.T, recovery bool) (uuid.UUID, string, []string) {
 		UpdatedBy: userID,
 	}
 
-	recoveryCodes, recoveryCodesErr := cfg.TwoFactor.GenerateRecoveryCodes()
+	recoveryCodes, recoveryCodesErr := cfg.TwoFactor.GenerateRecoveryCodes(t.Context())
 	require.NoError(t, recoveryCodesErr)
 
 	recoveryCodesRows := make([]*repository.CreateRecoveryCodesParams, 0, len(recoveryCodes.Hash))
@@ -396,7 +394,7 @@ func seedTwoFactor(t *testing.T, recovery bool) (uuid.UUID, string, []string) {
 
 	qtx := repository.New(tx)
 
-	_, createTwoFactorErr := qtx.CreateTwoFactor(t.Context(), twoFactorParams)
+	createTwoFactorErr := qtx.CreateTwoFactor(t.Context(), twoFactorParams)
 	require.NoError(t, createTwoFactorErr)
 
 	if recovery {
@@ -416,6 +414,7 @@ func contextWithValue(t *testing.T, userID uuid.UUID, role enum.UserRole) contex
 		"x-user-id", userID.String(),
 		"x-role", string(role),
 		"x-jti", uuid.NewV7().String(),
+		"x-username", rand.Text(),
 	)
 
 	ctx := metadata.NewOutgoingContext(t.Context(), md)

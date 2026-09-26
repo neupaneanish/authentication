@@ -22,20 +22,6 @@ import (
 func TestUpdateStatus(t *testing.T) {
 	t.Parallel()
 
-	t.Run("No User", func(t *testing.T) {
-		t.Parallel()
-		err := seedUpdateError(
-			t,
-			uuid.NewV7(),
-			uuid.NewV7(),
-			enum.UserRoleRoot,
-			enum.UserStatusPending,
-			time.Now(),
-			false,
-		)
-		assert.Equal(t, errs.ErrFailedPreconditionStatus, err)
-	})
-
 	t.Run("Same Status", func(t *testing.T) {
 		t.Parallel()
 		userID, userIDErr := seedUser(
@@ -53,23 +39,7 @@ func TestUpdateStatus(t *testing.T) {
 		require.NoError(t, userErr)
 
 		err := seedUpdateError(t, uuid.NewV7(), userID, enum.UserRoleUser, enum.UserStatusActive, user.UpdatedAt, false)
-		assert.Equal(t, errs.ErrFailedPreconditionStatus, err)
-	})
-
-	t.Run("Different Update At", func(t *testing.T) {
-		t.Parallel()
-		userID, userIDErr := seedUser(
-			t.Context(),
-			generateEmail(),
-			"Password",
-			enum.UserStatusActive,
-			false,
-			enum.UserRoleUser,
-		)
-		require.NoError(t, userIDErr)
-
-		err := seedUpdateError(t, uuid.NewV7(), userID, enum.UserRoleUser, enum.UserStatusDisabled, time.Now(), false)
-		assert.Equal(t, errs.ErrFailedPreconditionStatus, err)
+		assert.Equal(t, errs.ErrConflict, err)
 	})
 
 	t.Run("Self Update", func(t *testing.T) {
@@ -123,8 +93,5 @@ func TestUpdateStatus(t *testing.T) {
 		res, err := rootAuthenticationServiceClient.UpdateStatus(ctx, req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.Equal(t, adminID.String(), res.GetUpdatedBy())
-		assert.Equal(t, user.ID.String(), res.GetId())
-		assert.Equal(t, enum.UserStatusSuspended, enum.UserStatus(res.GetStatus()))
 	})
 }

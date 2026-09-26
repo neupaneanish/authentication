@@ -23,11 +23,15 @@ const (
 	SecurityMethodChangePassword   SecurityMethod = "changePassword"
 	SecurityMethodEnableTwoFactor  SecurityMethod = "enableTwoFactor"
 	SecurityMethodDisableTwoFactor SecurityMethod = "disableTwoFactor"
+	SecurityMethodChangeEmail      SecurityMethod = "changeEmail"
 )
 
 func (m SecurityMethod) Valid() bool {
 	switch m {
-	case SecurityMethodChangePassword, SecurityMethodEnableTwoFactor, SecurityMethodDisableTwoFactor:
+	case SecurityMethodChangePassword,
+		SecurityMethodEnableTwoFactor,
+		SecurityMethodDisableTwoFactor,
+		SecurityMethodChangeEmail:
 		return true
 	default:
 		return false

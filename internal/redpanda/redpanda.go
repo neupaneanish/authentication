@@ -86,14 +86,22 @@ func SecurityEmailProduce(
 
 func RootNotificationProduce(
 	ctx context.Context,
-	payload utils.RootNotification,
-	serviceName string,
+	actorID, userID uuid.UUID,
+	username, table, method, serviceName string,
 	client *kgo.Client,
 	logger *slog.Logger,
 ) {
+	payload := utils.RootNotification{
+		ActorID:  actorID,
+		UserID:   userID,
+		Username: username,
+		Table:    table,
+		Method:   method,
+	}
+
 	produce[utils.RootNotification](
 		ctx,
-		payload.UserID,
+		userID,
 		utils.RedpandaRootNotificationTopic,
 		serviceName,
 		payload,

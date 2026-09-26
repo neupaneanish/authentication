@@ -80,7 +80,7 @@ func TestNewTwoFactor(t *testing.T) {
 
 		t.Run("Recovery Code", func(t *testing.T) {
 			t.Parallel()
-			recovery, recoveryErr := tf.GenerateRecoveryCodes()
+			recovery, recoveryErr := tf.GenerateRecoveryCodes(t.Context())
 			require.NoError(t, recoveryErr)
 			assert.Len(t, recovery.Hash, 10)
 			assert.Len(t, recovery.Plain, 10)
@@ -101,7 +101,7 @@ func TestNewTwoFactor(t *testing.T) {
 
 		t.Run("Validate recovery code", func(t *testing.T) {
 			t.Parallel()
-			recovery, recoveryErr := tf.GenerateRecoveryCodes()
+			recovery, recoveryErr := tf.GenerateRecoveryCodes(t.Context())
 			require.NoError(t, recoveryErr)
 			assert.Len(t, recovery.Hash, 10)
 			assert.Len(t, recovery.Plain, 10)

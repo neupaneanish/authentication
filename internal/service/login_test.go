@@ -11,11 +11,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/metadata"
 
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
-	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/password/v1"
+	passwordv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
 )
@@ -189,9 +188,8 @@ func TestLogin(t *testing.T) {
 			UpdatedBy: userID,
 		}
 
-		row, rowErr := cfg.Repository.CreateTwoFactor(t.Context(), params)
+		rowErr := cfg.Repository.CreateTwoFactor(t.Context(), params)
 		require.NoError(t, rowErr)
-		assert.Equal(t, int64(1), row.RowsAffected())
 
 		req := &externalAuthenticationv1.LoginRequest{
 			Email: email,
@@ -299,13 +297,8 @@ func TestLogin(t *testing.T) {
 
 	t.Run("Permission Denied", func(t *testing.T) {
 		t.Parallel()
-		md := metadata.Pairs(
-			"x-user-id", uuid.NewV7().String(),
-			"x-role", string(enum.UserRoleUser),
-			"x-jti", uuid.NewV7().String(),
-		)
 
-		ctx := metadata.NewOutgoingContext(t.Context(), md)
+		ctx := contextWithValue(t, uuid.Nil(), enum.UserRoleUser)
 
 		email := generateEmail()
 		req := &externalAuthenticationv1.LoginRequest{
