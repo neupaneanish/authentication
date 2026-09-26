@@ -136,14 +136,19 @@ func (s *ExternalAuthenticationService) Register(
 		return nil, err
 	}
 
+	userSession := &utils.UserSession{
+		UserID:   user.ID,
+		Username: user.Username,
+		Jti:      uuid.Nil().String(),
+	}
 	redpanda.RootNotificationProduce(
 		ctx,
+		userSession,
 		user.ID,
-		user.ID,
-		user.Username,
 		utils.DatabaseTableUser,
 		utils.DatabaseMethodCreate,
 		serviceName,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	)

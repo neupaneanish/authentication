@@ -132,17 +132,19 @@ const (
 	UsersPhoneKey = "users_phone_key"
 )
 
+//nolint:funlen
 func ChangeResetPassword(
 	ctx context.Context,
-	userID uuid.UUID,
-	username, serviceName, rawPassword, email string,
+	session *utils.UserSession,
+	serviceName, rawPassword, email string,
 	reset bool,
 	pool *pgxpool.Pool,
 	repo repository.Querier,
+	vkClient valkey.Client,
 	client *kgo.Client,
 	logger *slog.Logger,
 ) error {
-	params := &repository.CredentialsParams{UserID: userID, HistoryLimit: utils.CredentialsHistoryLimit}
+	params := &repository.CredentialsParams{UserID: session.UserID, HistoryLimit: utils.CredentialsHistoryLimit}
 
 	passwords, passwordsErr := repo.Credentials(ctx, params)
 	if passwordsErr != nil {
@@ -164,7 +166,7 @@ func ChangeResetPassword(
 			}
 
 			if utils.ComparePassword(hash, rawPassword) {
-				logger.WarnContext(ctx, "Previous password", "service", serviceName, "userID", userID)
+				logger.WarnContext(ctx, "Previous password", "service", serviceName, "userID", session.UserID)
 				return errs.ErrPreviousPassword
 			}
 			return nil
@@ -186,7 +188,7 @@ func ChangeResetPassword(
 	} else {
 		emailTemplate = utils.EmailTemplateConfirmChangePassword
 		method = utils.DatabaseMethodUpdate
-		createdBy = userID
+		createdBy = session.UserID
 	}
 
 	newHash, newHashErr := utils.CreatePassword(rawPassword)
@@ -195,7 +197,11 @@ func ChangeResetPassword(
 		return errs.ErrInternalServer
 	}
 
-	credentialParams := &repository.CreateCredentialParams{UserID: userID, Password: newHash, CreatedBy: createdBy}
+	credentialParams := &repository.CreateCredentialParams{
+		UserID:    session.UserID,
+		Password:  newHash,
+		CreatedBy: createdBy,
+	}
 
 	tx, txErr := pool.Begin(ctx)
 	if txErr != nil {
@@ -218,15 +224,15 @@ func ChangeResetPassword(
 		return errs.ErrInternalServer
 	}
 
-	redpanda.SecurityEmailProduce(ctx, userID, email, emailTemplate, serviceName, client, logger)
+	redpanda.SecurityEmailProduce(ctx, session.UserID, email, emailTemplate, serviceName, client, logger)
 	redpanda.RootNotificationProduce(
 		ctx,
-		userID,
-		userID,
-		username,
+		session,
+		session.UserID,
 		utils.DatabaseTableCredential,
 		method,
 		serviceName,
+		vkClient,
 		client,
 		logger,
 	)

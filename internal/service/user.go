@@ -8,6 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"neupaneanish.com.np/authentication/internal/utils"
+
 	"neupaneanish.com.np/authentication/internal/errs"
 	rootAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/root/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/repository"
@@ -18,6 +20,7 @@ func (s *RootAuthenticationService) User(
 	req *rootAuthenticationv1.UserRequest,
 ) (*rootAuthenticationv1.UserResponse, error) {
 	serviceName := "User"
+	userSession := utils.UserSessionContext(ctx)
 
 	userID, userIDErr := uuid.Parse(req.GetId())
 	if userIDErr != nil {
@@ -45,6 +48,19 @@ func (s *RootAuthenticationService) User(
 		s.cfg.Logger.ErrorContext(ctx, "Failed to fetch user", "service", serviceName, "error", userErr)
 		return nil, errs.ErrInternalServer
 	}
+
+	createdByUsername, updatedByUsername, usernameErr := utils.GetUsernames(
+		ctx,
+		user.CreatedBy,
+		user.UpdatedBy,
+		userSession,
+		s.cfg.Client,
+		s.cfg.Logger,
+	)
+	if usernameErr != nil {
+		return nil, usernameErr
+	}
+
 	return &rootAuthenticationv1.UserResponse{
 		Id:                    user.ID.String(),
 		Email:                 user.Email,
@@ -53,11 +69,16 @@ func (s *RootAuthenticationService) User(
 		Role:                  string(user.Role),
 		Status:                string(user.Status),
 		EmailVerified:         user.EmailVerified,
+		EmailVerifiedAt:       utils.TimestamppbValue(user.EmailVerifiedAt),
+		PhoneVerified:         user.PhoneVerified,
+		PhoneVerifiedAt:       utils.TimestamppbValue(user.PhoneVerifiedAt),
 		TwoFactor:             user.TwoFactor,
 		LastPasswordUpdatedAt: timestamppb.New(user.LastPasswordUpdatedAt),
 		CreatedAt:             timestamppb.New(user.CreatedAt),
 		CreatedBy:             user.CreatedBy.String(),
 		UpdatedAt:             timestamppb.New(user.UpdatedAt),
 		UpdatedBy:             user.UpdatedBy.String(),
+		CreatedByUsername:     createdByUsername,
+		UpdatedByUsername:     updatedByUsername,
 	}, nil
 }

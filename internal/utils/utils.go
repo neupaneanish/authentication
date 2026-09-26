@@ -2,10 +2,15 @@ package utils
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
 	"uuid"
+
+	"github.com/valkey-io/valkey-go"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"neupaneanish.com.np/authentication/internal/errs"
 )
@@ -20,6 +25,8 @@ const (
 )
 
 const (
+	systemUsername = "system"
+
 	LoginAccessSessionPrefix          = "login:access:session"
 	LoginRefreshSessionPrefix         = "login:refresh:session"
 	ResetPasswordSessionPrefix        = "reset:password:session"
@@ -144,11 +151,12 @@ type SecurityEmail struct {
 }
 
 type RootNotification struct {
-	ActorID  uuid.UUID
-	UserID   uuid.UUID
-	Username string
-	Table    string
-	Method   string
+	ActorID       uuid.UUID
+	UserID        uuid.UUID
+	ActorUsername string
+	UserUsername  string
+	Table         string
+	Method        string
 }
 
 type ContextKey string
@@ -179,4 +187,84 @@ func ParsedUUID(ctx context.Context, id, serviceName string, logger *slog.Logger
 		return uuid.Nil(), errs.ErrNotFound
 	}
 	return idx, nil
+}
+
+func TimestamppbValue(t *time.Time) *timestamppb.Timestamp {
+	if t == nil {
+		return nil
+	}
+	return timestamppb.New(*t)
+}
+
+func GetUsernames(
+	ctx context.Context,
+	createdBy, updatedBy uuid.UUID,
+	session *UserSession,
+	client valkey.Client,
+	logger *slog.Logger,
+) (string, string, error) {
+	if createdBy == updatedBy && createdBy == uuid.Nil() {
+		return systemUsername, systemUsername, nil
+	}
+
+	if session.UserID == createdBy && createdBy == updatedBy {
+		return session.Username, session.Username, nil
+	}
+
+	var createdUsername, updateUsername string
+
+	g, gCtx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		if session.UserID == createdBy {
+			createdUsername = session.Username
+			return nil
+		}
+
+		username, err := getUsername(gCtx, createdBy, client)
+		if err != nil {
+			return err
+		}
+		createdUsername = username
+		return nil
+	})
+
+	g.Go(func() error {
+		if session.UserID == updatedBy {
+			updateUsername = session.Username
+			return nil
+		}
+
+		username, err := getUsername(gCtx, updatedBy, client)
+		if err != nil {
+			return err
+		}
+		updateUsername = username
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		logger.ErrorContext(ctx, "Failed to get username", "error", err)
+		return "", "", errs.ErrInternalServer
+	}
+
+	return createdUsername, updateUsername, nil
+}
+
+func getUsername(ctx context.Context, userID uuid.UUID, client valkey.Client) (string, error) {
+	if userID == uuid.Nil() {
+		return systemUsername, nil
+	}
+
+	key := fmt.Sprintf("user:username:%s", userID.String())
+	cmd := client.B().Get().Key(key).Build()
+
+	value, err := client.Do(ctx, cmd).ToString()
+	if err != nil {
+		if valkey.IsValkeyNil(err) {
+			return "notfound", nil
+		}
+		return "unknown", err
+	}
+	return value, nil
 }

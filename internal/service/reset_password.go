@@ -4,8 +4,6 @@ import (
 	"context"
 	"uuid"
 
-	"github.com/valkey-io/valkey-go/om"
-
 	"neupaneanish.com.np/authentication/internal/errs"
 	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
@@ -36,13 +34,9 @@ func (s *ExternalAuthenticationService) ResetPassword(
 		session,
 		s.cfg.Client,
 	)
-	if resetSessionErr != nil {
-		if om.IsRecordNotFound(resetSessionErr) {
-			s.cfg.Logger.WarnContext(ctx, "Session not found", "service", serviceName, "session", session)
-			return nil, errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey Get", "service", serviceName, "error", resetSessionErr)
-		return nil, errs.ErrInternalServer
+
+	if err := omNotFound(ctx, resetSessionErr, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
 	}
 
 	userID, userIDErr := uuid.Parse(resetSession.UserID)
@@ -64,16 +58,22 @@ func (s *ExternalAuthenticationService) ResetPassword(
 		return nil, userIDLimiterErr
 	}
 
+	userSession := &utils.UserSession{
+		UserID:   userID,
+		Username: resetSession.Username,
+		Jti:      uuid.Nil().String(),
+	}
+
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
-		userID,
-		resetSession.Username,
+		userSession,
 		serviceName,
 		req.GetPassword().GetValue(),
 		resetSession.Email,
 		true,
 		s.cfg.Pool,
 		s.cfg.Repository,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	); changeResetPasswordErr != nil {

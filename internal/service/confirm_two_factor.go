@@ -8,7 +8,6 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/valkey-io/valkey-go/om"
 
 	"neupaneanish.com.np/authentication/internal/redpanda"
 
@@ -46,13 +45,8 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 		s.cfg.Client,
 	)
 
-	if tfSessionErr != nil {
-		if om.IsRecordNotFound(tfSessionErr) {
-			s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
-			return nil, errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", tfSessionErr)
-		return nil, errs.ErrInternalServer
+	if err := omNotFound(ctx, tfSessionErr, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
 	}
 
 	if tfSession.Session != req.GetSession() {
@@ -97,12 +91,12 @@ func (s *GatewayAuthenticationService) ConfirmTwoFactor(
 	)
 	redpanda.RootNotificationProduce(
 		ctx,
+		userSession,
 		userSession.UserID,
-		userSession.UserID,
-		userSession.Username,
 		utils.DatabaseTableTwoFactor,
 		utils.DatabaseMethodCreate,
 		serviceName,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	)
