@@ -105,12 +105,12 @@ func (s *GatewayAuthenticationService) ChangeEmail(
 
 	redpanda.RootNotificationProduce(
 		ctx,
+		userSession,
 		userSession.UserID,
-		userSession.UserID,
-		userSession.Username,
 		utils.DatabaseTableUser,
 		utils.DatabaseMethodUpdate,
 		serviceName,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	)

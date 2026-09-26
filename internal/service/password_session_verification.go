@@ -75,7 +75,7 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 
 	switch enum.SecurityMethod(verificationSession.Method) {
 	case enum.SecurityMethodDisableTwoFactor:
-		return s.disableTwoFactor(ctx, userSession.UserID, serviceName, verificationSession.Email, userSession.Username)
+		return s.disableTwoFactor(ctx, userSession, serviceName, verificationSession.Email)
 
 	case enum.SecurityMethodChangePassword:
 		return s.changePasswordSession(ctx, verificationSession.Key, newSession, verificationSession.Email, serviceName)
@@ -101,12 +101,12 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 
 func (s *GatewayAuthenticationService) disableTwoFactor(
 	ctx context.Context,
-	userID uuid.UUID,
-	serviceName, email, username string,
+	userSession *utils.UserSession,
+	serviceName, email string,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
-	twoFactorParams := &repository.DeleteTwoFactorParams{UserID: userID}
-	recoveryCodesParams := &repository.DeleteRecoveryCodesParams{UserID: userID}
-	recoveryCountParams := &repository.RecoveryCodeCountParams{UserID: userID}
+	twoFactorParams := &repository.DeleteTwoFactorParams{UserID: userSession.UserID}
+	recoveryCodesParams := &repository.DeleteRecoveryCodesParams{UserID: userSession.UserID}
+	recoveryCountParams := &repository.RecoveryCodeCountParams{UserID: userSession.UserID}
 
 	tx, txErr := s.cfg.Pool.Begin(ctx)
 	if txErr != nil {
@@ -148,11 +148,11 @@ func (s *GatewayAuthenticationService) disableTwoFactor(
 		return nil, errs.ErrInternalServer
 	}
 
-	s.deletePasswordVerificationSession(ctx, userID.String(), serviceName)
+	s.deletePasswordVerificationSession(ctx, userSession.UserID.String(), serviceName)
 
 	redpanda.SecurityEmailProduce(
 		ctx,
-		userID,
+		userSession.UserID,
 		email,
 		utils.EmailTemplateConfirmDeleteTwoFactor,
 		serviceName,
@@ -162,12 +162,12 @@ func (s *GatewayAuthenticationService) disableTwoFactor(
 
 	redpanda.RootNotificationProduce(
 		ctx,
-		userID,
-		userID,
-		username,
+		userSession,
+		userSession.UserID,
 		utils.DatabaseTableTwoFactor,
 		utils.DatabaseMethodDelete,
 		serviceName,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	)

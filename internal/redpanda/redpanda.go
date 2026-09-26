@@ -8,6 +8,7 @@ import (
 	"uuid"
 
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/valkey-io/valkey-go"
 
 	"neupaneanish.com.np/authentication/internal/utils"
 )
@@ -86,17 +87,33 @@ func SecurityEmailProduce(
 
 func RootNotificationProduce(
 	ctx context.Context,
-	actorID, userID uuid.UUID,
-	username, table, method, serviceName string,
+	session *utils.UserSession,
+	userID uuid.UUID,
+	table, method, serviceName string,
+	vkClient valkey.Client,
 	client *kgo.Client,
 	logger *slog.Logger,
 ) {
+	actorUsername, userUsername, err := utils.GetUsernames(
+		ctx,
+		session.UserID,
+		userID,
+		session,
+		vkClient,
+		logger,
+	)
+
+	if err != nil {
+		logger.WarnContext(ctx, "Failed to resolve notification usernames, using placeholders", "error", err)
+	}
+
 	payload := utils.RootNotification{
-		ActorID:  actorID,
-		UserID:   userID,
-		Username: username,
-		Table:    table,
-		Method:   method,
+		ActorID:       session.UserID,
+		UserID:        userID,
+		ActorUsername: actorUsername,
+		UserUsername:  userUsername,
+		Table:         table,
+		Method:        method,
 	}
 
 	produce[utils.RootNotification](

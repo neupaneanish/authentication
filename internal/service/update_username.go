@@ -33,9 +33,8 @@ func (s *GatewayAuthenticationService) UpdateUsername(
 	if err := updateUsername(
 		ctx,
 		req.GetUsername(),
-		userSession.Username,
+		userSession,
 		serviceName,
-		userSession.UserID,
 		userSession.UserID,
 		s.cfg.Repository,
 		s.cfg.Client,
@@ -62,10 +61,9 @@ func (s *RootAuthenticationService) UpdateUsername(
 	if err := updateUsername(
 		ctx,
 		req.GetUsername(),
-		userSession.Username,
+		userSession,
 		serviceName,
 		userID,
-		userSession.UserID,
 		s.cfg.Repository,
 		s.cfg.Client,
 		s.cfg.Redpanda,
@@ -79,8 +77,9 @@ func (s *RootAuthenticationService) UpdateUsername(
 func updateUsername(
 	ctx context.Context,
 	req *authenticationv1.Username,
-	actorUsername, serviceName string,
-	userID, updatedBy uuid.UUID,
+	session *utils.UserSession,
+	serviceName string,
+	userID uuid.UUID,
 	repo repository.Querier,
 	client valkey.Client,
 	rpClient *kgo.Client,
@@ -89,7 +88,7 @@ func updateUsername(
 	username := req.GetValue()
 	params := &repository.UpdateUsernameParams{
 		Username:  username,
-		UpdatedBy: updatedBy,
+		UpdatedBy: session.UserID,
 		ID:        userID,
 		UpdatedAt: req.GetUpdatedAt().AsTime(),
 	}
@@ -127,21 +126,14 @@ func updateUsername(
 
 	setUsername(ctx, userID.String(), username, serviceName, client, logger)
 
-	var userName string
-	if updatedBy == userID {
-		userName = username
-	} else {
-		userName = actorUsername
-	}
-
 	redpanda.RootNotificationProduce(
 		ctx,
-		updatedBy,
+		session,
 		userID,
-		userName,
 		utils.DatabaseTableUser,
 		utils.DatabaseMethodUpdate,
 		serviceName,
+		client,
 		rpClient,
 		logger,
 	)

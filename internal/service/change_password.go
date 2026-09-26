@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/valkey-io/valkey-go/om"
 
@@ -37,46 +38,57 @@ func (s *GatewayAuthenticationService) ChangePassword(
 		userSession.UserID.String(),
 		s.cfg.Client,
 	)
-	if dataErr != nil {
-		if om.IsRecordNotFound(dataErr) {
-			s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
-			return nil, errs.ErrSessionExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", dataErr)
-		return nil, errs.ErrInternalServer
+	if err := omNotFound(ctx, dataErr, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
 	}
 
 	if data.Session != req.GetSession() {
 		s.cfg.Logger.WarnContext(ctx, "session expired", "service", serviceName)
+		s.deleteChangePasswordSession(ctx, userSession.UserID.String(), serviceName)
 		return nil, errs.ErrSessionExpired
 	}
 
 	if changeResetPasswordErr := ChangeResetPassword(
 		ctx,
-		userSession.UserID,
-		userSession.Username,
+		userSession,
 		serviceName,
 		req.GetPassword().GetValue(),
 		data.Email,
 		false,
 		s.cfg.Pool,
 		s.cfg.Repository,
+		s.cfg.Client,
 		s.cfg.Redpanda,
 		s.cfg.Logger,
 	); changeResetPasswordErr != nil {
 		return nil, changeResetPasswordErr
 	}
 
+	s.deleteChangePasswordSession(ctx, userSession.UserID.String(), serviceName)
+	LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
+
+	return &gatewayAuthenticationv1.ChangePasswordResponse{}, nil
+}
+
+func (s *GatewayAuthenticationService) deleteChangePasswordSession(ctx context.Context, key, serviceName string) {
 	if hDeleteErr := redis.HDelete[utils.ChangePasswordSession](
 		ctx,
 		utils.ChangePasswordSessionPrefix,
-		userSession.UserID.String(),
+		key,
 		s.cfg.Client,
 	); hDeleteErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Valkey delete", "service", serviceName, "error", hDeleteErr)
 	}
+}
 
-	LogoutAll(ctx, userSession.UserID.String(), serviceName, s.cfg.Client, s.cfg.Logger)
-
-	return &gatewayAuthenticationv1.ChangePasswordResponse{}, nil
+func omNotFound(ctx context.Context, err error, serviceName string, logger *slog.Logger) error {
+	if err != nil {
+		if om.IsRecordNotFound(err) {
+			logger.WarnContext(ctx, "session expired", "service", serviceName)
+			return errs.ErrSessionExpired
+		}
+		logger.ErrorContext(ctx, "Valkey get", "service", serviceName, "error", err)
+		return errs.ErrInternalServer
+	}
+	return nil
 }
