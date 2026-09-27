@@ -37,7 +37,13 @@ func (s *ExternalAuthenticationService) Register(
 		return nil, errs.ErrInvalidPhone
 	}
 
-	hashPassword, hashPasswordErr := utils.CreatePassword(req.GetPassword().GetValue())
+	password := req.GetPassword().GetValue()
+
+	if err := utils.PasswordPwned(ctx, password, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
+	}
+
+	hashPassword, hashPasswordErr := utils.CreatePassword(password)
 	if hashPasswordErr != nil {
 		s.cfg.Logger.ErrorContext(ctx, "Password hash", "service", serviceName, "error", hashPasswordErr)
 		return nil, errs.ErrInternalServer

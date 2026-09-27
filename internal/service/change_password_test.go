@@ -23,8 +23,8 @@ import (
 
 func TestChangePassword(t *testing.T) {
 	t.Parallel()
-	oldPassword := "Password@1234"
-	newPassword := "Password@12345"
+	oldPassword := "MSI@20206!msi"
+	newPassword := "MSI@20206!msi1"
 
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
@@ -108,6 +108,21 @@ func TestChangePassword(t *testing.T) {
 		require.Error(t, responseErr)
 		assert.Nil(t, response)
 		assert.Equal(t, errs.ErrPreviousPassword, responseErr)
+	})
+
+	t.Run("Pawned Password", func(t *testing.T) {
+		t.Parallel()
+		ctx, session := changePasswordSeed(t, oldPassword)
+		req := &gatewayAuthenticationv1.ChangePasswordRequest{
+			Session:         session,
+			Password:        &passwordv1.Password{Value: "Password@123"},
+			ConfirmPassword: &passwordv1.Password{Value: "Password@123"},
+		}
+
+		response, responseErr := gatewayAuthenticationServiceClient.ChangePassword(ctx, req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+		assert.Equal(t, errs.ErrPasswordPwned, responseErr)
 	})
 }
 

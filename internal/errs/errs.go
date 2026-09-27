@@ -39,4 +39,8 @@ var (
 		codes.PermissionDenied,
 		"Self-update rejected: You are not permitted to update your information",
 	)
+	ErrPasswordPwned = status.Error(
+		codes.FailedPrecondition,
+		"This password has previously appeared in a data breach and should never be used.",
+	)
 )

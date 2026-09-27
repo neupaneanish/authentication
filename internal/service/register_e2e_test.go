@@ -1,5 +1,3 @@
-//go:build e2e
-
 package service_test
 
 import (
@@ -21,7 +19,7 @@ func TestRegisterToLoginE2E(t *testing.T) {
 	ctx := t.Context()
 	id := phoneCounter.Add(1)
 
-	rawPassword := "Password@1234"
+	rawPassword := "MSI@msi2019"
 	email := generateEmail()
 	phone := fmt.Sprintf("+1562%07d", 5000000+id)
 	username := fmt.Sprintf("username%d", rand.Int63n(1000000))

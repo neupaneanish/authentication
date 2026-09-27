@@ -23,8 +23,8 @@ import (
 
 func TestResetPassword(t *testing.T) {
 	t.Parallel()
-	oldPassword := "Reset@Password1"
-	newPassword := "Reset@Password12"
+	oldPassword := "MSI@20206!msi"
+	newPassword := "MSI@20206!msi1"
 
 	t.Run("Invalid User ID", func(t *testing.T) {
 		t.Parallel()
@@ -84,6 +84,23 @@ func TestResetPassword(t *testing.T) {
 		assert.Nil(t, response)
 
 		assert.Equal(t, errs.ErrPreviousPassword, responseErr)
+	})
+
+	t.Run("Valid session password pwned", func(t *testing.T) {
+		t.Parallel()
+		email := generateEmail()
+		session := seedUserResetPassword(t, email, oldPassword)
+		req := &externalAuthenticationv1.ResetPasswordRequest{
+			Session:         session,
+			Password:        &passwordv1.Password{Value: "Password@123"},
+			ConfirmPassword: &passwordv1.Password{Value: "Password@123"},
+		}
+
+		response, responseErr := externalAuthenticationServiceClient.ResetPassword(t.Context(), req)
+		require.Error(t, responseErr)
+		assert.Nil(t, response)
+
+		assert.Equal(t, errs.ErrPasswordPwned, responseErr)
 	})
 
 	t.Run("Valid session and password", func(t *testing.T) {
