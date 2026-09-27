@@ -24,25 +24,28 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 - Dockerized testing (testcontainers)
 - Benchmarks, E2E
 - Redpanda
+- AfterShip
+- Have I Been Pwned
 
 ---
 
 ## Technologies Stack
 
-| Technology                                                        |                                                                                                       | Description                                                                      |
-|:------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
-| [**Go**](https://go.dev)                                          |              <img src="https://cdn.simpleicons.org/go" height="12" height="24" alt="Go">              | Core application logic                                                           |
-| [**gRPC**](https://grpc.io)                                       |             <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
-| [**PostgreSQL**](https://postgresql.org)                          |       <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
-| [**JWT**](https://jwt.io)                                         |              <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
-| [**Valkey**](https://valkey.io)                                   |           <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
-| [**Redpanda**](https://redpanda.com)                              |             <img src="https://cdn.simpleicons.org/apachekafka" height="24" alt="Valkey">              | High-performance data stream                                                     |
-| [**Docker**](https://docker.com)                                  |           <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
-| [**Test Containers**](https://testcontainers.com)                 |   <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
-| [**GitHub Actions**](https://github.com/features/actions)         |   <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
-| [**OpenTelemetry**](https://opentelemetry.io)                     |    <img src="https://thesvg.org/icons/opentelemetry/default.svg" height="24" alt="OpenTelemetry">     | Observability and telemetry framework                                            |
-| [**Google Authenticator**]()                                      | <img src="https://thesvg.org/icons/google-authenticator/default.svg" height="24" alt="OpenTelemetry"> | Two-Factor Authentication (2FA) via TOTP                                         |
-| [**Email Verifier**](https://github.com/AfterShip/email-verifier) |        <img src="https://thesvg.org/icons/aftership/default.svg" height="24" alt="AfterShip">         | Email Verifier                                                                   |
+| Technology                                                        |                                                                                                        | Description                                                                      |
+|:------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------|
+| [**Go**](https://go.dev)                                          |              <img src="https://cdn.simpleicons.org/go" height="12" height="24" alt="Go">               | Core application logic                                                           |
+| [**gRPC**](https://grpc.io)                                       |              <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
+| [**PostgreSQL**](https://postgresql.org)                          |        <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
+| [**JWT**](https://jwt.io)                                         |               <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
+| [**Valkey**](https://valkey.io)                                   |            <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
+| [**Redpanda**](https://redpanda.com)                              |              <img src="https://cdn.simpleicons.org/apachekafka" height="24" alt="Valkey">              | High-performance data stream                                                     |
+| [**Docker**](https://docker.com)                                  |            <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
+| [**Test Containers**](https://testcontainers.com)                 |    <img src="https://thesvg.org/icons/development-containers/default.svg" height="24" alt="Docker">    | Orchestrates real PostgreSQL and Valkey Docker instances inside automated tests. |
+| [**GitHub Actions**](https://github.com/features/actions)         |    <img src="https://thesvg.org/icons/github-actions/default.svg" height="24" alt="GitHub Actions">    | CI/CD automation pipelines                                                       |
+| [**OpenTelemetry**](https://opentelemetry.io)                     |     <img src="https://thesvg.org/icons/opentelemetry/default.svg" height="24" alt="OpenTelemetry">     | Observability and telemetry framework                                            |
+| [**Google Authenticator**]()                                      | <img src="https://thesvg.org/icons/google-authenticator/default.svg" height="24" alt="OpenTelemetry">  | Two-Factor Authentication (2FA) via TOTP                                         |
+| [**Email Verifier**](https://github.com/AfterShip/email-verifier) |         <img src="https://thesvg.org/icons/aftership/default.svg" height="24" alt="AfterShip">         | Email Verifier                                                                   |
+| [**Have I Been Pwned**](https://haveibeenpwned.com)               | <img src="https://thesvg.org/icons/have-i-been-pwned/default.svg" height="24" alt="Have I Been Pwned"> | Password Pwned                                                                   |
 
 ---
 

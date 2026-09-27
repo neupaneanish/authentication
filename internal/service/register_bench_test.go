@@ -20,8 +20,8 @@ func BenchmarkRegister(b *testing.B) {
 		username := fmt.Sprintf("username%d", rand.Int63n(1000000))
 		requests[i] = &externalAuthenticationv1.RegisterRequest{
 			Email:           generateEmail(),
-			Password:        &passwordv1.Password{Value: "Password@12345"},
-			ConfirmPassword: &passwordv1.Password{Value: "Password@12345"},
+			Password:        &passwordv1.Password{Value: "MSI@msi2019"},
+			ConfirmPassword: &passwordv1.Password{Value: "MSI@msi2019"},
 			Phone:           phone,
 			Username:        username,
 		}

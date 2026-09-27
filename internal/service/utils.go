@@ -191,6 +191,10 @@ func ChangeResetPassword(
 		createdBy = session.UserID
 	}
 
+	if err := utils.PasswordPwned(ctx, rawPassword, serviceName, logger); err != nil {
+		return err
+	}
+
 	newHash, newHashErr := utils.CreatePassword(rawPassword)
 	if newHashErr != nil {
 		logger.ErrorContext(ctx, "password hash", "service", serviceName, "error", newHashErr)

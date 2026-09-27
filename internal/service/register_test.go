@@ -18,7 +18,7 @@ import (
 
 func TestRegister(t *testing.T) {
 	t.Parallel()
-	rawPassword := "Password@1234"
+	rawPassword := "MSI@20206!msi"
 
 	t.Run("Invalid Email", func(t *testing.T) {
 		t.Parallel()
@@ -51,6 +51,23 @@ func TestRegister(t *testing.T) {
 		require.Error(t, err)
 		assert.Equal(t, errs.ErrInvalidPhone, err)
 		assert.Nil(t, response)
+	})
+
+	t.Run("Pwned Password", func(t *testing.T) {
+		t.Parallel()
+		id := phoneCounter.Add(1)
+		req := &externalAuthenticationv1.RegisterRequest{
+			Email:           generateEmail(),
+			Password:        &passwordv1.Password{Value: "Password@12345"},
+			ConfirmPassword: &passwordv1.Password{Value: "Password@12345"},
+			Phone:           fmt.Sprintf("+1212%07d", 5000000+id),
+			Username:        fmt.Sprintf("username%d", rand2.Int63n(1000000)),
+		}
+
+		response, err := externalAuthenticationServiceClient.Register(t.Context(), req)
+		require.Error(t, err)
+		assert.Nil(t, response)
+		assert.Equal(t, errs.ErrPasswordPwned, err)
 	})
 
 	t.Run("Success", func(t *testing.T) {
