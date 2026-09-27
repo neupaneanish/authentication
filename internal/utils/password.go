@@ -3,10 +3,9 @@ package utils
 import (
 	"bufio"
 	"context"
-	"crypto/sha1"
+	"crypto/sha1" //nolint:gosec // Required by HaveIBeenPwned API design
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -43,6 +42,7 @@ func PasswordPwned(ctx context.Context, password, serviceName string, logger *sl
 	newCtx, cancel := context.WithTimeout(ctx, pwnedContextTimeout)
 	defer cancel()
 
+	//nolint:gosec // SHA-1 is mandatory for HIBP k-Anonymity; not used for internal storage
 	hasher := sha1.New()
 	hasher.Write([]byte(password))
 	hash := fmt.Sprintf("%X", hasher.Sum(nil))
@@ -65,9 +65,9 @@ func PasswordPwned(ctx context.Context, password, serviceName string, logger *sl
 		logger.ErrorContext(ctx, "failed to request client", "service", serviceName, "error", resErr)
 		return errs.ErrInternalServer
 	}
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		logger.ErrorContext(
