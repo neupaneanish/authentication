@@ -22,7 +22,6 @@ func TestLoadEnv(t *testing.T) {
 		_ = os.Unsetenv("DATABASE_PORT")
 		_ = os.Unsetenv("DATABASE_SSL")
 		_ = os.Unsetenv("VALKEY_URL")
-		_ = os.Unsetenv("JWT_KEY")
 		_ = os.Unsetenv("TWO_FACTOR_KEY")
 		_ = os.Unsetenv("PORT")
 		_ = os.Unsetenv("HTTP_PORT")
@@ -43,7 +42,6 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("DATABASE_PASSWORD", "postgres")
 		t.Setenv("VALKEY_URL", "localhost:6379")
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
-		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("PORT", "50051")
 		t.Setenv("HTTP_PORT", "8000")
 		t.Setenv("SERVICE_NAME", "Test Service")
@@ -68,7 +66,6 @@ func TestLoadEnv(t *testing.T) {
 		t.Setenv("DATABASE_PASSWORD", "postgres")
 		t.Setenv("VALKEY_URL", "localhost:6379")
 		t.Setenv("TWO_FACTOR_KEY", "two-factor-key")
-		t.Setenv("JWT_KEY", "jwt-key")
 		t.Setenv("TELEMETRY_URL", "127.0.0.1:4317")
 		t.Setenv("REDPANDA_URL", "127.0.0.1:4317")
 		t.Setenv("ALLOW_FREE_EMAIL", "1")
@@ -130,7 +127,6 @@ func TestLoadEnv(t *testing.T) {
 			"DATABASE_USER",
 			"DATABASE_PASSWORD",
 			"VALKEY_URL",
-			"JWT_KEY",
 			"TWO_FACTOR_KEY",
 			"TELEMETRY_URL",
 		}

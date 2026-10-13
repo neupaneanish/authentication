@@ -36,7 +36,6 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 | [**Go**](https://go.dev)                                          |              <img src="https://cdn.simpleicons.org/go" height="12" height="24" alt="Go">               | Core application logic                                                           |
 | [**gRPC**](https://grpc.io)                                       |              <img src="https://thesvg.org/icons/grpc/default.svg" height="24" alt="gRPC">              | High-performance RPC framework                                                   |
 | [**PostgreSQL**](https://postgresql.org)                          |        <img src="https://thesvg.org/icons/postgresql/default.svg" height="24" alt="PostgreSQL">        | Primary relational database                                                      |
-| [**JWT**](https://jwt.io)                                         |               <img src="https://thesvg.org/icons/jwt/default.svg" height="24" alt="JWT">               | Secure authentication tokens                                                     |
 | [**Valkey**](https://valkey.io)                                   |            <img src="https://thesvg.org/icons/valkey/default.svg" height="24" alt="Valkey">            | High-performance data structure store                                            |
 | [**Redpanda**](https://redpanda.com)                              |              <img src="https://cdn.simpleicons.org/apachekafka" height="24" alt="Valkey">              | High-performance data stream                                                     |
 | [**Docker**](https://docker.com)                                  |            <img src="https://thesvg.org/icons/docker/default.svg" height="24" alt="Docker">            | Containerization and deployment                                                  |
@@ -95,7 +94,6 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 |    VALKEY_URL     |                          |                                    |
 |   REDPANDA_URL    |                          |                                    |
 |  REDPANDA_GROUP   | `founder-authentication` |                                    |
-|      JWT_KEY      |                          | `ed25519` Private Key Seed Size 32 |
 |  TWO_FACTOR_KEY   |                          | `ed25519` Private Key Seed Size 32 |
 |      ISSUER       |        `Founder`         |                                    |
 |       PORT        |         `50051`          |          `80` to `65535`           |

@@ -8,7 +8,6 @@ import (
 type Env struct {
 	DatabaseURL   string
 	ValkeyURL     string
-	JWTKey        string
 	TwoFactorKey  string
 	Issuer        string
 	Port          string
@@ -31,11 +30,6 @@ func LoadEnv() (*Env, error) {
 	valkeyURL, valkeyURLErr := validateEnv("VALKEY_URL")
 	if valkeyURLErr != nil {
 		return nil, valkeyURLErr
-	}
-
-	jwtKey, jwtKeyErr := validateEnv("JWT_KEY")
-	if jwtKeyErr != nil {
-		return nil, jwtKeyErr
 	}
 
 	twoFactorKey, twoFactorKeyErr := validateEnv("TWO_FACTOR_KEY")
@@ -77,7 +71,6 @@ func LoadEnv() (*Env, error) {
 	return &Env{
 		DatabaseURL:   dbURL,
 		ValkeyURL:     valkeyURL,
-		JWTKey:        jwtKey,
 		TwoFactorKey:  twoFactorKey,
 		Issuer:        validateDefaultEnv("ISSUER", "Founder"),
 		Port:          port,

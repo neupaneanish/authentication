@@ -1,5 +1,3 @@
-//go:build integration || benchmark || e2e
-
 package service_test
 
 import (
@@ -18,6 +16,7 @@ import (
 	"runtime"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"uuid"
 
@@ -27,6 +26,8 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
+
+	"neupaneanish.com.np/authentication/internal/redis"
 
 	rootAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/root/authentication/v1"
 
@@ -168,12 +169,6 @@ func setupContainer(logger *slog.Logger) *container {
 }
 
 func setupEnv(db, vk, rp string, logger *slog.Logger) *config.Env {
-	_, jwtPrivate, jwtKeyErr := ed25519.GenerateKey(nil)
-	if jwtKeyErr != nil {
-		logger.Error("Failed to validate jwtKey", "error", jwtKeyErr)
-		os.Exit(1)
-	}
-
 	_, tfPrivate, tfKeyErr := ed25519.GenerateKey(nil)
 	if tfKeyErr != nil {
 		logger.Error("Failed to validate tfKey", "error", tfKeyErr)
@@ -183,7 +178,6 @@ func setupEnv(db, vk, rp string, logger *slog.Logger) *config.Env {
 	return &config.Env{
 		DatabaseURL:  db,
 		ValkeyURL:    vk,
-		JWTKey:       hex.EncodeToString(jwtPrivate.Seed()),
 		TwoFactorKey: hex.EncodeToString(tfPrivate.Seed()),
 		Issuer:       "Test",
 		Environment:  "test",
@@ -413,7 +407,7 @@ func contextWithValue(t *testing.T, userID uuid.UUID, role enum.UserRole) contex
 	md := metadata.Pairs(
 		"x-user-id", userID.String(),
 		"x-role", string(role),
-		"x-jti", uuid.NewV7().String(),
+		"x-session", rand.Text(),
 		"x-username", rand.Text(),
 	)
 
@@ -423,4 +417,80 @@ func contextWithValue(t *testing.T, userID uuid.UUID, role enum.UserRole) contex
 
 func generateEmail() string {
 	return fmt.Sprintf("%s@neupaneanish.com.np", rand.Text())
+}
+
+func seedPasswordSessionVerification(
+	t *testing.T,
+	userID uuid.UUID,
+	method enum.SecurityMethod,
+	ttl time.Duration,
+) (context.Context, string, string) {
+	t.Helper()
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	email := generateEmail()
+
+	code, _, err := service.GenerateEmailCode(t.Context(), logger)
+	require.NoError(t, err)
+
+	session := rand.Text()
+
+	data := &utils.PasswordVerificationSession{
+		Key:     userID.String(),
+		ExAt:    time.Now().Add(ttl),
+		Code:    code,
+		Email:   email,
+		Session: session,
+		Method:  string(method),
+	}
+
+	hSetErr := redis.HSet[utils.PasswordVerificationSession](
+		t.Context(),
+		utils.PasswordVerificationSessionPrefix,
+		data,
+		cfg.Client,
+	)
+	require.NoError(t, hSetErr)
+
+	ctx := contextWithValue(t, userID, enum.UserRoleUser)
+
+	return ctx, session, code
+}
+
+func seedVerificationSession(
+	t *testing.T,
+	userID uuid.UUID,
+	method enum.Method,
+	verificationMethod enum.VerificationMethod,
+	enabledTwoFactor bool,
+	ttl time.Duration,
+) (string, string) {
+	session := rand.Text()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+	code, format, codeErr := service.GenerateEmailCode(t.Context(), logger)
+	require.NoError(t, codeErr)
+
+	data := &utils.VerificationSession{
+		Key:                session,
+		ExAt:               time.Now().Add(ttl),
+		UserID:             userID.String(),
+		Role:               string(enum.UserRoleUser),
+		Method:             string(method),
+		VerificationMethod: string(verificationMethod),
+		Code:               code,
+		Email:              generateEmail(),
+		EnabledTwoFactor:   enabledTwoFactor,
+	}
+
+	err := redis.HSet[utils.VerificationSession](
+		t.Context(),
+		utils.VerificationSessionPrefix,
+		data,
+		cfg.Client,
+	)
+	require.NoError(t, err)
+
+	return session, format
 }

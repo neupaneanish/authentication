@@ -43,4 +43,5 @@ var (
 		codes.FailedPrecondition,
 		"This password has previously appeared in a data breach and should never be used.",
 	)
+	ErrResend = status.Error(codes.FailedPrecondition, "Please wait before requesting a new code.")
 )

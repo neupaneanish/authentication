@@ -68,7 +68,6 @@ func TestNewConfig(t *testing.T) {
 			DatabaseURL:  databaseURL,
 			ValkeyURL:    valkeyURL,
 			RedpandaURL:  redpandaURL,
-			JWTKey:       hex.EncodeToString(private.Seed()),
 			TwoFactorKey: hex.EncodeToString(private.Seed()),
 			Issuer:       "Test",
 			Port:         "50051",
@@ -109,27 +108,12 @@ func TestNewConfig(t *testing.T) {
 		assert.Nil(t, cfg)
 	})
 
-	t.Run("Invalid JWT", func(t *testing.T) {
-		t.Parallel()
-
-		env := &config.Env{
-			DatabaseURL: databaseURL,
-			ValkeyURL:   valkeyURL,
-			JWTKey:      rand.Text(),
-		}
-
-		cfg, cfgErr := config.NewConfig(t.Context(), env, logger)
-		require.Error(t, cfgErr)
-		assert.Nil(t, cfg)
-	})
-
 	t.Run("Invalid two factor", func(t *testing.T) {
 		t.Parallel()
 
 		env := &config.Env{
 			DatabaseURL:  databaseURL,
 			ValkeyURL:    valkeyURL,
-			JWTKey:       hex.EncodeToString(private.Seed()),
 			TwoFactorKey: rand.Text(),
 		}
 

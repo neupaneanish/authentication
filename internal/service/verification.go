@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"time"
-
 	"uuid"
 
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	authenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 
 	"neupaneanish.com.np/authentication/internal/repository"
 
@@ -65,15 +64,15 @@ func (s *ExternalAuthenticationService) Verification(
 				if err := s.validateVerificationCodeEmail(ctx, req, verificationSession, serviceName); err != nil {
 					return nil, err
 				}
-				newSession := rand.Text()
+				token := utils.GenerateToken(utils.SessionExpiry)
 				if err := s.verification(
 					ctx,
 					userID,
 					enum.UserRole(verificationSession.Role),
 					verificationSession.Email,
 					verificationSession.Username,
-					newSession,
 					serviceName,
+					token,
 					enum.MethodLogin,
 					enum.VerificationMethodTwoFactor,
 					false,
@@ -84,7 +83,7 @@ func (s *ExternalAuthenticationService) Verification(
 				return &externalAuthenticationv1.VerificationResponse{
 					Response: &externalAuthenticationv1.VerificationResponse_Verification{
 						Verification: externalVerification(
-							newSession,
+							token,
 							externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_TWO_FACTOR,
 						),
 					},
@@ -227,17 +226,24 @@ func (s *ExternalAuthenticationService) deleteVerificationSession(
 func (s *ExternalAuthenticationService) verificationLogin(
 	ctx context.Context, verificationSession *utils.VerificationSession, serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
-	jwt, jwtErr := s.login(ctx, verificationSession.UserID, verificationSession.Role, serviceName)
-	if jwtErr != nil {
-		return nil, jwtErr
+	token, tokenErr := login(
+		ctx,
+		verificationSession.UserID,
+		verificationSession.Role,
+		verificationSession.Username,
+		serviceName,
+		s.cfg.Client,
+		s.cfg.Logger,
+	)
+	if tokenErr != nil {
+		return nil, tokenErr
 	}
 	s.deleteVerificationSession(ctx, verificationSession.Key, serviceName)
 	return &externalAuthenticationv1.VerificationResponse{
-		Response: &externalAuthenticationv1.VerificationResponse_Token{
-			Token: &externalAuthenticationv1.Token{
-				Access:   jwt.Access,
-				Refresh:  jwt.Refresh,
-				ExpireAt: timestamppb.New(jwt.ExpiryAt),
+		Response: &externalAuthenticationv1.VerificationResponse_Session{
+			Session: &authenticationv1.Session{
+				Session: token.Session,
+				Expires: timestamppb.New(token.Expires),
 			},
 		},
 	}, nil
@@ -356,7 +362,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 	userID uuid.UUID,
 	serviceName string,
 ) (*externalAuthenticationv1.VerificationResponse, error) {
-	session := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 	switch enum.VerificationMethod(verificationSession.VerificationMethod) {
 	case enum.VerificationMethodAccount,
 		enum.VerificationMethodEmail:
@@ -372,8 +378,8 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 			enum.UserRole(verificationSession.Role),
 			verificationSession.Email,
 			verificationSession.Username,
-			session,
 			serviceName,
+			token,
 			enum.MethodForgetPassword,
 			enum.VerificationMethodReset,
 			verificationSession.EnabledTwoFactor,
@@ -383,7 +389,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 		return &externalAuthenticationv1.VerificationResponse{
 			Response: &externalAuthenticationv1.VerificationResponse_Verification{
 				Verification: externalVerification(
-					session,
+					token,
 					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_RESET,
 				),
 			},
@@ -393,8 +399,8 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 			return nil, err
 		}
 		data := &utils.ResetPasswordSession{
-			Key:      session,
-			ExAt:     time.Now().Add(utils.SessionExpiry),
+			Key:      token.Session,
+			ExAt:     token.Expires,
 			UserID:   userID.String(),
 			Email:    verificationSession.Email,
 			Username: verificationSession.Username,
@@ -411,7 +417,10 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 		}
 		return &externalAuthenticationv1.VerificationResponse{
 			Response: &externalAuthenticationv1.VerificationResponse_ResetSession{
-				ResetSession: &externalAuthenticationv1.ResetSession{Session: session},
+				ResetSession: &externalAuthenticationv1.ResetSession{
+					Session: token.Session,
+					Expires: timestamppb.New(token.Expires),
+				},
 			},
 		}, nil
 	default:

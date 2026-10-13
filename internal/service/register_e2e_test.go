@@ -57,6 +57,6 @@ func TestRegisterToLoginE2E(t *testing.T) {
 		verificationReq,
 	)
 	require.NoError(t, verificationResponseErr)
-	assert.NotNil(t, verificationResponse.GetToken())
-	assert.NotEmpty(t, verificationResponse.GetToken().GetAccess())
+	assert.NotNil(t, verificationResponse.GetSession().GetExpires())
+	assert.NotEmpty(t, verificationResponse.GetSession().GetSession())
 }

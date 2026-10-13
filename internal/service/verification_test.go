@@ -120,7 +120,14 @@ func TestVerification(t *testing.T) {
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
 
-		session, code := seedVerificationSession(t, uuid.NewV7(), "Test", enum.VerificationMethodEmail, false)
+		session, code := seedVerificationSession(
+			t,
+			uuid.NewV7(),
+			"Test",
+			enum.VerificationMethodEmail,
+			false,
+			utils.SessionExpiry,
+		)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: strings.ReplaceAll(code, "-", "")},
@@ -134,7 +141,14 @@ func TestVerification(t *testing.T) {
 	t.Run("Invalid Verification Method", func(t *testing.T) {
 		t.Parallel()
 
-		session, code := seedVerificationSession(t, uuid.NewV7(), enum.MethodForgetPassword, "test", false)
+		session, code := seedVerificationSession(
+			t,
+			uuid.NewV7(),
+			enum.MethodForgetPassword,
+			"test",
+			false,
+			utils.SessionExpiry,
+		)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: strings.ReplaceAll(code, "-", "")},
@@ -160,7 +174,7 @@ func TestVerification(t *testing.T) {
 			enum.VerificationMethodAccount,
 			enum.UserStatusPending,
 		)
-		assert.NotEmpty(t, res.GetToken().GetAccess())
+		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
 	t.Run("Register Method Account Email Invalid", func(t *testing.T) {
@@ -172,6 +186,7 @@ func TestVerification(t *testing.T) {
 			enum.MethodRegister,
 			enum.VerificationMethodEmail,
 			false,
+			utils.SessionExpiry,
 		)
 
 		req := &externalAuthenticationv1.VerificationRequest{
@@ -203,6 +218,7 @@ func TestVerification(t *testing.T) {
 			enum.MethodLogin,
 			enum.VerificationMethodTwoFactor,
 			false,
+			utils.SessionExpiry,
 		)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
@@ -223,6 +239,7 @@ func TestVerification(t *testing.T) {
 			enum.MethodLogin,
 			enum.VerificationMethodAccount,
 			true,
+			utils.SessionExpiry,
 		)
 
 		req := &externalAuthenticationv1.VerificationRequest{
@@ -244,6 +261,7 @@ func TestVerification(t *testing.T) {
 			enum.MethodLogin,
 			enum.VerificationMethodAccount,
 			true,
+			utils.SessionExpiry,
 		)
 
 		req := &externalAuthenticationv1.VerificationRequest{
@@ -260,14 +278,14 @@ func TestVerification(t *testing.T) {
 		t.Parallel()
 
 		res := successVerification(t, enum.MethodLogin, enum.VerificationMethodAccount, enum.UserStatusPending)
-		assert.NotEmpty(t, res.GetToken().GetAccess())
+		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
 	t.Run("Login Method Email Success", func(t *testing.T) {
 		t.Parallel()
 
 		res := successVerification(t, enum.MethodLogin, enum.VerificationMethodEmail, enum.UserStatusActive)
-		assert.NotEmpty(t, res.GetToken().GetAccess())
+		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
 	t.Run("Login Method, Two Factor TOTP Success", func(t *testing.T) {
@@ -276,7 +294,14 @@ func TestVerification(t *testing.T) {
 		userID, secret, _ := seedTwoFactor(t, false)
 		code, codeErr := totp.GenerateCode(secret, time.Now())
 		require.NoError(t, codeErr)
-		session, _ := seedVerificationSession(t, userID, enum.MethodLogin, enum.VerificationMethodTwoFactor, false)
+		session, _ := seedVerificationSession(
+			t,
+			userID,
+			enum.MethodLogin,
+			enum.VerificationMethodTwoFactor,
+			false,
+			utils.SessionExpiry,
+		)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code:    &externalAuthenticationv1.VerificationRequest_Totp{Totp: code},
@@ -284,14 +309,21 @@ func TestVerification(t *testing.T) {
 		res, err := externalAuthenticationServiceClient.Verification(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.NotEmpty(t, res.GetToken().GetAccess())
+		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
 	t.Run("Login Method, Two Factor Recovery Success", func(t *testing.T) {
 		t.Parallel()
 
 		userID, _, recoveryCodes := seedTwoFactor(t, true)
-		session, _ := seedVerificationSession(t, userID, enum.MethodLogin, enum.VerificationMethodTwoFactor, false)
+		session, _ := seedVerificationSession(
+			t,
+			userID,
+			enum.MethodLogin,
+			enum.VerificationMethodTwoFactor,
+			false,
+			utils.SessionExpiry,
+		)
 		req := &externalAuthenticationv1.VerificationRequest{
 			Session: session,
 			Code: &externalAuthenticationv1.VerificationRequest_Recovery{
@@ -301,7 +333,7 @@ func TestVerification(t *testing.T) {
 		res, err := externalAuthenticationServiceClient.Verification(t.Context(), req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.NotEmpty(t, res.GetToken().GetAccess())
+		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
 	// Forget
@@ -324,6 +356,7 @@ func TestVerification(t *testing.T) {
 			enum.MethodForgetPassword,
 			enum.VerificationMethodTwoFactor,
 			true,
+			utils.SessionExpiry,
 		)
 
 		req := &externalAuthenticationv1.VerificationRequest{
@@ -366,7 +399,14 @@ func verificationRateLimiter(
 	t.Helper()
 
 	for i := range 6 {
-		session, _ := seedVerificationSession(t, userID, method, verificationMethod, enabledTwoFactor)
+		session, _ := seedVerificationSession(
+			t,
+			userID,
+			method,
+			verificationMethod,
+			enabledTwoFactor,
+			utils.SessionExpiry,
+		)
 		req := &externalAuthenticationv1.VerificationRequest{}
 
 		switch verificationMethod {
@@ -396,7 +436,14 @@ func verificationRateLimiter(
 
 func verificationRateLimiterTwoFactor(t *testing.T, recovery bool) {
 	userID, _, _ := seedTwoFactor(t, recovery)
-	session, _ := seedVerificationSession(t, userID, enum.MethodLogin, enum.VerificationMethodTwoFactor, false)
+	session, _ := seedVerificationSession(
+		t,
+		userID,
+		enum.MethodLogin,
+		enum.VerificationMethodTwoFactor,
+		false,
+		utils.SessionExpiry,
+	)
 
 	req := &externalAuthenticationv1.VerificationRequest{}
 
@@ -448,6 +495,7 @@ func successVerification(
 		method,
 		verificationMethod,
 		false,
+		utils.SessionExpiry,
 	)
 	req := &externalAuthenticationv1.VerificationRequest{
 		Session: session,
@@ -474,6 +522,7 @@ func verificationNoUser(
 		method,
 		verificationMethod,
 		false,
+		utils.SessionExpiry,
 	)
 	req := &externalAuthenticationv1.VerificationRequest{
 		Session: session,
@@ -500,6 +549,7 @@ func verificationInvalidCodeType(
 		method,
 		verificationMethod,
 		false,
+		utils.SessionExpiry,
 	)
 	req := &externalAuthenticationv1.VerificationRequest{
 		Session: session,

@@ -2,97 +2,97 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/valkey-io/valkey-go/om"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
+
 	"neupaneanish.com.np/authentication/internal/errs"
-	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/redis"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
-func (s *ExternalAuthenticationService) Refresh(
+func (s *GatewayAuthenticationService) Refresh(
 	ctx context.Context,
-	req *externalAuthenticationv1.RefreshRequest,
-) (*externalAuthenticationv1.RefreshResponse, error) {
+	_ *gatewayAuthenticationv1.RefreshRequest,
+) (*gatewayAuthenticationv1.RefreshResponse, error) {
 	serviceName := "Refresh"
-	refresh := req.GetRefresh()
+	userSession := utils.UserSessionContext(ctx)
 
-	resultRefresh, resultRefreshErr := s.cfg.RateLimiter.Refresh.Allow(ctx, refresh)
-	refreshSessionErr := LimiterCheck(ctx, &resultRefresh, resultRefreshErr, serviceName, refresh, s.cfg.Logger)
-	if refreshSessionErr != nil {
-		return nil, refreshSessionErr
-	}
-
-	userData, userDataErr := redis.HGet[utils.LoginRefreshSession](
+	resultRefreshUserID, resultRefreshUserIDErr := s.cfg.RateLimiter.RefreshUserID.Allow(
 		ctx,
-		utils.LoginRefreshSessionPrefix,
-		refresh,
-		s.cfg.Client,
+		userSession.UserID.String(),
 	)
-	if userDataErr != nil {
-		if om.IsRecordNotFound(userDataErr) {
-			s.cfg.Logger.WarnContext(ctx, "Refresh Token Expired", "service", serviceName)
-			return nil, errs.ErrInvalidTokenOrExpired
-		}
-		s.cfg.Logger.ErrorContext(ctx, "Valkey", "service", serviceName, "error", userDataErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	resultRefreshUserID, resultRefreshUserIDErr := s.cfg.RateLimiter.RefreshUserID.Allow(ctx, userData.UserID)
 	limiterUserIDErr := LimiterCheck(
 		ctx,
 		&resultRefreshUserID,
 		resultRefreshUserIDErr,
 		serviceName,
-		refresh,
+		userSession.Session,
 		s.cfg.Logger,
 	)
 	if limiterUserIDErr != nil {
 		return nil, limiterUserIDErr
 	}
 
-	if err := redis.HDelete[utils.LoginAccessSession](
+	userData, userDataErr := redis.HGet[utils.Session](
 		ctx,
-		utils.LoginAccessSessionPrefix,
-		userData.ID,
+		utils.SessionPrefix,
+		userSession.Session,
+		s.cfg.Client,
+	)
+	if userDataErr != nil {
+		if om.IsRecordNotFound(userDataErr) {
+			s.cfg.Logger.WarnContext(ctx, "Token Expired", "service", serviceName)
+			return nil, errs.ErrInvalidTokenOrExpired
+		}
+		s.cfg.Logger.ErrorContext(ctx, "Valkey", "service", serviceName, "error", userDataErr)
+		return nil, errs.ErrInternalServer
+	}
+
+	remainingTime := userData.ExAt.Sub(time.Now().UTC())
+
+	if err := redis.HDelete[utils.Session](
+		ctx,
+		utils.SessionPrefix,
+		userSession.Session,
 		s.cfg.Client,
 	); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Access Session delete", "service", serviceName, "error", err)
+		s.cfg.Logger.ErrorContext(ctx, "Access Session delete fail", "error", err)
+		return nil, errs.ErrInternalServer
+	}
+	if err := redis.SRem(ctx, utils.SessionPrefix+userData.UserID, userSession.Session, s.cfg.Client); err != nil {
+		s.cfg.Logger.ErrorContext(ctx, "SRem Access fail", "error", err)
 		return nil, errs.ErrInternalServer
 	}
 
-	if err := redis.HDelete[utils.LoginRefreshSession](
+	if remainingTime > 10*time.Minute {
+		s.cfg.Logger.WarnContext(
+			ctx,
+			"Refresh requested too early. Session terminated.",
+			"service", serviceName,
+			"remaining", remainingTime.String(),
+		)
+		return nil, errs.ErrUnauthenticated
+	}
+
+	token, tokenErr := login(
 		ctx,
-		utils.LoginRefreshSessionPrefix,
-		refresh,
+		userData.UserID,
+		userData.Role,
+		userData.Username,
+		serviceName,
 		s.cfg.Client,
-	); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Refresh Session delete", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
+		s.cfg.Logger,
+	)
+	if tokenErr != nil {
+		return nil, tokenErr
 	}
 
-	if err := redis.SRem(ctx, utils.UserSessionPrefix+userData.UserID, userData.ID, s.cfg.Client); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "SRem Access", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
-	}
-
-	if err := redis.SRem(ctx, utils.UserSessionPrefix+userData.UserID, refresh, s.cfg.Client); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "SRem Refresh", "service", serviceName, "error", err)
-		return nil, errs.ErrInternalServer
-	}
-
-	jwt, jwtErr := s.login(ctx, utils.UserSessionPrefix+userData.UserID, userData.Role, serviceName)
-	if jwtErr != nil {
-		return nil, jwtErr
-	}
-
-	return &externalAuthenticationv1.RefreshResponse{
-		Token: &externalAuthenticationv1.Token{
-			Access:   jwt.Access,
-			Refresh:  jwt.Refresh,
-			ExpireAt: timestamppb.New(jwt.ExpiryAt),
-		},
+	return &gatewayAuthenticationv1.RefreshResponse{
+		Session: token.Session,
+		Expires: timestamppb.New(token.Expires),
 	}, nil
 }

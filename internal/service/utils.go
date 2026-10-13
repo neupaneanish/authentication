@@ -16,6 +16,7 @@ import (
 	"github.com/valkey-io/valkey-go"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"neupaneanish.com.np/authentication/internal/redpanda"
 
@@ -49,69 +50,43 @@ func LimiterCheck(
 	return nil
 }
 
-func (s *ExternalAuthenticationService) login(
+func login(
 	ctx context.Context,
-	userID string,
-	role string,
+	userID,
+	role,
+	username,
 	serviceName string,
-) (*config.GenerateJwt, error) {
-	id := uuid.NewV7().String()
+	client valkey.Client,
+	logger *slog.Logger,
+) (*utils.Token, error) {
+	token := utils.GenerateToken(utils.AccessSessionExpiry)
 
-	token, tokenErr := s.cfg.Jwt.GenerateToken(userID, id)
-	if tokenErr != nil {
-		return nil, tokenErr
+	accessSession := &utils.Session{
+		Key:      token.Session,
+		ExAt:     token.Expires,
+		UserID:   userID,
+		Role:     role,
+		Username: username,
 	}
 
-	accessSession := &utils.LoginAccessSession{
-		Key:     id,
-		ExAt:    time.Now().Add(utils.AccessSessionExpiry),
-		UserID:  userID,
-		Role:    role,
-		Refresh: token.Refresh,
-	}
-
-	hSetErr := redis.HSet[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, accessSession, s.cfg.Client)
+	hSetErr := redis.HSet[utils.Session](ctx, utils.SessionPrefix, accessSession, client)
 	if hSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	refreshSession := &utils.LoginRefreshSession{
-		Key:    token.Refresh,
-		ExAt:   time.Now().Add(utils.RefreshSessionExpiry),
-		UserID: userID,
-		Role:   role,
-		ID:     id,
-	}
-
-	rHSetErr := redis.HSet[utils.LoginRefreshSession](
-		ctx,
-		utils.LoginRefreshSessionPrefix,
-		refreshSession,
-		s.cfg.Client,
-	)
-	if rHSetErr != nil {
-		s.cfg.Logger.ErrorContext(ctx, serviceName+" Valkey Refresh HSet", "error", rHSetErr)
-		return nil, errs.ErrInternalServer
-	}
-
-	if err := redis.SAdd(ctx, utils.UserSessionPrefix+userID, id, utils.AccessSessionExpiry, s.cfg.Client); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey SAdd access", "service", serviceName, "error", err)
+		logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
 		return nil, errs.ErrInternalServer
 	}
 
 	if err := redis.SAdd(
 		ctx,
-		utils.UserSessionPrefix+userID,
-		token.Refresh,
-		utils.RefreshSessionExpiry,
-		s.cfg.Client,
+		utils.SessionPrefix+userID,
+		token.Session,
+		utils.AccessSessionExpiry,
+		client,
 	); err != nil {
-		s.cfg.Logger.ErrorContext(ctx, "Valkey SAdd refresh", "service", serviceName, "error", err)
+		logger.ErrorContext(ctx, "Valkey SAdd access", "service", serviceName, "error", err)
 		return nil, errs.ErrInternalServer
 	}
 
-	return token, nil
+	return &token, nil
 }
 
 func GenerateEmailCode(ctx context.Context, logger *slog.Logger) (string, string, error) {
@@ -335,18 +310,17 @@ func AffectedRowCheck(
 }
 
 func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Client, logger *slog.Logger) {
-	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, client)
+	keys, keysErr := redis.SMembers(ctx, utils.SessionPrefix+userID, client)
 	if keysErr != nil {
 		logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
 		return
 	}
 
 	for _, key := range keys {
-		_ = redis.HDelete[utils.LoginAccessSession](ctx, utils.LoginAccessSessionPrefix, key, client)
-		_ = redis.HDelete[utils.LoginRefreshSession](ctx, utils.LoginRefreshSessionPrefix, key, client)
+		_ = redis.HDelete[utils.Session](ctx, utils.SessionPrefix, key, client)
 	}
 
-	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, client); err != nil {
+	if err := redis.Del(ctx, utils.SessionPrefix+userID, client); err != nil {
 		logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
 		return
 	}
@@ -358,8 +332,8 @@ func (s *ExternalAuthenticationService) verification(
 	role enum.UserRole,
 	username,
 	email,
-	session,
 	serviceName string,
+	token utils.Token,
 	method enum.Method,
 	verificationMethod enum.VerificationMethod,
 	enabledTwoFactor bool,
@@ -392,8 +366,8 @@ func (s *ExternalAuthenticationService) verification(
 	}
 
 	data := &utils.VerificationSession{
-		Key:                session,
-		ExAt:               time.Now().Add(utils.SessionExpiry),
+		Key:                token.Session,
+		ExAt:               token.Expires,
 		UserID:             userID.String(),
 		Role:               string(role),
 		Method:             string(method),
@@ -422,12 +396,13 @@ func (s *ExternalAuthenticationService) verification(
 }
 
 func externalVerification(
-	session string,
+	token utils.Token,
 	method externalAuthenticationv1.VerificationMethod,
 ) *externalAuthenticationv1.VerificationSession {
 	return &externalAuthenticationv1.VerificationSession{
-		Session: session,
+		Session: token.Session,
 		Method:  method,
+		Expires: timestamppb.New(token.Expires),
 	}
 }
 

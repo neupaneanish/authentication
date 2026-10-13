@@ -2,13 +2,14 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"time"
 
 	"uuid"
 
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	authenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 
 	"neupaneanish.com.np/authentication/internal/redpanda"
 
@@ -71,26 +72,26 @@ func (s *GatewayAuthenticationService) PasswordSessionVerification(
 		return nil, err
 	}
 
-	newSession := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 
 	switch enum.SecurityMethod(verificationSession.Method) {
 	case enum.SecurityMethodDisableTwoFactor:
 		return s.disableTwoFactor(ctx, userSession, serviceName, verificationSession.Email)
 
 	case enum.SecurityMethodChangePassword:
-		return s.changePasswordSession(ctx, verificationSession.Key, newSession, verificationSession.Email, serviceName)
+		return s.changePasswordSession(ctx, verificationSession.Key, verificationSession.Email, serviceName, token)
 
 	case enum.SecurityMethodEnableTwoFactor:
 		return s.enableTwoFactor(
 			ctx,
 			verificationSession.Key,
-			newSession,
 			verificationSession.Email,
 			userSession.Username,
 			serviceName,
+			token,
 		)
 	case enum.SecurityMethodChangeEmail:
-		return s.changeEmailSession(ctx, verificationSession.Key, newSession, serviceName)
+		return s.changeEmailSession(ctx, verificationSession.Key, serviceName, token)
 
 	default:
 		s.cfg.Logger.ErrorContext(ctx, "Invalid method", "service", serviceName)
@@ -181,12 +182,13 @@ func (s *GatewayAuthenticationService) disableTwoFactor(
 
 func (s *GatewayAuthenticationService) changePasswordSession(
 	ctx context.Context,
-	userID, session, email, serviceName string,
+	userID, email, serviceName string,
+	token utils.Token,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
 	data := &utils.ChangePasswordSession{
 		Key:     userID,
-		ExAt:    time.Now().Add(utils.SessionExpiry),
-		Session: session,
+		ExAt:    token.Expires,
+		Session: token.Session,
 		Email:   email,
 	}
 
@@ -203,20 +205,24 @@ func (s *GatewayAuthenticationService) changePasswordSession(
 	s.deletePasswordVerificationSession(ctx, userID, serviceName)
 
 	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
-		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_ChangePassword{
-			ChangePassword: session,
+		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_Password{
+			Password: &authenticationv1.Session{
+				Session: token.Session,
+				Expires: timestamppb.New(token.Expires),
+			},
 		},
 	}, nil
 }
 
 func (s *GatewayAuthenticationService) changeEmailSession(
 	ctx context.Context,
-	userID, session, serviceName string,
+	userID, serviceName string,
+	token utils.Token,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
 	data := &utils.ChangeEmailSession{
 		Key:     userID,
-		ExAt:    time.Now().Add(utils.SessionExpiry),
-		Session: session,
+		ExAt:    token.Expires,
+		Session: token.Session,
 	}
 
 	if err := redis.HSet[utils.ChangeEmailSession](
@@ -232,8 +238,11 @@ func (s *GatewayAuthenticationService) changeEmailSession(
 	s.deletePasswordVerificationSession(ctx, userID, serviceName)
 
 	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
-		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_ChangeEmail{
-			ChangeEmail: session,
+		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_Email{
+			Email: &authenticationv1.Session{
+				Session: token.Session,
+				Expires: timestamppb.New(token.Expires),
+			},
 		},
 	}, nil
 }
@@ -241,10 +250,10 @@ func (s *GatewayAuthenticationService) changeEmailSession(
 func (s *GatewayAuthenticationService) enableTwoFactor(
 	ctx context.Context,
 	userID,
-	session,
 	email,
 	username,
 	serviceName string,
+	token utils.Token,
 ) (*gatewayAuthenticationv1.PasswordSessionVerificationResponse, error) {
 	tfa, err := s.cfg.TwoFactor.Generate(username)
 	if err != nil {
@@ -254,8 +263,8 @@ func (s *GatewayAuthenticationService) enableTwoFactor(
 
 	data := &utils.EnableTwoFactorSession{
 		Key:     userID,
-		ExAt:    time.Now().Add(utils.SessionExpiry),
-		Session: session,
+		ExAt:    token.Expires,
+		Session: token.Session,
 		Email:   email,
 		Secret:  tfa.Encrypt,
 	}
@@ -275,7 +284,8 @@ func (s *GatewayAuthenticationService) enableTwoFactor(
 	return &gatewayAuthenticationv1.PasswordSessionVerificationResponse{
 		Response: &gatewayAuthenticationv1.PasswordSessionVerificationResponse_EnableTwoFactor{
 			EnableTwoFactor: &gatewayAuthenticationv1.EnableTwoFactor{
-				Session: session,
+				Session: token.Session,
+				Expires: timestamppb.New(token.Expires),
 				Uri:     tfa.URL,
 				Key:     tfa.Secret,
 			},

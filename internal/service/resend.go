@@ -2,12 +2,13 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-
+	"log/slog"
+	"time"
 	"uuid"
 
 	"github.com/valkey-io/valkey-go/om"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"neupaneanish.com.np/authentication/internal/enum"
 
@@ -19,6 +20,7 @@ import (
 	gatewayAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/gateway/authentication/v1"
 )
 
+//nolint:funlen
 func (s *ExternalAuthenticationService) Resend(
 	ctx context.Context,
 	req *externalAuthenticationv1.ResendRequest,
@@ -26,7 +28,7 @@ func (s *ExternalAuthenticationService) Resend(
 	serviceName := "ResendVerification"
 	session := req.GetSession()
 
-	newSession := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 
 	var result valkeylimiter.Result
 	var resultErr error
@@ -101,14 +103,18 @@ func (s *ExternalAuthenticationService) Resend(
 		return nil, errs.ErrSessionExpired
 	}
 
+	if err := resendError(ctx, verificationSession.ExAt, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
+	}
+
 	if err := s.verification(
 		ctx,
 		userID,
 		enum.UserRole(verificationSession.Role),
 		verificationSession.Username,
 		verificationSession.Email,
-		newSession,
 		serviceName,
+		token,
 		enum.Method(verificationSession.Method),
 		verificationMethod,
 		verificationSession.EnabledTwoFactor,
@@ -118,7 +124,8 @@ func (s *ExternalAuthenticationService) Resend(
 	s.deleteVerificationSession(ctx, session, serviceName)
 
 	return &externalAuthenticationv1.ResendResponse{
-		Session: newSession,
+		Session: token.Session,
+		Expires: timestamppb.New(token.Expires),
 	}, nil
 }
 
@@ -131,7 +138,7 @@ func (s *GatewayAuthenticationService) Resend(
 
 	userSession := utils.UserSessionContext(ctx)
 
-	newSession := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 
 	var result valkeylimiter.Result
 	var resultErr error
@@ -191,20 +198,40 @@ func (s *GatewayAuthenticationService) Resend(
 		return nil, errs.ErrUnauthenticated
 	}
 
+	if err := resendError(ctx, verificationSession.ExAt, serviceName, s.cfg.Logger); err != nil {
+		return nil, err
+	}
+
 	s.deletePasswordVerificationSession(ctx, userSession.UserID.String(), serviceName)
 
 	if err := s.passwordVerification(
 		ctx,
 		userSession.UserID,
 		verificationSession.Email,
-		newSession,
 		emailTemplate,
 		serviceName,
+		token,
 		method,
 	); err != nil {
 		return nil, err
 	}
+
 	return &gatewayAuthenticationv1.ResendResponse{
-		Session: newSession,
+		Session: token.Session,
+		Expires: timestamppb.New(token.Expires),
 	}, nil
+}
+
+func resendError(ctx context.Context, sessionTime time.Time, serviceName string, logger *slog.Logger) error {
+	remainingTime := sessionTime.Sub(time.Now().UTC())
+	if remainingTime >= 3*time.Minute {
+		logger.WarnContext(
+			ctx,
+			"Request before 2 minutes passed",
+			"service", serviceName,
+			"remaining", remainingTime.String(),
+		)
+		return errs.ErrResend
+	}
+	return nil
 }

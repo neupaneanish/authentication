@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"neupaneanish.com.np/authentication/internal/config"
-	"neupaneanish.com.np/authentication/internal/router"
 	"neupaneanish.com.np/authentication/internal/telemetry"
 	"neupaneanish.com.np/authentication/internal/transport"
 )
@@ -71,14 +70,9 @@ func main() {
 		return
 	}
 
-	httpServerErr := make(chan error, 1)
-	router.NewRouter(ctx, logger, cfg.Jwt, env.HTTPPort, httpServerErr)
-
 	select {
 	case err := <-serverErr:
 		logger.ErrorContext(ctx, "gRPC server failed", "error", err)
-	case err := <-httpServerErr:
-		logger.ErrorContext(ctx, "http server failed", "error", err)
 	case <-ctx.Done():
 		logger.InfoContext(ctx, "Shutting down signal received")
 	}
