@@ -182,10 +182,7 @@ go test -v -tags=integration ./...
 go test -v -tags=benchmark ./...
 go test -v -tags=e2e ./...
 
-# 6. Launch the asynchronous background worker daemon
-go run cmd/worker/main.go
-
-# 7. Launch the local microservice API server
+# 6. Launch the local microservice API server
 # (Note: Requires an active OpenTelemetry collector instance, e.g., SigNoz)
 go run cmd/server/main.go
 ```
