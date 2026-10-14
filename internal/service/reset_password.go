@@ -61,7 +61,7 @@ func (s *ExternalAuthenticationService) ResetPassword(
 	userSession := &utils.UserSession{
 		UserID:   userID,
 		Username: resetSession.Username,
-		Jti:      uuid.Nil().String(),
+		Session:  session,
 	}
 
 	if changeResetPasswordErr := ChangeResetPassword(

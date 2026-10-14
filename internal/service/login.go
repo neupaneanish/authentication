@@ -2,11 +2,12 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
+	authenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/common/authentication/v1"
 
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -38,7 +39,7 @@ func (s *ExternalAuthenticationService) Login(
 		return nil, errs.ErrInternalServer
 	}
 
-	session := rand.Text()
+	tokenSession := utils.GenerateToken(utils.SessionExpiry)
 
 	if row.Status == enum.UserStatusPending && row.EmailVerifiedAt == nil {
 		s.cfg.Logger.WarnContext(ctx, serviceName+" account not verified", "email", email)
@@ -53,8 +54,8 @@ func (s *ExternalAuthenticationService) Login(
 			row.Role,
 			row.Username,
 			row.Email,
-			session,
 			serviceName,
+			tokenSession,
 			enum.MethodLogin,
 			enum.VerificationMethodAccount,
 			row.TwoFactor,
@@ -65,7 +66,7 @@ func (s *ExternalAuthenticationService) Login(
 		return &externalAuthenticationv1.LoginResponse{
 			Response: &externalAuthenticationv1.LoginResponse_Verification{
 				Verification: externalVerification(
-					session,
+					tokenSession,
 					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
 				),
 			},
@@ -98,8 +99,8 @@ func (s *ExternalAuthenticationService) Login(
 			row.Role,
 			row.Username,
 			row.Email,
-			session,
 			serviceName,
+			tokenSession,
 			enum.MethodLogin,
 			enum.VerificationMethodEmail,
 			row.TwoFactor,
@@ -109,7 +110,7 @@ func (s *ExternalAuthenticationService) Login(
 		return &externalAuthenticationv1.LoginResponse{
 			Response: &externalAuthenticationv1.LoginResponse_Verification{
 				Verification: externalVerification(
-					session,
+					tokenSession,
 					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_EMAIL,
 				),
 			},
@@ -123,8 +124,8 @@ func (s *ExternalAuthenticationService) Login(
 			row.Role,
 			row.Username,
 			row.Email,
-			session,
 			serviceName,
+			tokenSession,
 			enum.MethodLogin,
 			enum.VerificationMethodTwoFactor,
 			row.TwoFactor,
@@ -134,24 +135,31 @@ func (s *ExternalAuthenticationService) Login(
 		return &externalAuthenticationv1.LoginResponse{
 			Response: &externalAuthenticationv1.LoginResponse_Verification{
 				Verification: externalVerification(
-					session,
+					tokenSession,
 					externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_TWO_FACTOR,
 				),
 			},
 		}, nil
 	}
 
-	jwt, jwtErr := s.login(ctx, row.ID.String(), string(row.Role), serviceName)
-	if jwtErr != nil {
-		return nil, jwtErr
+	token, tokenErr := login(
+		ctx,
+		row.ID.String(),
+		string(row.Role),
+		row.Username,
+		serviceName,
+		s.cfg.Client,
+		s.cfg.Logger,
+	)
+	if tokenErr != nil {
+		return nil, tokenErr
 	}
 
 	return &externalAuthenticationv1.LoginResponse{
-		Response: &externalAuthenticationv1.LoginResponse_Token{
-			Token: &externalAuthenticationv1.Token{
-				Access:   jwt.Access,
-				Refresh:  jwt.Refresh,
-				ExpireAt: timestamppb.New(jwt.ExpiryAt),
+		Response: &externalAuthenticationv1.LoginResponse_Session{
+			Session: &authenticationv1.Session{
+				Session: token.Session,
+				Expires: timestamppb.New(token.Expires),
 			},
 		},
 	}, nil

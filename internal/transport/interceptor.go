@@ -13,13 +13,12 @@ import (
 	"neupaneanish.com.np/authentication/internal/enum"
 
 	"neupaneanish.com.np/authentication/internal/errs"
-	externalAuthenticationv1 "neupaneanish.com.np/authentication/internal/protobuf/external/authentication/v1"
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
 type MetadataDetails struct {
 	UserID   string
-	Jti      string
+	Session  string
 	Role     string
 	Username string
 }
@@ -145,12 +144,6 @@ func AuthInterceptor(
 		}
 		return ctx, nil
 
-	case isRefreshEndpoint(fullMethod):
-		if hasUserDetail {
-			return authContext(ctx, serviceName, "", userMeta, logger)
-		}
-		return ctx, nil
-
 	default:
 		return ctx, errs.ErrPermissionDenied
 	}
@@ -164,23 +157,19 @@ func metadataDetail(ctx context.Context, header string) string {
 	return value[0]
 }
 
-func isRefreshEndpoint(fullMethod string) bool {
-	return fullMethod == externalAuthenticationv1.ExternalAuthenticationService_Refresh_FullMethodName
-}
-
 func userMetadata(ctx context.Context) (MetadataDetails, bool) {
 	xUserID := metadataDetail(ctx, "x-user-id")
 	xRole := metadataDetail(ctx, "x-role")
-	xJti := metadataDetail(ctx, "x-jti")
+	xSession := metadataDetail(ctx, "x-session")
 	xUsername := metadataDetail(ctx, "x-username")
 
-	if xUserID == "" || xRole == "" || xJti == "" || xUsername == "" {
+	if xUserID == "" || xRole == "" || xSession == "" || xUsername == "" {
 		return MetadataDetails{}, false
 	}
 
 	return MetadataDetails{
 		UserID:   xUserID,
-		Jti:      xJti,
+		Session:  xSession,
 		Role:     xRole,
 		Username: xUsername,
 	}, true
@@ -217,7 +206,7 @@ func authContext(
 	ctx = logging.InjectFields(ctx, logging.Fields{
 		"user_id", meta.UserID,
 		"role", meta.Role,
-		"jti", meta.Jti,
+		"session", meta.Session,
 		"username", meta.Username,
 	})
 
@@ -227,7 +216,7 @@ func authContext(
 		&utils.UserSession{
 			UserID:   userID,
 			Username: meta.Username,
-			Jti:      meta.Jti,
+			Session:  meta.Session,
 		},
 	), nil
 }

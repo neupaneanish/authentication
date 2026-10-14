@@ -15,7 +15,6 @@ type Config struct {
 	Pool          *pgxpool.Pool
 	Client        valkey.Client
 	Logger        *slog.Logger
-	Jwt           *JWT
 	TwoFactor     *TwoFactor
 	RateLimiter   *RateLimiter
 	Repository    repository.Querier
@@ -36,11 +35,6 @@ func NewConfig(
 	client, clientErr := NewValkey(ctx, env.ValkeyURL)
 	if clientErr != nil {
 		return nil, clientErr
-	}
-
-	jwt, jwtErr := NewJWT(ctx, env.JWTKey, env.Issuer, logger)
-	if jwtErr != nil {
-		return nil, jwtErr
 	}
 
 	twoFactor, twoFactorErr := NewTwoFactor(env.TwoFactorKey, env.Issuer)
@@ -64,7 +58,6 @@ func NewConfig(
 		Pool:          pool,
 		Client:        client,
 		Logger:        logger,
-		Jwt:           jwt,
 		TwoFactor:     twoFactor,
 		RateLimiter:   rateLimiter,
 		Repository:    repository.New(pool),

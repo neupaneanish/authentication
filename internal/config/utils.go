@@ -35,21 +35,18 @@ const (
 	resendAccountVerificationUserIDLimiterPrefix  = "limiter:resend:password:verification:userid"
 	resendAccountVerificationSessionLimiterPrefix = "limiter:resend:password:verification:session"
 
-	refreshSessionLimiterPrefix = "limiter:refresh:session"
-	refreshLimiterUserIDPrefix  = "limiter:refresh:userid"
+	refreshLimiterUserIDPrefix = "limiter:refresh:userid"
 
 	passwordWorkflowLimiterPrefix    = "limiter:password:workflow"
 	twoFactorWorkflowLimiterPrefix   = "limiter:two:factor:workflow"
 	changeEmailWorkflowLimiterPrefix = "limiter:change:email:workflow"
 
-	limiterLimit                = 5
-	authenticationLimiterLimit  = 6
-	refreshSessionLimiterLimit  = 2
-	refreshUserIDLimiterLimit   = 4
-	limiterRefreshWindowSession = 15 * time.Minute
-	limiterRefreshWindowUserID  = 30 * time.Minute
-	limiterWindowSession        = 5 * time.Minute
-	limiterWindowUserID         = time.Hour
+	limiterLimit               = 5
+	authenticationLimiterLimit = 6
+	refreshUserIDLimiterLimit  = 2
+	limiterRefreshWindowUserID = 10 * time.Minute
+	limiterWindowSession       = 5 * time.Minute
+	limiterWindowUserID        = time.Hour
 )
 
 func validateKey(key string) (ed25519.PrivateKey, ed25519.PublicKey, error) {

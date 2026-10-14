@@ -25,9 +25,7 @@ type RateLimiter struct {
 
 	ResendPasswordVerification       valkeylimiter.RateLimiterClient
 	ResendPasswordVerificationUserID valkeylimiter.RateLimiterClient
-
-	Refresh       valkeylimiter.RateLimiterClient
-	RefreshUserID valkeylimiter.RateLimiterClient
+	RefreshUserID                    valkeylimiter.RateLimiterClient
 
 	PasswordWorkflow    valkeylimiter.RateLimiterClient
 	TwoFactorWorkflow   valkeylimiter.RateLimiterClient
@@ -72,8 +70,6 @@ func NewRateLimiter(client valkey.Client) (*RateLimiter, error) {
 			limiterLimit,
 			limiterWindowUserID,
 		},
-
-		{&limiter.Refresh, refreshSessionLimiterPrefix, refreshSessionLimiterLimit, limiterRefreshWindowSession},
 		{&limiter.RefreshUserID, refreshLimiterUserIDPrefix, refreshUserIDLimiterLimit, limiterRefreshWindowUserID},
 
 		{&limiter.PasswordWorkflow, passwordWorkflowLimiterPrefix, authenticationLimiterLimit, limiterWindowUserID},

@@ -2,13 +2,12 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
-	"time"
 	"uuid"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/valkey-io/valkey-go/valkeylimiter"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"neupaneanish.com.np/authentication/internal/redpanda"
 
@@ -72,19 +71,22 @@ func (s *GatewayAuthenticationService) PasswordVerification(
 		return nil, errs.ErrInvalidPassword
 	}
 
-	session := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 	if err := s.passwordVerification(
 		ctx,
 		userSession.UserID,
 		row.Email,
-		session,
 		emailType,
 		serviceName,
+		token,
 		securityMethod,
 	); err != nil {
 		return nil, err
 	}
-	return &gatewayAuthenticationv1.PasswordVerificationResponse{Session: session}, nil
+	return &gatewayAuthenticationv1.PasswordVerificationResponse{
+		Session: token.Session,
+		Expires: timestamppb.New(token.Expires),
+	}, nil
 }
 
 func (s *GatewayAuthenticationService) passwordVerificationRateLimiter(
@@ -140,9 +142,9 @@ func (s *GatewayAuthenticationService) passwordVerification(
 	ctx context.Context,
 	userID uuid.UUID,
 	email,
-	session,
 	emailTemplate,
 	serviceName string,
+	token utils.Token,
 	securityMethod enum.SecurityMethod,
 ) error {
 	code, plain, codeErr := GenerateEmailCode(ctx, s.cfg.Logger)
@@ -152,10 +154,10 @@ func (s *GatewayAuthenticationService) passwordVerification(
 
 	data := &utils.PasswordVerificationSession{
 		Key:     userID.String(),
-		ExAt:    time.Now().Add(utils.SessionExpiry),
+		ExAt:    token.Expires,
 		Code:    code,
 		Email:   email,
-		Session: session,
+		Session: token.Session,
 		Method:  string(securityMethod),
 	}
 

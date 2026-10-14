@@ -2,10 +2,11 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 
 	"github.com/jackc/pgx/v5"
+
+	"neupaneanish.com.np/authentication/internal/utils"
 
 	"neupaneanish.com.np/authentication/internal/enum"
 	"neupaneanish.com.np/authentication/internal/errs"
@@ -26,10 +27,10 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 		return nil, limiterErr
 	}
 
-	session := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 	response := &externalAuthenticationv1.ForgetPasswordResponse{
 		Verification: externalVerification(
-			session,
+			token,
 			externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_RESET,
 		),
 	}
@@ -53,8 +54,8 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 			row.Role,
 			row.Username,
 			email,
-			session,
 			serviceName,
+			token,
 			enum.MethodForgetPassword,
 			enum.VerificationMethodAccount,
 			false,
@@ -63,7 +64,7 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 		}
 		return &externalAuthenticationv1.ForgetPasswordResponse{
 			Verification: externalVerification(
-				session,
+				token,
 				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
 			),
 		}, nil
@@ -91,8 +92,8 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 			row.Role,
 			row.Username,
 			email,
-			session,
 			serviceName,
+			token,
 			enum.MethodForgetPassword,
 			enum.VerificationMethodEmail,
 			false,
@@ -102,7 +103,7 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 
 		return &externalAuthenticationv1.ForgetPasswordResponse{
 			Verification: externalVerification(
-				session,
+				token,
 				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_EMAIL,
 			),
 		}, nil
@@ -114,8 +115,8 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 		row.Role,
 		row.Username,
 		email,
-		session,
 		serviceName,
+		token,
 		enum.MethodForgetPassword,
 		enum.VerificationMethodReset,
 		false,

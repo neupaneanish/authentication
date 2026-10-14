@@ -9,7 +9,6 @@ import (
 
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/log/global"
 )
 
 const (
@@ -68,7 +67,7 @@ func NewTelemetry(
 		return nil, nil, handleErr(lpErr)
 	}
 
-	global.SetLoggerProvider(loggerProvider)
+	otel.SetLoggerProvider(loggerProvider)
 	shutdowns = append(shutdowns, loggerProvider.Shutdown)
 
 	logger := otelslog.NewLogger(

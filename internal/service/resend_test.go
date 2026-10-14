@@ -4,8 +4,6 @@ package service_test
 
 import (
 	"crypto/rand"
-	"log/slog"
-	"os"
 	"testing"
 	"time"
 
@@ -14,8 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"neupaneanish.com.np/authentication/internal/redis"
-	"neupaneanish.com.np/authentication/internal/service"
 	"neupaneanish.com.np/authentication/internal/utils"
 
 	"neupaneanish.com.np/authentication/internal/enum"
@@ -37,12 +33,30 @@ func TestResendVerification(t *testing.T) {
 			"test",
 			"test",
 			false,
+			2*time.Minute,
 		)
 		req := &externalAuthenticationv1.ResendRequest{Session: session}
 		res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
 		require.Error(t, err)
 		assert.Nil(t, res)
 		assert.Equal(t, errs.ErrSessionExpired, err)
+	})
+
+	t.Run("Before Time", func(t *testing.T) {
+		t.Parallel()
+		session, _ := seedVerificationSession(
+			t,
+			uuid.NewV7(),
+			enum.MethodForgetPassword,
+			enum.VerificationMethodEmail,
+			false,
+			4*time.Minute,
+		)
+		req := &externalAuthenticationv1.ResendRequest{Session: session}
+		res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.Equal(t, errs.ErrResend, err)
 	})
 
 	t.Run("Rate Limiter Session", func(t *testing.T) {
@@ -72,6 +86,7 @@ func TestResendVerification(t *testing.T) {
 				enum.MethodLogin,
 				enum.VerificationMethodTwoFactor,
 				false,
+				2*time.Minute,
 			)
 			req := &externalAuthenticationv1.ResendRequest{Session: session}
 			res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
@@ -138,7 +153,12 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Rate Limit UserID", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, _, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
+		ctx, _, _ := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodChangePassword,
+			utils.SessionExpiry,
+		)
 		req := &gatewayAuthenticationv1.ResendRequest{Session: rand.Text()}
 
 		for i := range 6 {
@@ -173,6 +193,7 @@ func TestResendPasswordVerification(t *testing.T) {
 			t,
 			uuid.NewV7(),
 			enum.SecurityMethodDisableTwoFactor,
+			utils.SessionExpiry,
 		)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
@@ -186,7 +207,7 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), "test")
+		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), "test", utils.SessionExpiry)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -199,7 +220,12 @@ func TestResendPasswordVerification(t *testing.T) {
 	t.Run("Success Change Password", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
+		ctx, session, _ := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodChangePassword,
+			2*time.Minute,
+		)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -207,12 +233,34 @@ func TestResendPasswordVerification(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, res)
 		assert.NotEmpty(t, res.GetSession())
+	})
+
+	t.Run("Before Time", func(t *testing.T) {
+		t.Parallel()
+		ctx, session, _ := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodEnableTwoFactor,
+			5*time.Minute,
+		)
+
+		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
+		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
+
+		require.Error(t, err)
+		assert.Nil(t, res)
+		assert.Equal(t, errs.ErrResend, err)
 	})
 
 	t.Run("Success Two Factor", func(t *testing.T) {
 		t.Parallel()
 
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodEnableTwoFactor)
+		ctx, session, _ := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodEnableTwoFactor,
+			2*time.Minute,
+		)
 
 		req := &gatewayAuthenticationv1.ResendRequest{Session: session}
 		res, err := gatewayAuthenticationServiceClient.Resend(ctx, req)
@@ -221,42 +269,6 @@ func TestResendPasswordVerification(t *testing.T) {
 		assert.NotNil(t, res)
 		assert.NotEmpty(t, res.GetSession())
 	})
-}
-
-func seedVerificationSession(
-	t *testing.T,
-	userID uuid.UUID,
-	method enum.Method,
-	verificationMethod enum.VerificationMethod,
-	enabledTwoFactor bool,
-) (string, string) {
-	session := rand.Text()
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	code, format, codeErr := service.GenerateEmailCode(t.Context(), logger)
-	require.NoError(t, codeErr)
-
-	data := &utils.VerificationSession{
-		Key:                session,
-		ExAt:               time.Now().Add(utils.SessionExpiry),
-		UserID:             userID.String(),
-		Role:               string(enum.UserRoleUser),
-		Method:             string(method),
-		VerificationMethod: string(verificationMethod),
-		Code:               code,
-		Email:              generateEmail(),
-		EnabledTwoFactor:   enabledTwoFactor,
-	}
-
-	err := redis.HSet[utils.VerificationSession](
-		t.Context(),
-		utils.VerificationSessionPrefix,
-		data,
-		cfg.Client,
-	)
-	require.NoError(t, err)
-
-	return session, format
 }
 
 func successExternalResend(
@@ -265,7 +277,7 @@ func successExternalResend(
 	verificationMethod enum.VerificationMethod,
 ) {
 	t.Helper()
-	session, _ := seedVerificationSession(t, uuid.NewV7(), method, verificationMethod, false)
+	session, _ := seedVerificationSession(t, uuid.NewV7(), method, verificationMethod, false, 2*time.Minute)
 	req := &externalAuthenticationv1.ResendRequest{Session: session}
 	res, err := externalAuthenticationServiceClient.Resend(t.Context(), req)
 	require.NoError(t, err)

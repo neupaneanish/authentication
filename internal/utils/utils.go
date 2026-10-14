@@ -2,6 +2,7 @@ package utils
 
 import (
 	"context"
+	"crypto/rand"
 	"fmt"
 	"log/slog"
 	"time"
@@ -16,9 +17,8 @@ import (
 )
 
 const (
-	SessionExpiry        = time.Minute * 5
-	AccessSessionExpiry  = 15 * time.Minute
-	RefreshSessionExpiry = 7 * 24 * time.Hour
+	SessionExpiry       = time.Minute * 5
+	AccessSessionExpiry = 24 * time.Hour
 
 	EmailCodeBytes          = 4
 	CredentialsHistoryLimit = 5
@@ -27,8 +27,7 @@ const (
 const (
 	systemUsername = "system"
 
-	LoginAccessSessionPrefix          = "login:access:session"
-	LoginRefreshSessionPrefix         = "login:refresh:session"
+	SessionPrefix                     = "session"
 	ResetPasswordSessionPrefix        = "reset:password:session"
 	ChangePasswordSessionPrefix       = "change:password:session"
 	ChangeEmailSessionPrefix          = "change:email:session"
@@ -64,22 +63,13 @@ const (
 	RedpandaRootNotificationTopic          = "root-notification"
 )
 
-type LoginAccessSession struct {
-	Key     string    `json:"key"     valkey:",key"`
-	Ver     int64     `json:"ver"     valkey:",ver"`
-	ExAt    time.Time `json:"exat"    valkey:",exat"`
-	UserID  string    `json:"user_id"`
-	Role    string    `json:"role"`
-	Refresh string    `json:"refresh"`
-}
-
-type LoginRefreshSession struct {
-	Key    string    `json:"key"     valkey:",key"`
-	Ver    int64     `json:"ver"     valkey:",ver"`
-	ExAt   time.Time `json:"exat"    valkey:",exat"`
-	UserID string    `json:"user_id"`
-	Role   string    `json:"role"`
-	ID     string    `json:"id"`
+type Session struct {
+	Key      string    `json:"key"      valkey:",key"`
+	Ver      int64     `json:"ver"      valkey:",ver"`
+	ExAt     time.Time `json:"exat"     valkey:",exat"`
+	UserID   string    `json:"user_id"`
+	Role     string    `json:"role"`
+	Username string    `json:"username"`
 }
 
 type PasswordVerificationSession struct {
@@ -166,12 +156,17 @@ const SessionKey ContextKey = "user_session"
 type UserSession struct {
 	UserID   uuid.UUID
 	Username string
-	Jti      string
+	Session  string
 }
 
 func UserSessionContext(ctx context.Context) *UserSession {
 	session, _ := ctx.Value(SessionKey).(*UserSession)
 	return session
+}
+
+type Token struct {
+	Session string
+	Expires time.Time
 }
 
 func ParsedUUID(ctx context.Context, id, serviceName string, logger *slog.Logger) (uuid.UUID, error) {
@@ -267,4 +262,11 @@ func getUsername(ctx context.Context, userID uuid.UUID, client valkey.Client) (s
 		return "unknown", err
 	}
 	return value, nil
+}
+
+func GenerateToken(duration time.Duration) Token {
+	return Token{
+		Session: rand.Text(),
+		Expires: time.Now().UTC().Add(duration),
+	}
 }

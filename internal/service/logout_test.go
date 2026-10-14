@@ -63,63 +63,37 @@ func TestLogout(t *testing.T) {
 func seedLogout(t *testing.T) context.Context {
 	t.Helper()
 	userID := uuid.NewV7()
-	jti := uuid.NewV7().String()
-	refresh := rand.Text()
+	session := rand.Text()
 
-	accessData := &utils.LoginAccessSession{
-		Key:     jti,
-		ExAt:    time.Now().Add(utils.AccessSessionExpiry),
-		UserID:  userID.String(),
-		Role:    string(enum.UserRoleUser),
-		Refresh: refresh,
+	accessData := &utils.Session{
+		Key:      session,
+		ExAt:     time.Now().Add(utils.AccessSessionExpiry),
+		UserID:   userID.String(),
+		Role:     string(enum.UserRoleUser),
+		Username: rand.Text(),
 	}
 
-	accessHSetErr := redis.HSet[utils.LoginAccessSession](
+	accessHSetErr := redis.HSet[utils.Session](
 		t.Context(),
-		utils.LoginAccessSessionPrefix,
+		utils.SessionPrefix,
 		accessData,
 		cfg.Client,
 	)
 	require.NoError(t, accessHSetErr)
 
-	refreshData := &utils.LoginRefreshSession{
-		Key:    refresh,
-		ExAt:   time.Now().Add(utils.RefreshSessionExpiry),
-		UserID: userID.String(),
-		Role:   string(enum.UserRoleUser),
-		ID:     jti,
-	}
-
-	refreshHSetErr := redis.HSet[utils.LoginRefreshSession](
-		t.Context(),
-		utils.LoginRefreshSessionPrefix,
-		refreshData,
-		cfg.Client,
-	)
-	require.NoError(t, refreshHSetErr)
-
 	sAddAccessErr := redis.SAdd(
 		t.Context(),
-		utils.UserSessionPrefix+userID.String(),
-		jti,
+		utils.SessionPrefix+userID.String(),
+		session,
 		utils.AccessSessionExpiry,
 		cfg.Client,
 	)
 	require.NoError(t, sAddAccessErr)
 
-	isAddRefreshErr := redis.SAdd(
-		t.Context(),
-		utils.UserSessionPrefix+userID.String(),
-		refresh,
-		utils.RefreshSessionExpiry,
-		cfg.Client,
-	)
-	require.NoError(t, isAddRefreshErr)
-
 	md := metadata.Pairs(
 		"x-user-id", userID.String(),
 		"x-role", string(enum.UserRoleUser),
-		"x-jti", jti,
+		"x-session", session,
 		"x-username", rand.Text(),
 	)
 

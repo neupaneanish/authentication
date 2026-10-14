@@ -5,8 +5,6 @@ package service_test
 import (
 	"context"
 	"crypto/rand"
-	"log/slog"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -17,12 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"neupaneanish.com.np/authentication/internal/service"
+	"neupaneanish.com.np/authentication/internal/utils"
 
 	"neupaneanish.com.np/authentication/internal/enum"
-
-	"neupaneanish.com.np/authentication/internal/redis"
-	"neupaneanish.com.np/authentication/internal/utils"
 
 	"neupaneanish.com.np/authentication/internal/errs"
 
@@ -70,7 +65,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 	t.Run("Invalid Method", func(t *testing.T) {
 		t.Parallel()
-		ctx, session, code := seedPasswordSessionVerification(t, uuid.NewV7(), "Test")
+		ctx, session, code := seedPasswordSessionVerification(t, uuid.NewV7(), "Test", utils.SessionExpiry)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
 			Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: code},
@@ -94,7 +89,12 @@ func TestPasswordSessionVerification(t *testing.T) {
 
 	t.Run("Invalid Code for Change and Enable TOTP", func(t *testing.T) {
 		t.Parallel()
-		ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), enum.SecurityMethodChangePassword)
+		ctx, session, _ := seedPasswordSessionVerification(
+			t,
+			uuid.NewV7(),
+			enum.SecurityMethodChangePassword,
+			utils.SessionExpiry,
+		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
 			Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Totp{Totp: "123456"},
@@ -112,6 +112,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 			t,
 			uuid.NewV7(),
 			enum.SecurityMethodDisableTwoFactor,
+			utils.SessionExpiry,
 		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
@@ -163,6 +164,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 			t,
 			uuid.NewV7(),
 			enum.SecurityMethodChangePassword,
+			utils.SessionExpiry,
 		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
@@ -172,7 +174,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 		res, err := gatewayAuthenticationServiceClient.PasswordSessionVerification(ctx, req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.NotEmpty(t, res.GetChangePassword())
+		assert.NotEmpty(t, res.GetPassword())
 	})
 
 	t.Run("Success Email", func(t *testing.T) {
@@ -182,6 +184,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 			t,
 			uuid.NewV7(),
 			enum.SecurityMethodChangeEmail,
+			utils.SessionExpiry,
 		)
 		req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 			Session: session,
@@ -191,7 +194,7 @@ func TestPasswordSessionVerification(t *testing.T) {
 		res, err := gatewayAuthenticationServiceClient.PasswordSessionVerification(ctx, req)
 		require.NoError(t, err)
 		assert.NotNil(t, res)
-		assert.NotEmpty(t, res.GetChangeEmail())
+		assert.NotEmpty(t, res.GetEmail())
 	})
 
 	t.Run("Success Enable", func(t *testing.T) {
@@ -248,44 +251,6 @@ func TestPasswordSessionVerification(t *testing.T) {
 	})
 }
 
-func seedPasswordSessionVerification(
-	t *testing.T,
-	userID uuid.UUID,
-	method enum.SecurityMethod,
-) (context.Context, string, string) {
-	t.Helper()
-
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-
-	email := generateEmail()
-
-	code, _, err := service.GenerateEmailCode(t.Context(), logger)
-	require.NoError(t, err)
-
-	session := rand.Text()
-
-	data := &utils.PasswordVerificationSession{
-		Key:     userID.String(),
-		ExAt:    time.Now().Add(utils.SessionExpiry),
-		Code:    code,
-		Email:   email,
-		Session: session,
-		Method:  string(method),
-	}
-
-	hSetErr := redis.HSet[utils.PasswordVerificationSession](
-		t.Context(),
-		utils.PasswordVerificationSessionPrefix,
-		data,
-		cfg.Client,
-	)
-	require.NoError(t, hSetErr)
-
-	ctx := contextWithValue(t, userID, enum.UserRoleUser)
-
-	return ctx, session, code
-}
-
 func passwordSessionVerificationRateLimiter(
 	t *testing.T,
 	userID uuid.UUID,
@@ -295,7 +260,7 @@ func passwordSessionVerificationRateLimiter(
 	t.Helper()
 
 	for i := range 7 {
-		ctx, _, code := seedPasswordSessionVerification(t, userID, method)
+		ctx, _, code := seedPasswordSessionVerification(t, userID, method, utils.SessionExpiry)
 
 		session := rand.Text()
 
@@ -348,7 +313,7 @@ func passwordSessionVerificationRateLimiter(
 func invalidCode(t *testing.T, method enum.SecurityMethod) {
 	t.Helper()
 
-	ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), method)
+	ctx, session, _ := seedPasswordSessionVerification(t, uuid.NewV7(), method, utils.SessionExpiry)
 	req := &gatewayAuthenticationv1.PasswordSessionVerificationRequest{
 		Session: session,
 		Code:    &gatewayAuthenticationv1.PasswordSessionVerificationRequest_Email{Email: "12345678"},
@@ -369,7 +334,12 @@ func seedPasswordSessionVerificationDisable(t *testing.T, recovery bool) (
 	t.Helper()
 	userID, secret, recoveryCodes := seedTwoFactor(t, recovery)
 
-	ctx, session, _ := seedPasswordSessionVerification(t, userID, enum.SecurityMethodDisableTwoFactor)
+	ctx, session, _ := seedPasswordSessionVerification(
+		t,
+		userID,
+		enum.SecurityMethodDisableTwoFactor,
+		utils.SessionExpiry,
+	)
 	return ctx, session, secret, recoveryCodes
 }
 
@@ -386,7 +356,12 @@ func seedSuccessEnable(t *testing.T) (context.Context, string, string) {
 	)
 	require.NoError(t, seedErr)
 
-	ctx, session, code := seedPasswordSessionVerification(t, userID, enum.SecurityMethodEnableTwoFactor)
+	ctx, session, code := seedPasswordSessionVerification(
+		t,
+		userID,
+		enum.SecurityMethodEnableTwoFactor,
+		utils.SessionExpiry,
+	)
 
 	return ctx, session, code
 }

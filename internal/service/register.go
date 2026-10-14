@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 
 	"uuid"
@@ -125,7 +124,7 @@ func (s *ExternalAuthenticationService) Register(
 		return nil, errs.ErrInternalServer
 	}
 
-	session := rand.Text()
+	token := utils.GenerateToken(utils.SessionExpiry)
 
 	if err := s.verification(
 		ctx,
@@ -133,8 +132,8 @@ func (s *ExternalAuthenticationService) Register(
 		user.Role,
 		user.Username,
 		user.Email,
-		session,
 		serviceName,
+		token,
 		enum.MethodRegister,
 		enum.VerificationMethodAccount,
 		false,
@@ -145,7 +144,7 @@ func (s *ExternalAuthenticationService) Register(
 	userSession := &utils.UserSession{
 		UserID:   user.ID,
 		Username: user.Username,
-		Jti:      uuid.Nil().String(),
+		Session:  token.Session,
 	}
 	redpanda.RootNotificationProduce(
 		ctx,
@@ -161,7 +160,7 @@ func (s *ExternalAuthenticationService) Register(
 
 	return &externalAuthenticationv1.RegisterResponse{
 		Verification: externalVerification(
-			session,
+			token,
 			externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
 		),
 	}, nil

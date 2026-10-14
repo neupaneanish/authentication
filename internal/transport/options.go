@@ -57,12 +57,12 @@ func NewOptions(logger *slog.Logger) ([]grpc.ServerOption, error) {
 		gatewayAuthenticationv1.GatewayAuthenticationService_PasswordSessionVerification_FullMethodName: {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_ConfirmTwoFactor_FullMethodName:            {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_Profile_FullMethodName:                     {},
-		gatewayAuthenticationv1.GatewayAuthenticationService_Role_FullMethodName:                        {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_Logout_FullMethodName:                      {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_LogoutAll_FullMethodName:                   {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_Resend_FullMethodName:                      {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_ChangeEmail_FullMethodName:                 {},
 		gatewayAuthenticationv1.GatewayAuthenticationService_UpdateUsername_FullMethodName:              {},
+		gatewayAuthenticationv1.GatewayAuthenticationService_Refresh_FullMethodName:                     {},
 	}
 
 	rootEndpoints := map[string]struct{}{
