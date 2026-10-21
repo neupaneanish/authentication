@@ -15,20 +15,20 @@ import (
 )
 
 //nolint:funlen
-func (s *ExternalAuthenticationService) ForgetPassword(
+func (s *ExternalAuthenticationService) ForgotPassword(
 	ctx context.Context,
-	req *externalAuthenticationv1.ForgetPasswordRequest,
-) (*externalAuthenticationv1.ForgetPasswordResponse, error) {
-	serviceName := "ForgetPassword"
+	req *externalAuthenticationv1.ForgotPasswordRequest,
+) (*externalAuthenticationv1.ForgotPasswordResponse, error) {
+	serviceName := "ForgotPassword"
 	email := req.GetEmail()
 
-	result, resultErr := s.cfg.RateLimiter.ForgetPassword.Allow(ctx, email)
+	result, resultErr := s.cfg.RateLimiter.ForgotPassword.Allow(ctx, email)
 	if limiterErr := LimiterCheck(ctx, &result, resultErr, serviceName, email, s.cfg.Logger); limiterErr != nil {
 		return nil, limiterErr
 	}
 
 	token := utils.GenerateToken(utils.SessionExpiry)
-	response := &externalAuthenticationv1.ForgetPasswordResponse{
+	response := &externalAuthenticationv1.ForgotPasswordResponse{
 		Verification: externalVerification(
 			token,
 			externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_RESET,
@@ -56,13 +56,13 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 			email,
 			serviceName,
 			token,
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodAccount,
 			false,
 		); err != nil {
 			return nil, err
 		}
-		return &externalAuthenticationv1.ForgetPasswordResponse{
+		return &externalAuthenticationv1.ForgotPasswordResponse{
 			Verification: externalVerification(
 				token,
 				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_ACCOUNT,
@@ -94,14 +94,14 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 			email,
 			serviceName,
 			token,
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodEmail,
 			false,
 		); err != nil {
 			return nil, err
 		}
 
-		return &externalAuthenticationv1.ForgetPasswordResponse{
+		return &externalAuthenticationv1.ForgotPasswordResponse{
 			Verification: externalVerification(
 				token,
 				externalAuthenticationv1.VerificationMethod_VERIFICATION_METHOD_EMAIL,
@@ -117,7 +117,7 @@ func (s *ExternalAuthenticationService) ForgetPassword(
 		email,
 		serviceName,
 		token,
-		enum.MethodForgetPassword,
+		enum.MethodForgotPassword,
 		enum.VerificationMethodReset,
 		false,
 	); err != nil {

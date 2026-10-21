@@ -47,7 +47,7 @@ func TestResendVerification(t *testing.T) {
 		session, _ := seedVerificationSession(
 			t,
 			uuid.NewV7(),
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodEmail,
 			false,
 			4*time.Minute,
@@ -110,19 +110,19 @@ func TestResendVerification(t *testing.T) {
 		successExternalResend(t, enum.MethodLogin, enum.VerificationMethodEmail)
 	})
 
-	t.Run("Success Forget Password Account", func(t *testing.T) {
+	t.Run("Success Forgot Password Account", func(t *testing.T) {
 		t.Parallel()
-		successExternalResend(t, enum.MethodForgetPassword, enum.VerificationMethodAccount)
+		successExternalResend(t, enum.MethodForgotPassword, enum.VerificationMethodAccount)
 	})
 
-	t.Run("Success Forget Password Email", func(t *testing.T) {
+	t.Run("Success Forgot Password Email", func(t *testing.T) {
 		t.Parallel()
-		successExternalResend(t, enum.MethodForgetPassword, enum.VerificationMethodEmail)
+		successExternalResend(t, enum.MethodForgotPassword, enum.VerificationMethodEmail)
 	})
 
-	t.Run("Success Forget Password Reset", func(t *testing.T) {
+	t.Run("Success Forgot Password Reset", func(t *testing.T) {
 		t.Parallel()
-		successExternalResend(t, enum.MethodForgetPassword, enum.VerificationMethodReset)
+		successExternalResend(t, enum.MethodForgotPassword, enum.VerificationMethodReset)
 	})
 }
 

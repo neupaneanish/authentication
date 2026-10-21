@@ -15,7 +15,7 @@ import (
 	"neupaneanish.com.np/authentication/internal/utils"
 )
 
-func TestForgetPasswordE2E(t *testing.T) {
+func TestForgotPasswordE2E(t *testing.T) {
 	t.Parallel()
 
 	ctx := t.Context()
@@ -27,23 +27,23 @@ func TestForgetPasswordE2E(t *testing.T) {
 	require.NoError(t, seedErr)
 	assert.NotNil(t, seedID)
 
-	forgetPasswordParams := &externalAuthenticationv1.ForgetPasswordRequest{Email: email}
-	forgetPasswordRes, forgetPasswordResErr := externalAuthenticationServiceClient.ForgetPassword(
+	ForgotPasswordParams := &externalAuthenticationv1.ForgotPasswordRequest{Email: email}
+	ForgotPasswordRes, ForgotPasswordResErr := externalAuthenticationServiceClient.ForgotPassword(
 		ctx,
-		forgetPasswordParams,
+		ForgotPasswordParams,
 	)
-	require.NoError(t, forgetPasswordResErr)
+	require.NoError(t, ForgotPasswordResErr)
 
 	hGet, hGetErr := redis.HGet[utils.VerificationSession](
 		ctx,
 		utils.VerificationSessionPrefix,
-		forgetPasswordRes.GetVerification().GetSession(),
+		ForgotPasswordRes.GetVerification().GetSession(),
 		cfg.Client,
 	)
 	require.NoError(t, hGetErr)
 
 	verificationParams := &externalAuthenticationv1.VerificationRequest{
-		Session: forgetPasswordRes.GetVerification().GetSession(),
+		Session: ForgotPasswordRes.GetVerification().GetSession(),
 		Code:    &externalAuthenticationv1.VerificationRequest_Email{Email: hGet.Code},
 	}
 

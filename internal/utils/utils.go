@@ -37,7 +37,7 @@ const (
 	VerificationSessionPrefix         = "verification:session"
 
 	EmailTemplateAccountVerification    = "account-verification"
-	EmailTemplateForgetPassword         = "forget-password"
+	EmailTemplateForgotPassword         = "forgot-password"
 	EmailTemplateEmailVerification      = "email-verification"
 	EmailTemplatePasswordReset          = "password-reset"
 	EmailTemplateChangePassword         = "change-password"
