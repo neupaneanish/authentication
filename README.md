@@ -54,7 +54,7 @@ Distributed Authentication Microservice with Go, gRPC, PostgreSQL, and Valkey.
 
 - [X] Register
 - [X] Login
-- [X] Forget Password
+- [X] Forgot Password
 - [X] Verification
 - [X] Reset Password
 - [X] Resend
@@ -146,11 +146,11 @@ flowchart TD
     H --> F
 ```
 
-### Forget Password
+### Forgot Password
 
 ```mermaid
 flowchart TD
-    A[Forget Password] --> B{Account Verified?}
+    A[Forgot Password] --> B{Account Verified?}
     B -->|No| E[Send Verification code]
     B -->|Yes| C{Email Verified?}
     C -->|No| E
@@ -198,7 +198,7 @@ go run cmd/server/main.go
 | Register                                 | None        | None          | None        | None          |
 | Login                                    | Email       | 5 / 5 Min     | None        | None          |
 | Verification                             | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
-| Forget Password                          | Email       | 5 / 5 Min     | None        | None          |
+| Forgot Password                          | Email       | 5 / 5 Min     | None        | None          |
 | Reset Password                           | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |
 | Refresh                                  | Refresh     | 2 / 15 Min    | UserID      | 4 / 30 Min    |
 | Change Password                          | Session     | 5 / 5 Min     | UserID      | 5 / 30 Min    |

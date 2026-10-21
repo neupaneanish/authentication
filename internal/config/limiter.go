@@ -9,7 +9,7 @@ import (
 
 type RateLimiter struct {
 	Login          valkeylimiter.RateLimiterClient
-	ForgetPassword valkeylimiter.RateLimiterClient
+	ForgotPassword valkeylimiter.RateLimiterClient
 
 	Verification          valkeylimiter.RateLimiterClient
 	VerificationAccount   valkeylimiter.RateLimiterClient
@@ -44,7 +44,7 @@ func NewRateLimiter(client valkey.Client) (*RateLimiter, error) {
 
 	tasks := []limiterTask{
 		{&limiter.Login, loginLimiterSessionPrefix, limiterLimit, limiterWindowSession},
-		{&limiter.ForgetPassword, fpLimiterSessionPrefix, limiterLimit, limiterWindowSession},
+		{&limiter.ForgotPassword, fpLimiterSessionPrefix, limiterLimit, limiterWindowSession},
 
 		{&limiter.Verification, verificationSessionLimiterPrefix, limiterLimit, limiterWindowSession},
 		{&limiter.VerificationAccount, verificationAccountUserIDLimiterPrefix, limiterLimit, limiterWindowUserID},

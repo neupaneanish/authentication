@@ -18,7 +18,7 @@ const (
 	production  = "production"
 
 	loginLimiterSessionPrefix = "limiter:login:session"
-	fpLimiterSessionPrefix    = "limiter:forget:password:session"
+	fpLimiterSessionPrefix    = "limiter:forgot:password:session"
 
 	verificationSessionLimiterPrefix         = "limiter:verification:session"
 	verificationAccountUserIDLimiterPrefix   = "limiter:verification:account:userid"

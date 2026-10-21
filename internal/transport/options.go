@@ -45,7 +45,7 @@ func NewOptions(logger *slog.Logger) ([]grpc.ServerOption, error) {
 	externalEndpoints := map[string]struct{}{
 		externalAuthenticationv1.ExternalAuthenticationService_Register_FullMethodName:       {},
 		externalAuthenticationv1.ExternalAuthenticationService_Login_FullMethodName:          {},
-		externalAuthenticationv1.ExternalAuthenticationService_ForgetPassword_FullMethodName: {},
+		externalAuthenticationv1.ExternalAuthenticationService_ForgotPassword_FullMethodName: {},
 		externalAuthenticationv1.ExternalAuthenticationService_Verification_FullMethodName:   {},
 		externalAuthenticationv1.ExternalAuthenticationService_ResetPassword_FullMethodName:  {},
 		externalAuthenticationv1.ExternalAuthenticationService_Resend_FullMethodName:         {},

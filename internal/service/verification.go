@@ -103,8 +103,8 @@ func (s *ExternalAuthenticationService) Verification(
 			s.deleteVerificationSession(ctx, session, serviceName)
 			return nil, errs.ErrSessionExpired
 		}
-	case enum.MethodForgetPassword:
-		return s.verificationForgetPassword(ctx, req, verificationSession, userID, serviceName)
+	case enum.MethodForgotPassword:
+		return s.verificationForgotPassword(ctx, req, verificationSession, userID, serviceName)
 	case enum.MethodRegister:
 		return s.verificationRegister(ctx, req, verificationSession, userID, serviceName)
 	default:
@@ -355,7 +355,7 @@ func (s *ExternalAuthenticationService) verificationTwoFactor(
 	}
 }
 
-func (s *ExternalAuthenticationService) verificationForgetPassword(
+func (s *ExternalAuthenticationService) verificationForgotPassword(
 	ctx context.Context,
 	req *externalAuthenticationv1.VerificationRequest,
 	verificationSession *utils.VerificationSession,
@@ -380,7 +380,7 @@ func (s *ExternalAuthenticationService) verificationForgetPassword(
 			verificationSession.Username,
 			serviceName,
 			token,
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodReset,
 			verificationSession.EnabledTwoFactor,
 		); err != nil {

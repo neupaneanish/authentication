@@ -24,8 +24,8 @@ func TestMethod(t *testing.T) {
 			want:   true,
 		},
 		{
-			name:   "Valid forget password",
-			method: enum.MethodForgetPassword,
+			name:   "Valid forgot password",
+			method: enum.MethodForgotPassword,
 			want:   true,
 		},
 		{

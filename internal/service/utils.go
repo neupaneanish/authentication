@@ -350,7 +350,7 @@ func (s *ExternalAuthenticationService) verification(
 	case enum.VerificationMethodEmail:
 		emailTemplate = utils.EmailTemplateEmailVerification
 	case enum.VerificationMethodReset:
-		emailTemplate = utils.EmailTemplateForgetPassword
+		emailTemplate = utils.EmailTemplateForgotPassword
 	case enum.VerificationMethodTwoFactor:
 		emailTemplate = utils.EmailTemplateEnableTwoFactor // Two Factor doesn't send email, its only placeholder
 	default:

@@ -100,7 +100,7 @@ func TestVerification(t *testing.T) {
 		verificationRateLimiter(
 			t,
 			uuid.NewV7(),
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodReset,
 			false,
 		)
@@ -144,7 +144,7 @@ func TestVerification(t *testing.T) {
 		session, code := seedVerificationSession(
 			t,
 			uuid.NewV7(),
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			"test",
 			false,
 			utils.SessionExpiry,
@@ -336,24 +336,24 @@ func TestVerification(t *testing.T) {
 		assert.NotEmpty(t, res.GetSession().GetSession())
 	})
 
-	// Forget
-	t.Run("Forget Password Method No User Account", func(t *testing.T) {
+	// Forgot
+	t.Run("Forgot Password Method No User Account", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, uuid.NewV7(), enum.MethodForgetPassword, enum.VerificationMethodAccount)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodForgotPassword, enum.VerificationMethodAccount)
 	})
 
-	t.Run("Forget Password Method No User Email", func(t *testing.T) {
+	t.Run("Forgot Password Method No User Email", func(t *testing.T) {
 		t.Parallel()
-		verificationNoUser(t, uuid.NewV7(), enum.MethodForgetPassword, enum.VerificationMethodEmail)
+		verificationNoUser(t, uuid.NewV7(), enum.MethodForgotPassword, enum.VerificationMethodEmail)
 	})
 
-	t.Run("Forget Password Method Two Factor Error", func(t *testing.T) {
+	t.Run("Forgot Password Method Two Factor Error", func(t *testing.T) {
 		t.Parallel()
 
 		session, code := seedVerificationSession(
 			t,
 			uuid.NewV7(),
-			enum.MethodForgetPassword,
+			enum.MethodForgotPassword,
 			enum.VerificationMethodTwoFactor,
 			true,
 			utils.SessionExpiry,
@@ -369,22 +369,22 @@ func TestVerification(t *testing.T) {
 		assert.Equal(t, errs.ErrSessionExpired, err)
 	})
 
-	t.Run("Forget Password Invalid Code Type", func(t *testing.T) {
+	t.Run("Forgot Password Invalid Code Type", func(t *testing.T) {
 		t.Parallel()
-		verificationInvalidCodeType(t, enum.MethodForgetPassword, enum.VerificationMethodAccount)
+		verificationInvalidCodeType(t, enum.MethodForgotPassword, enum.VerificationMethodAccount)
 	})
 
-	t.Run("Forget Password Method Account Success", func(t *testing.T) {
+	t.Run("Forgot Password Method Account Success", func(t *testing.T) {
 		t.Parallel()
 
-		res := successVerification(t, enum.MethodForgetPassword, enum.VerificationMethodEmail, enum.UserStatusPending)
+		res := successVerification(t, enum.MethodForgotPassword, enum.VerificationMethodEmail, enum.UserStatusPending)
 		assert.NotEmpty(t, res.GetVerification().GetSession())
 	})
 
-	t.Run("Forget Password Method Email Success", func(t *testing.T) {
+	t.Run("Forgot Password Method Email Success", func(t *testing.T) {
 		t.Parallel()
 
-		res := successVerification(t, enum.MethodForgetPassword, enum.VerificationMethodEmail, enum.UserStatusActive)
+		res := successVerification(t, enum.MethodForgotPassword, enum.VerificationMethodEmail, enum.UserStatusActive)
 		assert.NotEmpty(t, res.GetVerification().GetSession())
 	})
 }

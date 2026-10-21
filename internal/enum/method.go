@@ -4,13 +4,13 @@ type Method string
 
 const (
 	MethodLogin          Method = "login"
-	MethodForgetPassword Method = "forgetPassword"
+	MethodForgotPassword Method = "forgotPassword"
 	MethodRegister       Method = "register"
 )
 
 func (m Method) Valid() bool {
 	switch m {
-	case MethodLogin, MethodForgetPassword, MethodRegister:
+	case MethodLogin, MethodForgotPassword, MethodRegister:
 		return true
 	default:
 		return false
