@@ -146,6 +146,9 @@ func (s *ExternalAuthenticationService) Register(
 		Username: user.Username,
 		Session:  token.Session,
 	}
+
+	setUsername(ctx, user.ID.String(), user.Username, serviceName, s.cfg.Client, s.cfg.Logger)
+
 	redpanda.RootNotificationProduce(
 		ctx,
 		userSession,
