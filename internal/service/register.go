@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-
 	"uuid"
 
 	"github.com/jackc/pgerrcode"
@@ -32,7 +31,7 @@ func (s *ExternalAuthenticationService) Register(
 
 	phoneNumber, phoneNumberErr := utils.PhoneNumber(req.GetPhone())
 	if phoneNumberErr != nil {
-		s.cfg.Logger.WarnContext(ctx, serviceName+" invalid phone", "phone", req.GetPhone())
+		s.cfg.Logger.WarnContext(ctx, "invalid phone", "service", serviceName, "phone", req.GetPhone())
 		return nil, errs.ErrInvalidPhone
 	}
 

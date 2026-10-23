@@ -1,4 +1,4 @@
-//go:build integration
+//go:build integration || e2e || benchmark
 
 package service_test
 
