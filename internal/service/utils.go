@@ -467,7 +467,7 @@ func (s *RootAuthenticationService) updateRoleStatusUsername(
 }
 
 func setUsername(ctx context.Context, userID, username, service string, client valkey.Client, logger *slog.Logger) {
-	key := fmt.Sprintf("user:username:%s", userID)
+	key := fmt.Sprintf("username:%s", userID)
 	cmd := client.B().Set().Key(key).Value(username).Build()
 	if err := client.Do(ctx, cmd).Error(); err != nil {
 		logger.ErrorContext(ctx, "Failed to update username", "service", service, "username", username, "error", err)
