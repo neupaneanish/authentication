@@ -39,12 +39,12 @@ func LimiterCheck(
 	logger *slog.Logger,
 ) error {
 	if resultErr != nil {
-		logger.ErrorContext(ctx, serviceName+" limiter", "error", resultErr)
+		logger.ErrorContext(ctx, "limiter", "service", serviceName, "error", resultErr)
 		return errs.ErrInternalServer
 	}
 
 	if !result.Allowed {
-		logger.WarnContext(ctx, serviceName+" limit exceed", "remaining", result.Remaining, "data", value)
+		logger.WarnContext(ctx, "limit exceed", "service", serviceName, "remaining", result.Remaining, "data", value)
 		return errs.ErrTooManyRequest
 	}
 	return nil
@@ -71,13 +71,13 @@ func login(
 
 	hSetErr := redis.HSet[utils.Session](ctx, utils.SessionPrefix, accessSession, client)
 	if hSetErr != nil {
-		logger.ErrorContext(ctx, serviceName+" Valkey Access HSet", "error", hSetErr)
+		logger.ErrorContext(ctx, "Valkey Access HSet", "service", serviceName, "error", hSetErr)
 		return nil, errs.ErrInternalServer
 	}
 
 	if err := redis.SAdd(
 		ctx,
-		utils.SessionPrefix+userID,
+		utils.UserSessionPrefix+userID,
 		token.Session,
 		utils.AccessSessionExpiry,
 		client,
@@ -310,7 +310,7 @@ func AffectedRowCheck(
 }
 
 func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Client, logger *slog.Logger) {
-	keys, keysErr := redis.SMembers(ctx, utils.SessionPrefix+userID, client)
+	keys, keysErr := redis.SMembers(ctx, utils.UserSessionPrefix+userID, client)
 	if keysErr != nil {
 		logger.ErrorContext(ctx, "Valkey SMembers failed", "service", serviceName, "error", keysErr)
 		return
@@ -320,7 +320,7 @@ func LogoutAll(ctx context.Context, userID, serviceName string, client valkey.Cl
 		_ = redis.HDelete[utils.Session](ctx, utils.SessionPrefix, key, client)
 	}
 
-	if err := redis.Del(ctx, utils.SessionPrefix+userID, client); err != nil {
+	if err := redis.Del(ctx, utils.UserSessionPrefix+userID, client); err != nil {
 		logger.ErrorContext(ctx, "Valkey Del set failed", "service", serviceName, "error", err)
 		return
 	}
