@@ -71,6 +71,7 @@ func NewOptions(logger *slog.Logger) ([]grpc.ServerOption, error) {
 		rootAuthenticationv1.RootAuthenticationService_UpdateUsername_FullMethodName: {},
 		rootAuthenticationv1.RootAuthenticationService_User_FullMethodName:           {},
 		rootAuthenticationv1.RootAuthenticationService_Users_FullMethodName:          {},
+		rootAuthenticationv1.RootAuthenticationService_Counts_FullMethodName:         {},
 	}
 
 	authFunc := func(ctx context.Context) (context.Context, error) {
